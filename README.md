@@ -15,6 +15,7 @@
 3. Get all svelte packages and npm dependencies
 ```cmd
 cd ./frontend
+> Create folder structure public/assets/css
 npm install
 cd ../
 ```
