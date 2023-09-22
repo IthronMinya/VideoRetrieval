@@ -22,13 +22,26 @@
     }
   }
 
+  let prev_scores = [];
+  
+  let scores = [];
+
   let rand = -1;
+
+  let lion_text_query = "";
 
   // demonstration of python backend call syntax
   function getRand() {
     fetch("./rand")
       .then(d => d.text())
       .then(d => (rand = Number(d)));
+
+  }
+
+  async function get_scores_by_text() {
+    await fetch("./search_clip_text")
+      .then(d => d.text())
+      .then(d => console.log(d));
 
   }
 
@@ -41,7 +54,8 @@
     <div class='menu'>
       <h4 class="menu_item">Rerank images based on different metrics</h4>
       <div class='buttons'>
-        <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
+        <input bind:value={lion_text_query} />
+        <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
           <Label>CLIP Text Query</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
