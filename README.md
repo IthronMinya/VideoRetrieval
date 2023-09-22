@@ -5,12 +5,10 @@
 
 1. Create Python virtual enviroment and install requirements.txt
    - when you restart your workspace you will need to activate it again, just run the second line
-
-   > first we create venv from our python installation
    ```cmd
    python -m venv venv
    venv\Scripts\activate
-   pip install -r requirements.txt #Here are just
+   pip install -r requirements.txt
    ```
    > after that we activate it and install needed dependencies
 
