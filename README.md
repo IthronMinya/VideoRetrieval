@@ -8,7 +8,7 @@
 
    > first we create venv from our python installation
    ```cmd
-   ~\AppData\Local\Programs\Python\Python311\python -m venv venv
+   python -m venv venv
    venv\Scripts\activate
    pip install -r requirements.txt #Here are just
    ```
