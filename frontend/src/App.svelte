@@ -39,7 +39,7 @@
   }
 
   async function get_scores_by_text() {
-    await fetch("./search_clip_text")
+    await fetch("./search_clip_text?text="+lion_text_query)
       .then(d => d.text())
       .then(d => console.log(d));
 

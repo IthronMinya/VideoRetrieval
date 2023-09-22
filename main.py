@@ -1,5 +1,4 @@
 import mimetypes
-from typing import List
 mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/json', '.mjs')
 mimetypes.add_type('text/css', '.css')
@@ -10,15 +9,17 @@ import sys
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
 import random
 
 import requests
+
 import open_clip
 import torch
 
 import numpy as np
 import numpy.typing as npt
-
+from typing import List
 
 from threading import Lock
 
@@ -49,12 +50,15 @@ class ScoreManager:
 
 app = FastAPI()
 
+# TODO initialize with real length of score vector
 score_manager = ScoreManager(100)
 
 model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k')
 
+tokenizer = open_clip.get_tokenizer('ViT-B-32')
+
 # TODO load image feature vectors from server
-image_feature_vectors = None
+image_feature_vectors = np.zeros((5, 512), dtype=np.float64)
 
 app.mount("/assets", StaticFiles(directory="public/assets"), name="static")
 
@@ -83,9 +87,7 @@ async def hello():
 @app.get("/search_clip_text")
 async def search_clip_text(text: str):
 
-    print(text)
-
-    return 5
+    text = tokenizer([text])
 
     with torch.no_grad():
         text_features = model.encode_text(text)
@@ -102,15 +104,12 @@ async def search_clip_image(image_id: int):
     print(image_id)
     
     # TODO get full size image from server
-
     img = preprocess(img).unsqueeze(0)
 
     with torch.no_grad():
         image_features = model.encode_image(img)
         image_features /= image_features.norm(dim=-1, keepdim=True)
         image_features = image_features[0]
-
-    global image_feature_vectors
 
     score_manager.from_array(cosine_sim(image_features, image_feature_vectors.T).astype(np.float64))
 
@@ -127,9 +126,6 @@ async def send_result(image_id: int):
 
 @app.get("/bayes_update")
 async def bayes_update(selected_ids: List[int], top_display: List[int]):
-
-    global score_manager
-    global image_feature_vectors
 
     negative_examples = image_feature_vectors[[item for item in top_display if item not in selected_ids]]
     positive_examples = image_feature_vectors[selected_ids]
