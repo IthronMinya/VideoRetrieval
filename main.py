@@ -23,6 +23,8 @@ from typing import List
 
 from threading import Lock
 
+from PIL import Image
+
 class ScoreManager:
     def __init__(self, length):
         self.scores = np.zeros(length, dtype=np.float64)
@@ -100,10 +102,12 @@ async def search_clip_text(text: str):
 
 @app.get("/search_clip_image")
 async def search_clip_image(image_id: int):
-
-    print(image_id)
     
+    print(image_id)
+
     # TODO get full size image from server
+    img = Image.new('RGB', (512, 512))
+
     img = preprocess(img).unsqueeze(0)
 
     with torch.no_grad():
@@ -120,11 +124,13 @@ async def send_result(image_id: int):
 
     my_obj = {'team': "VBS", 'item': image_id}
 
+    print(image_id)
+
     x = requests.get(url="https://siret.ms.mff.cuni.cz/lokoc/VBSEval/EndPoint.php", params=my_obj, verify=False)
 
     print(x.text)
 
-@app.get("/bayes_update")
+@app.post("/bayes_update")
 async def bayes_update(selected_ids: List[int], top_display: List[int]):
 
     negative_examples = image_feature_vectors[[item for item in top_display if item not in selected_ids]]
