@@ -10,9 +10,11 @@
 
   import { lazyLoad } from './lib/lazyload.js'
 	
+  var image_border_states = {};
+
 	// grab some place holder images
-  async function fetchData() {
-    const res = await fetch("https://jsonplaceholder.typicode.com/photos?_start=0&_limit=100");
+  async function fetchData(image_ids) {
+    const res = await fetch("https://jsonplaceholder.typicode.com/photos?_start=0&_limit=1000");
     const data = await res.json();
 
     if (res.ok) {
@@ -26,46 +28,73 @@
   
   let scores = [];
 
-  let rand = -1;
-
   let lion_text_query = "";
 
-  // demonstration of python backend call syntax
-  function getRand() {
-    fetch("./rand")
-      .then(d => d.text())
-      .then(d => (rand = Number(d)));
+  let selected_images = [];
 
-  }
-
+  // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
   async function get_scores_by_text() {
     await fetch("./search_clip_text?text="+lion_text_query)
       .then(d => d.text())
       .then(d => console.log(d));
+  }
 
+  // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
+  async function get_scores_by_image() {
+
+    if (selected_images.length == 0){
+      // TODO make a popup alert and do nothing
+      return null;
+    }
+
+    await fetch("./search_clip_image?text="+selected_images.slice(-1))
+      .then(d => d.text())
+      .then(d => console.log(d));
   }
 
   let clicked = 0;
+
+  let display = {};
+
+  function load_display() {
+    display = {};
+  }
+
+  let image_ids = [];
+
+  function imageClick(image_id) {
+    image_border_states[image_id] = !image_border_states[image_id];
+
+    if (image_border_states[image_id]){
+      selected_images.push(image_id);
+    }else{
+      selected_images = selected_images.filter(e => e !== image_id);
+    }
+    
+    console.log(image_id);
+
+    console.log(selected_images);
+  }
 
 </script>
 
 <main>
   <div class='viewbox'>
     <div class='menu'>
-      <h4 class="menu_item">Rerank images based on different metrics</h4>
+      <h3 class="menu_item">Rerank Images</h3>
       <div class='buttons'>
-        <input bind:value={lion_text_query} />
+        <input class="menu_item menu_button" bind:value={lion_text_query} /><br>
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
-          <Label>CLIP Text Query</Label>
+          <Label>Submit Text Query</Label>
         </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
-          <Label>CLIP Similar Images</Label>
+        <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_image} variant="raised">
+          <Label>Similar Images</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Bayes Update</Label>
         </Button><br><br>
         <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Sent Selected Images</Label>
+          <Label>Send Selected Images</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Reset Last Action</Label>
@@ -73,69 +102,34 @@
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Reset All Actions</Label>
         </Button>
+        <!-- <button on:click={load_display}>Restart</button> -->
       </div>
     </div>
     
     <div class="separator">
       <p> </p>
     </div>
-    <!-- PLACE IMAGES WITHIN SUCH CARDS USING BACKEND! For now dummy content ahead -->
+    <!-- dummy content ahead -->
+    {#key display}
     <div id='image_container'>
       <LayoutGrid>
-        {#await fetchData()}
+        {#await fetchData(image_ids)}
             <p>loading</p>
         {:then items}
           {#each items as image}
-            <Cell>
-              <div class="card-display">
-                <div class="card-container">
-                  <Card>
-                    <PrimaryAction on:click={() => clicked++}>
-                      <img use:lazyLoad={image.url} alt={image.title} />
-                      <Content class="mdc-typography--body2">
-                        And some info text. And the media and info text are a primary action
-                        for the card.
-                      </Content>
-                    </PrimaryAction>
-                  </Card>
-                </div>
-              </div>
-            </Cell>
+            <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : ''}" on:click={() => imageClick(image.id)} >
+              <img use:lazyLoad={image.url} alt={image.id} />
+            </PrimaryAction>
           {/each}
         {:catch error}
           <p style="color: red">{error.message}</p>
         {/await}
       </LayoutGrid>
     </div>
+    {/key}
   </div>
 </main>
 
 <style>
-.card-display {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: stretch;
-}
-
-.card-container {
-  display: inline-flex;
-  /* justify-content: center; */
-  align-items: center;
-  min-height: 200px;
-  max-width: 100%;
-  overflow-x: auto;
-  background-color: var(--mdc-theme-background, #f8f8f8);
-  border: 1px solid
-    var(--mdc-theme-text-hint-on-background, rgba(0, 0, 0, 0.1));
-
-  padding: 20px;
-
-  margin-right: 20px;
-  margin-bottom: 20px;
-}
-
-.card-container {
-  margin: 0 auto;
-}
 
 </style>
