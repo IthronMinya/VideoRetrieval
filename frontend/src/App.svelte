@@ -34,7 +34,7 @@
 
   let selected_images = [];
 
-  let num_top_display = 200;
+  let num_top_display = 4;
 
   // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
   async function get_scores_by_text() {

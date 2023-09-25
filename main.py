@@ -40,7 +40,8 @@ class ScoreManager:
 
     def normalize_scores(self):
         with self.lock:
-            self.scores /= np.max(self.scores)
+            if np.max(self.scores) != 0.0:
+                self.scores /= np.max(self.scores)
 
     def get_scores(self) -> List[np.float64]:
         with self.lock:
@@ -53,7 +54,7 @@ class ScoreManager:
 app = FastAPI()
 
 # TODO initialize with real length of score vector
-score_manager = ScoreManager(100)
+score_manager = ScoreManager(5)
 
 model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k')
 
@@ -144,8 +145,10 @@ async def bayes_update(selected_ids: List[int], top_display: List[int]):
         PF = np.sum(np.exp(- (1 - cosine_sim(feature_vector, positive_examples.T)) / alpha))
         NF = np.sum(np.exp(- (1 - cosine_sim(feature_vector, negative_examples.T)) / alpha))
 
-        score_manager.change_score(score_manager.get_score(i) * PF / NF)
+        score_manager.change_score(i, score_manager.get_score(i) * PF / NF)
 
     score_manager.normalize_scores()
+
+    print(score_manager.get_scores())
 
     return score_manager.get_scores()
