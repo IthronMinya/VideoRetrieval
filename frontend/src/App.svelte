@@ -12,6 +12,8 @@
 	
   var image_border_states = {};
 
+  var image_hover_states = {image_hover_states};
+
   var num_image = 1000;
 
 	// grab some place holder images
@@ -30,7 +32,9 @@
   
   let scores = [];
 
-  let lion_text_query = "";
+  let lion_text_query = "text query";
+
+  let custom_result = "custom text";
 
   let selected_images = [];
 
@@ -100,6 +104,7 @@
 
     for(var id of image_ids){
       image_border_states[id] = false;
+      image_hover_states[id] = false;
     }
   }
 
@@ -145,7 +150,11 @@
         </Button><br><br>
         <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
           <Label>Send Selected Images</Label>
-        </Button>
+        </Button><br><br>
+        <input class="menu_item menu_button" bind:value={custom_result} /><br>
+        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
+          <Label>Send custom text</Label>
+        </Button><br><br>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Reset Last Action</Label>
         </Button>
@@ -167,8 +176,11 @@
             <p>loading</p>
         {:then items}
           {#each items as image}
-            <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : ''}" on:click={() => imageClick(image.id)} >
-              <img use:lazyLoad={image.url} alt={image.id} />
+            <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : ''}" on:click={() => imageClick(image.id) }  on:mouseover={() => (image_hover_states[image.id] = true)} on:mouseout={() => (image_hover_states[image.id] = false)} >
+              <img class="images" use:lazyLoad={image.url} alt={image.id}/>
+              {#if image_hover_states[image.id]}
+                <button class="hoverbutton">Send</button>
+              {/if}
             </PrimaryAction>
           {/each}
         {:catch error}
@@ -181,5 +193,17 @@
 </main>
 
 <style>
+
+.hoverbutton{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+}
 
 </style>
