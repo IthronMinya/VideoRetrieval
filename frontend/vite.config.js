@@ -30,7 +30,8 @@ export default defineConfig({
 
               return 'assets/[name]-[hash].[ext]';
            },
-        }
+        },
+        external: ['chart.js']
      }     
   }
 })

@@ -10,6 +10,18 @@
 
   import { lazyLoad } from './lib/lazyload.js'
   import Dropzone from "svelte-file-dropzone/Dropzone.svelte";
+  import { Pie } from 'svelte-chartjs';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
 
   let files = {
     accepted: [],
@@ -207,12 +219,38 @@
     load_display()
   }
 
+  const data = {
+    labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
+    datasets: [
+      {
+        data: [2000, 1000, 150, 500, 350],
+        backgroundColor: [
+          '#F7464A',
+          '#46BFBD',
+          '#FDB45C',
+          '#949FB1',
+          '#4D5360',
+          '#AC64AD',
+        ],
+        hoverBackgroundColor: [
+          '#FF5A5E',
+          '#5AD3D1',
+          '#FFC870',
+          '#A8B3C5',
+          '#616774',
+          '#DA92DB',
+        ],
+      },
+    ],
+  };
+
 </script>
 
 <main>
   <div class='viewbox'>
     <div class='menu'>
-      <h3 class="menu_item">Re-Rank Images</h3>
+      <br>
+      <!-- <h3 class="menu_item">Re-Rank Images</h3> -->
       <div class='buttons'>
         <input class="menu_item menu_button" bind:value={lion_text_query} /><br>
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
@@ -253,6 +291,10 @@
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
           <Label>Reset All Actions</Label>
+        </Button>
+        <Pie {data} options={{ responsive: true }} /><br>
+        <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
+          <Label>Must Contain Selected Classes</Label>
         </Button>
         <!-- <button on:click={load_display}>Restart</button> -->
       </div>
