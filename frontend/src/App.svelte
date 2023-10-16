@@ -1,28 +1,29 @@
 <script>
   import Button, { Label } from '@smui/button';
+  // @ts-ignore
+  // @ts-ignore
   import LayoutGrid, { Cell } from '@smui/layout-grid';
+  // @ts-ignore
+  import Select, { Option } from '@smui/select';
+
+  // @ts-ignore
+  // @ts-ignore
   import Card, {
+      // @ts-ignore
+      // @ts-ignore
       Content,
       PrimaryAction,
+      // @ts-ignore
+      // @ts-ignore
       Media,
+      // @ts-ignore
+      // @ts-ignore
       MediaContent,
     } from '@smui/card';
 
   import { lazyLoad } from './lib/lazyload.js'
   import Dropzone from "svelte-file-dropzone/Dropzone.svelte";
-  import { Pie } from 'svelte-chartjs';
-
-  import {
-    Chart as ChartJS,
-    Title,
-    Tooltip,
-    Legend,
-    ArcElement,
-    CategoryScale,
-  } from 'chart.js';
-
-  ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
-
+ 
   let files = {
     accepted: [],
     rejected: []
@@ -33,7 +34,10 @@
     files.accepted = [...files.accepted, ...acceptedFiles];
     files.rejected = [...files.rejected, ...fileRejections];
 
-    console.log(files.accepted);	  
+    console.log(files.accepted);
+    document.getElementById("filedrop-box").style.width = "50%";
+    document.getElementById("filedrop-box").style.float = "left";
+    document.getElementById("filedrop-box").style.marginBottom = "7.5px";
   }
 
   var image_border_states = {};
@@ -42,19 +46,77 @@
 
   var num_image = 1000;
 
+  // @ts-ignore
+  // @ts-ignore
+  let test_image = null;
+
+  async function get_test_image(){
+    test_image_av = true;
+
+    let response = await fetch("http://acheron.ms.mff.cuni.cz:42032/images/00001/00001_1.jpg");
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('image')) {
+      throw new Error('Response is not an image');
+    }
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+
+    const blob = await response.blob();
+
+    const img = new Image();
+    img.src = URL.createObjectURL(blob);
+    const imgElement = document.getElementById('testimage');
+
+    // @ts-ignore
+    imgElement.src = URL.createObjectURL(blob);
+
+
+  }
 	// grab some place holder images
   async function fetchData(image_items) {
     let sorted_keys = getKeysInDescendingOrder(image_items);
     console.log(sorted_keys);
 
-    const res = await fetch("https://jsonplaceholder.typicode.com/photos?_start=0&_limit="+num_image);
-    const data = await res.json();
+    let res = await fetch("https://jsonplaceholder.typicode.com/photos?_start=0&_limit="+num_image);
+    let data = await res.json();
 
+    // @ts-ignore
+    let chart_data = {
+      labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
+      datasets: [
+        {
+          data: [2000, 1000, 150, 500, 350],
+          backgroundColor: [
+            '#F7464A',
+            '#46BFBD',
+            '#FDB45C',
+            '#949FB1',
+            '#4D5360',
+            '#AC64AD',
+          ],
+          hoverBackgroundColor: [
+            '#FF5A5E',
+            '#5AD3D1',
+            '#FFC870',
+            '#A8B3C5',
+            '#616774',
+            '#DA92DB',
+          ],
+        },
+      ],
+    };
+
+    create_chart(chart_data);
+    
     if (res.ok) {
       return data;
     } else {
       throw new Error(data);
     }
+    
   }
 
   function getRandomInt(max) {
@@ -67,16 +129,22 @@
 
   let selected_images = [];
 
-  let max_display_size = 4000
+  let max_display_size = 4000;
 
   let display_size = max_display_size;
+
+  let test_image_av = false;
 
   // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
   async function get_scores_by_text() {
     await fetch("./search_clip_text?text="+lion_text_query)
       .then(d => d.text())
       .then(d => console.log(d))
+      // @ts-ignore
+      // @ts-ignore
       .then(d => previous_image_items.push(image_items))
+      // @ts-ignore
+      // @ts-ignore
       .then(d => load_display());
   }
 
@@ -91,7 +159,11 @@
     await fetch("./search_clip_image?image_id="+selected_images.slice(-1))
       .then(d => d.text())
       .then(d => console.log(d))
+      // @ts-ignore
+      // @ts-ignore
       .then(d => previous_image_items.push(image_items))
+      // @ts-ignore
+      // @ts-ignore
       .then(d => load_display());
   }
 
@@ -107,7 +179,11 @@
       await fetch("./search_clip_image?image_id="+selected_images.slice(-1))
         .then(d => d.text())
         .then(d => console.log(d))
+        // @ts-ignore
+        // @ts-ignore
         .then(d => previous_image_items.push(image_items))
+        // @ts-ignore
+        // @ts-ignore
         .then(d => load_display());
         
     }
@@ -141,7 +217,11 @@
       })
       .then(d => d.text())
       .then(d => console.log(d))
+      // @ts-ignore
+      // @ts-ignore
       .then(d => previous_image_items.push(image_items))
+      // @ts-ignore
+      // @ts-ignore
       .then(d => load_display());
   }
 
@@ -219,30 +299,41 @@
     load_display()
   }
 
-  const data = {
-    labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
-    datasets: [
-      {
-        data: [2000, 1000, 150, 500, 350],
-        backgroundColor: [
-          '#F7464A',
-          '#46BFBD',
-          '#FDB45C',
-          '#949FB1',
-          '#4D5360',
-          '#AC64AD',
-        ],
-        hoverBackgroundColor: [
-          '#FF5A5E',
-          '#5AD3D1',
-          '#FFC870',
-          '#A8B3C5',
-          '#616774',
-          '#DA92DB',
-        ],
-      },
-    ],
-  };
+  // @ts-ignore
+  function create_chart(data){
+
+    //var ctx = document.getElementById('myChart');
+    // @ts-ignore
+    var ctx = document.getElementById('myChart').getContext('2d'); // 2d context
+    //var ctx = 'myChart'; // element id
+
+    // @ts-ignore
+    new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
+        datasets: [{
+          backgroundColor: [
+            '#F7464A',
+            '#46BFBD',
+            '#FDB45C',
+            '#949FB1',
+            '#4D5360',
+            '#AC64AD',
+          ],
+          data: [2000, 1000, 150, 500, 350]
+        }]
+      }
+    });
+    
+
+  }
+
+  let datasets = ['VBS', 'Medical'];
+ 
+  let value = 'VBS';
+
+  let username = "username";
 
 </script>
 
@@ -252,24 +343,31 @@
       <br>
       <!-- <h3 class="menu_item">Re-Rank Images</h3> -->
       <div class='buttons'>
-        <input class="menu_item menu_button" bind:value={lion_text_query} /><br>
+        <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
+          <Label>Random Test Image</Label>
+        </Button>
+        {#if test_image_av}
+          <div id="test-image-preview-container">
+            <img id="testimage" alt="test" />
+          </div>
+        {/if}
+        <br><br>
+        <input class="menu_item" bind:value={lion_text_query} />
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
           <Label>Submit Text Query</Label>
         </Button>
-        <div class="filedrop-container">
-          <div class="filedrop">
+        <div class="filedrop-container menu_item">
+          <div id="filedrop-box">
             <Dropzone on:drop={handleFilesSelect} accept={["image/*"]} containerClasses="custom-dropzone">
-              <button>Choose images to upload</button>
-              <span>or</span>
-              <span>Drag and drop them here</span>
+              <span>Click / Drag and drop</span>
             </Dropzone>
-            {#if files.accepted.length > 0}
-              <!--<span>{files.accepted[files.accepted.length - 1].name}</span>-->
-              <br>
-              <img id="output" width="50" height="50" alt="preview upload" src={URL.createObjectURL(files.accepted[files.accepted.length - 1])}/>
-            {/if}
           </div>
-        </div><br>
+          {#if files.accepted.length > 0}
+            <div id="image-preview-container">
+              <img id="output" alt="preview upload" src={URL.createObjectURL(files.accepted[files.accepted.length - 1])}/>
+            </div>
+          {/if}
+        </div>
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_image_upload} variant="raised">
           <Label>Similar Images by Upload</Label>
         </Button>
@@ -279,23 +377,38 @@
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_bayes_update} variant="raised">
           <Label>Bayes Update</Label>
         </Button>
-        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Send Selected Images</Label>
-        </Button>
-        <input class="menu_item menu_button" bind:value={custom_result} /><br>
-        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Send custom text</Label>
-        </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={reset_last} variant="raised">
           <Label>Reset Last Action</Label>
         </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
+        <!-- <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
           <Label>Reset All Actions</Label>
-        </Button>
-        <Pie {data} options={{ responsive: true }} /><br>
+        </Button>-->
+        
+        <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
+
         <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
           <Label>Must Contain Selected Classes</Label>
+        </Button><br><br>
+        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
+          <Label>Send Selected Images</Label>
         </Button>
+        <input class="menu_item" bind:value={custom_result} /><br>
+        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
+          <Label>Send custom text</Label>
+        </Button>
+        <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
+          <Label>Download Test Data</Label>
+        </Button><br><br>
+        <input class="menu_item" bind:value={username} />
+        <div class="menu_item">
+          <div id="select-dataset">
+            <Select bind:value label="Select Dataset">
+              {#each datasets as dataset}
+                <Option value={dataset}>{dataset}</Option>
+              {/each}
+            </Select>
+          </div>
+        </div>
         <!-- <button on:click={load_display}>Restart</button> -->
       </div>
     </div>
@@ -341,14 +454,34 @@
 }
 
 .filedrop-container{
-  width: 100%;
-}
-
-.filedrop{
   display: block;
   margin-left: auto;
   margin-right: auto;
   width: 90%;
+}
+
+#image-preview-container{
+  width: 50%;
+  height: 6em;
+  float: left;
+}
+
+#output{
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+#testimage{
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+#select-dataset{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 </style>

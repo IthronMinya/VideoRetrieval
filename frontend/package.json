@@ -18,8 +18,12 @@
     "lazyload": "^2.0.0-rc.2",
     "smui-theme": "^7.0.0-beta.15",
     "svelte": "^4.0.5",
+    "svelte-chartjs": "3.1.2",
     "svelte-file-dropzone": "^2.0.2",
-    "vite": "^4.4.5",
-    "svelte-chartjs": "3.1.2"
+    "vite": "^4.4.5"
+  },
+  "devDependencies": {
+    "@smui/select": "^7.0.0-beta.15",
+    "@types/chart.js": "^2.9.38"
   }
 }
