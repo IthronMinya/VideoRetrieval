@@ -47,33 +47,44 @@
   var num_image = 1000;
 
   // @ts-ignore
-  // @ts-ignore
   let test_image = null;
 
   async function get_test_image(){
     test_image_av = true;
 
-    let response = await fetch("http://acheron.ms.mff.cuni.cz:42032/images/00001/00001_1.jpg");
-
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('image')) {
-      throw new Error('Response is not an image');
-    }
-
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-
-    const blob = await response.blob();
-
-    const img = new Image();
-    img.src = URL.createObjectURL(blob);
     const imgElement = document.getElementById('testimage');
 
-    // @ts-ignore
-    imgElement.src = URL.createObjectURL(blob);
+    try {
+        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
+        if (response.ok) {
+
+          let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/"
+
+          try {
+        const response = await fetch(imageUrl);
+        if (response.ok) {
+
+          let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/"
+          
+          // @ts-ignore
+          imgElement.src = URL.createObjectURL(await response.blob());
+        } else {
+            console.error('Failed to fetch image.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
 
 
+          // @ts-ignore
+          imgElement.src = URL.createObjectURL(await response.blob());
+        } else {
+            console.error('Failed to fetch image.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+  
   }
 	// grab some place holder images
   async function fetchData(image_items) {
