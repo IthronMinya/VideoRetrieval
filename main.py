@@ -3,8 +3,8 @@ mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/json', '.mjs')
 mimetypes.add_type('text/css', '.css')
 
-import uvicorn
-import sys
+#import uvicorn
+#import sys
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -14,8 +14,8 @@ import random
 
 import requests
 
-import open_clip
-import torch
+#import open_clip
+#import torch
 
 import numpy as np
 import numpy.typing as npt
@@ -23,7 +23,7 @@ from typing import List
 
 from threading import Lock
 
-from PIL import Image
+#from PIL import Image
 
 class ScoreManager:
     def __init__(self, length):
@@ -56,9 +56,9 @@ app = FastAPI()
 # TODO initialize with real length of score vector
 score_manager = ScoreManager(5)
 
-model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k')
+#model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k')
 
-tokenizer = open_clip.get_tokenizer('ViT-B-32')
+#tokenizer = open_clip.get_tokenizer('ViT-B-32')
 
 # TODO load image feature vectors from server
 image_feature_vectors = np.zeros((5, 512), dtype=np.float64)
@@ -82,38 +82,38 @@ def cosine_sim(f1, f2):
 async def hello():
    return random.randint(0, 100)
 
-@app.get("/search_clip_text")
-async def search_clip_text(text: str):
+#@app.get("/search_clip_text")
+#async def search_clip_text(text: str):
 
-    text = tokenizer([text])
+#    text = tokenizer([text])
 
-    with torch.no_grad():
-        text_features = model.encode_text(text)
-        text_features /= text_features.norm(dim=-1, keepdim=True)
-        text_features = text_features[0]
+#    with torch.no_grad():
+#        text_features = model.encode_text(text)
+#        text_features /= text_features.norm(dim=-1, keepdim=True)
+#        text_features = text_features[0]
 
-    score_manager.from_array(cosine_sim(text_features, image_feature_vectors.T).astype(np.float64)) 
+#    score_manager.from_array(cosine_sim(text_features, image_feature_vectors.T).astype(np.float64)) 
+#
+#    return score_manager.get_scores()
 
-    return score_manager.get_scores()
-
-@app.get("/search_clip_image")
-async def search_clip_image(image_id: int):
+#@app.get("/search_clip_image")
+#async def search_clip_image(image_id: int):
     
-    print(image_id)
+#    print(image_id)
 
     # TODO get full size image from server
-    img = Image.new('RGB', (512, 512))
+#    img = Image.new('RGB', (512, 512))
 
-    img = preprocess(img).unsqueeze(0)
+#    img = preprocess(img).unsqueeze(0)
 
-    with torch.no_grad():
-        image_features = model.encode_image(img)
-        image_features /= image_features.norm(dim=-1, keepdim=True)
-        image_features = image_features[0]
+#    with torch.no_grad():
+#        image_features = model.encode_image(img)
+#        image_features /= image_features.norm(dim=-1, keepdim=True)
+#        image_features = image_features[0]
 
-    score_manager.from_array(cosine_sim(image_features, image_feature_vectors.T).astype(np.float64))
+#    score_manager.from_array(cosine_sim(image_features, image_feature_vectors.T).astype(np.float64))
 
-    return score_manager.get_scores()
+#    return score_manager.get_scores()
 
 @app.get("/send_results")
 async def send_result(image_id: int):

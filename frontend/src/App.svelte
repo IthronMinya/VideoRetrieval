@@ -1,29 +1,17 @@
 <script>
   import Button, { Label } from '@smui/button';
-  // @ts-ignore
-  // @ts-ignore
+  
   import LayoutGrid, { Cell } from '@smui/layout-grid';
-  // @ts-ignore
-  import Select, { Option } from '@smui/select';
 
   // @ts-ignore
-  // @ts-ignore
-  import Card, {
-      // @ts-ignore
-      // @ts-ignore
-      Content,
-      PrimaryAction,
-      // @ts-ignore
-      // @ts-ignore
-      Media,
-      // @ts-ignore
-      // @ts-ignore
-      MediaContent,
-    } from '@smui/card';
+  import Select, { Option } from '@smui/select';
+  import {PrimaryAction} from '@smui/card';
 
   import { lazyLoad } from './lib/lazyload.js'
   import Dropzone from "svelte-file-dropzone/Dropzone.svelte";
- 
+  
+  let random_target = null;
+  
   let files = {
     accepted: [],
     rejected: []
@@ -58,28 +46,26 @@
         const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
         if (response.ok) {
 
-          let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/"
+          random_target = await response.json();
+          
+          let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/images/" + String(random_target[0]["uri"]);
+
+          console.log(imageUrl);
 
           try {
-        const response = await fetch(imageUrl);
-        if (response.ok) {
+            const response_image = await fetch(imageUrl);
+            if (response_image.ok) {
 
-          let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/"
-          
-          // @ts-ignore
-          imgElement.src = URL.createObjectURL(await response.blob());
+              // @ts-ignore
+              imgElement.src = URL.createObjectURL(await response_image.blob());
+            } else {
+                console.error('Failed to fetch image.');
+            }
+          } catch (error) {
+              console.error('Error:', error);
+          }
         } else {
-            console.error('Failed to fetch image.');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-    }
-
-
-          // @ts-ignore
-          imgElement.src = URL.createObjectURL(await response.blob());
-        } else {
-            console.error('Failed to fetch image.');
+            console.error('Failed to get random image data.');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -88,8 +74,8 @@
   }
 	// grab some place holder images
   async function fetchData(image_items) {
-    let sorted_keys = getKeysInDescendingOrder(image_items);
-    console.log(sorted_keys);
+    //let sorted_keys = getKeysInDescendingOrder(image_items);
+    //console.log(sorted_keys);
 
     let res = await fetch("https://jsonplaceholder.typicode.com/photos?_start=0&_limit="+num_image);
     let data = await res.json();
@@ -123,7 +109,8 @@
     create_chart(chart_data);
     
     if (res.ok) {
-      return data;
+      console.log(image_items);
+      return image_items;
     } else {
       throw new Error(data);
     }
@@ -146,17 +133,65 @@
 
   let test_image_av = false;
 
-  // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
+  async function initialization() {
+    const request_body = {
+      item_id: "00001_1",
+      k: 50
+    };
+
+    try {
+      const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(request_body)
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      const responseData = await response.json();
+      console.log(responseData);
+      image_items = responseData;
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   async function get_scores_by_text() {
-    await fetch("./search_clip_text?text="+lion_text_query)
-      .then(d => d.text())
-      .then(d => console.log(d))
-      // @ts-ignore
-      // @ts-ignore
-      .then(d => previous_image_items.push(image_items))
-      // @ts-ignore
-      // @ts-ignore
-      .then(d => load_display());
+    const request_body = {
+      query: lion_text_query,
+      k: 50,
+      dataset: 'vbs',
+      model: 'laion',
+      get_embeddings: true,
+    };
+
+    try {
+      const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/textQuery/", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(request_body)
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      const responseData = await response.json();
+      console.log(responseData);
+      image_items = responseData;
+      load_display();
+
+    } catch (error) {
+      console.error(error);
+    }
+
   }
 
   // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
@@ -170,11 +205,7 @@
     await fetch("./search_clip_image?image_id="+selected_images.slice(-1))
       .then(d => d.text())
       .then(d => console.log(d))
-      // @ts-ignore
-      // @ts-ignore
       .then(d => previous_image_items.push(image_items))
-      // @ts-ignore
-      // @ts-ignore
       .then(d => load_display());
   }
 
@@ -190,11 +221,7 @@
       await fetch("./search_clip_image?image_id="+selected_images.slice(-1))
         .then(d => d.text())
         .then(d => console.log(d))
-        // @ts-ignore
-        // @ts-ignore
         .then(d => previous_image_items.push(image_items))
-        // @ts-ignore
-        // @ts-ignore
         .then(d => load_display());
         
     }
@@ -270,10 +297,11 @@
 
   let image_items = {};
 
+  image_items = initialization();
   // random initialization
-  for(let i = 1; i <= max_display_size; i++){
-    image_items[getRandomInt(max_display_size)] = Math.random();
-  }
+  //for(let i = 1; i <= max_display_size; i++){
+  //  image_items[getRandomInt(max_display_size)] = Math.random();
+  //}
 
   fill_state_dict();
 
@@ -357,9 +385,9 @@
         <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
           <Label>Random Test Image</Label>
         </Button>
-        {#if test_image_av}
+        {#if true}
           <div id="test-image-preview-container">
-            <img id="testimage" alt="test" />
+            <img id="testimage" alt="" />
           </div>
         {/if}
         <br><br>
@@ -369,6 +397,7 @@
         </Button>
         <div class="filedrop-container menu_item">
           <div id="filedrop-box">
+            
             <Dropzone on:drop={handleFilesSelect} accept={["image/*"]} containerClasses="custom-dropzone">
               <span>Click / Drag and drop</span>
             </Dropzone>
@@ -435,7 +464,7 @@
         {:then items}
           {#each items as image}
             <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : ''}" on:click={() => imageClick(image.id) }  on:mouseover={() => (image_hover_states[image.id] = true)} on:mouseout={() => (image_hover_states[image.id] = false)} >
-              <img class="images" use:lazyLoad={image.url} alt={image.id}/>
+              <img class="images" use:lazyLoad={"http://acheron.ms.mff.cuni.cz:42032/images/" + image['uri']} alt={image['id']}/>
               {#if image_hover_states[image.id]}
                 <button class="hoverbutton">Send</button>
               {/if}
@@ -484,6 +513,12 @@
 }
 
 #testimage{
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+.images{
   height: 100%;
   width: 100%;
   object-fit: contain;
