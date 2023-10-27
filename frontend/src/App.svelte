@@ -1,14 +1,20 @@
 <script>
   import Button, { Label } from '@smui/button';
-  
+
+  // @ts-ignore
   import LayoutGrid, { Cell } from '@smui/layout-grid';
 
   // @ts-ignore
   import Select, { Option } from '@smui/select';
   import {PrimaryAction} from '@smui/card';
 
+  // @ts-ignore
+
   import { lazyLoad } from './lib/lazyload.js'
   import Dropzone from "svelte-file-dropzone/Dropzone.svelte";
+  // @ts-ignore
+
+  import ImageList, { Item, Image, ImageAspectContainer} from '@smui/image-list';
   
   let random_target = null;
   
@@ -32,10 +38,11 @@
 
   var image_hover_states = {image_hover_states};
 
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
   var num_image = 1000;
 
-  // @ts-ignore
-  let test_image = null;
 
   async function get_test_image(){
     test_image_av = true;
@@ -72,50 +79,6 @@
     }
   
   }
-	// grab some place holder images
-  async function fetchData(image_items) {
-    //let sorted_keys = getKeysInDescendingOrder(image_items);
-    //console.log(sorted_keys);
-
-    let res = await fetch("https://jsonplaceholder.typicode.com/photos?_start=0&_limit="+num_image);
-    let data = await res.json();
-
-    // @ts-ignore
-    let chart_data = {
-      labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
-      datasets: [
-        {
-          data: [2000, 1000, 150, 500, 350],
-          backgroundColor: [
-            '#F7464A',
-            '#46BFBD',
-            '#FDB45C',
-            '#949FB1',
-            '#4D5360',
-            '#AC64AD',
-          ],
-          hoverBackgroundColor: [
-            '#FF5A5E',
-            '#5AD3D1',
-            '#FFC870',
-            '#A8B3C5',
-            '#616774',
-            '#DA92DB',
-          ],
-        },
-      ],
-    };
-
-    create_chart(chart_data);
-    
-    if (res.ok) {
-      console.log(image_items);
-      return image_items;
-    } else {
-      throw new Error(data);
-    }
-    
-  }
 
   function getRandomInt(max) {
     return Math.floor(Math.random() * max);
@@ -128,8 +91,6 @@
   let selected_images = [];
 
   let max_display_size = 4000;
-
-  let display_size = max_display_size;
 
   let test_image_av = false;
 
@@ -155,6 +116,7 @@
       const responseData = await response.json();
       console.log(responseData);
       image_items = responseData;
+      create_chart(image_items);
 
     } catch (error) {
       console.error(error);
@@ -164,7 +126,7 @@
   async function get_scores_by_text() {
     const request_body = {
       query: lion_text_query,
-      k: 50,
+      k: 4000,
       dataset: 'vbs',
       model: 'laion',
       get_embeddings: true,
@@ -184,9 +146,11 @@
       }
 
       const responseData = await response.json();
-      console.log(responseData);
+      //console.log(responseData);
+      previous_image_items.push(image_items)
       image_items = responseData;
       load_display();
+      create_chart(image_items);
 
     } catch (error) {
       console.error(error);
@@ -202,76 +166,185 @@
       return null;
     }
 
-    await fetch("./search_clip_image?image_id="+selected_images.slice(-1))
-      .then(d => d.text())
-      .then(d => console.log(d))
-      .then(d => previous_image_items.push(image_items))
-      .then(d => load_display());
-  }
+    let selected_item = selected_images[selected_images.length - 1]
 
-   // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
-   async function get_scores_by_image_upload() {
+    const request_body = {
+      video_id: selected_item[0],
+      frame_id: selected_item[1],
+      k: 4000,
+      dataset: 'vbs',
+      model: 'laion',
+      get_embeddings: true,
+    };
+
+    try {
+      const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/", {
+        method: 'POST',
+        body: JSON.stringify(request_body)
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      const responseData = await response.json();
+      console.log(responseData);
+      previous_image_items.push(image_items)
+      image_items = responseData;
+      load_display();
+      create_chart(image_items);
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  
+  async function get_scores_by_image_upload() {
 
       if (files.accepted.length == 0){
-        // TODO make a popup alert and do nothing
         return null;
       }
       
-      // TODO send file files.accepted[-1] to backend for reranking
-      await fetch("./search_clip_image?image_id="+selected_images.slice(-1))
-        .then(d => d.text())
-        .then(d => console.log(d))
-        .then(d => previous_image_items.push(image_items))
-        .then(d => load_display());
+      const params = {
+        k: 4000,
+      };
+
+      const formData = new FormData();
+      formData.append('image', files.accepted[files.accepted.length - 1]);
+      formData.append('query_params', JSON.stringify(params));
+
+      try {
+        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/imageQuery/", {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Request failed');
+        }
+
+        const responseData = await response.json();
+        console.log(responseData);
+        previous_image_items.push(image_items)
+        image_items = responseData;
+        load_display();
+        create_chart(image_items);
+
+      } catch (error) {
+        console.error(error);
+      }
         
     }
 
-  // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
-  async function get_scores_by_bayes_update() {
+    function dotProduct(vector1, vector2) {
+      if (vector1.length !== vector2.length) {
+          throw new Error("Vectors must have the same length for dot product computation.");
+      }
 
-    if (selected_images.length == 0){
-      // TODO make a popup alert and do nothing
-      return null;
+      let result = 0;
+      for (let i = 0; i < vector1.length; i++) {
+          result += vector1[i] * vector2[i];
+      }
+
+      return result;
     }
 
-    var keys = []
+    function matrixDotProduct(matrix, vector) {
+        if (matrix[0].length !== vector.length) {
+            throw new Error("Matrix column count must match the vector length for matrix-vector multiplication.");
+        }
 
-    for(var key of Object.keys(image_border_states).slice(0, display_size))
-    {
-      keys.push(parseInt(key));
+        const result = [];
+        for (let i = 0; i < matrix.length; i++) {
+            const row = matrix[i];
+            result.push(dotProduct(row, vector));
+        }
+
+        return result;
     }
+    
+    let alpha = 0.1;
 
-    console.log("./bayes_update?selected_ids=["+selected_images+"]&top_display=["+keys+"]")
+    // @ts-ignore
+    function bayesUpdate() {
 
-    await fetch('./bayes_update',{
-        method:  'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          selected_ids: selected_images,
-          top_display:  keys
-        })
-      })
-      .then(d => d.text())
-      .then(d => console.log(d))
+      let imageFeatureVectors = []
+
+      for (let i = 0; i < image_items.length; i++){
+        imageFeatureVectors.push(image_items[i].features)
+      }
+
+      // Create items array
+      var items = Object.keys(image_items).map(function(key) {
+        return [key, image_items[key]];
+      });
+
+      let topDisplay = items.slice(0, 50);
+
       // @ts-ignore
-      // @ts-ignore
-      .then(d => previous_image_items.push(image_items))
-      // @ts-ignore
-      // @ts-ignore
-      .then(d => load_display());
-  }
+      const negativeExamples = imageFeatureVectors.filter(item => !topDisplay.includes(item) && !selected_images.includes(item));
+      const positiveExamples = imageFeatureVectors.filter(item => selected_images.includes(item));
+
+      let max_score = 0;
+
+      for (let i = 0; i < image_items.length; i++) {
+          const featureVector = imageFeatureVectors[i];
+
+          // @ts-ignore
+          const PF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, positiveExamples)) / alpha), 0);
+
+          // @ts-ignore
+          const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, negativeExamples)) / alpha), 0);
+
+          // @ts-ignore
+          image_items[i].score = image_items[i].score * PF / NF;
+
+          if (image_items[i].score > max_score){
+            max_score = image_items[i].score;
+          }
+      }
+
+      // Normalization
+      for (let i = 0; i < image_items.length; i++){
+        image_items[i].score = image_items[i].score/max_score;
+      }
+
+      // Create items array
+      var items = Object.keys(image_items).map(function(key) {
+        return [key, image_items[key]];
+      });
+
+      // Sort the array based on the second element
+      items.sort(function(first, second) {
+        // @ts-ignore
+        return second.score - first.score;
+      });
+
+      for (let i = 0; i < items.length; i++){
+        // @ts-ignore
+        items[i].rank = i;
+      }
+
+      image_items = items;
+
+      console.log(image_items);
+      load_display()
+}
 
   let clicked = 0;
 
   let display = {};
 
   function load_display() {
+    console.log(image_items);
     fill_state_dict();
     display = {};
   }
 
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
   function getKeysInDescendingOrder(obj) {
     // Create an array of key-value pairs
     const keyValuePairs = Object.entries(obj);
@@ -339,7 +412,11 @@
   }
 
   // @ts-ignore
-  function create_chart(data){
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
+  // @ts-ignore
+  function create_chart(image_items){
 
     //var ctx = document.getElementById('myChart');
     // @ts-ignore
@@ -348,10 +425,11 @@
 
     // @ts-ignore
     new Chart(ctx, {
-      type: "pie",
+      type: "bar",
       data: {
         labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
         datasets: [{
+          label: 'Display Clusters',
           backgroundColor: [
             '#F7464A',
             '#46BFBD',
@@ -396,8 +474,7 @@
           <Label>Submit Text Query</Label>
         </Button>
         <div class="filedrop-container menu_item">
-          <div id="filedrop-box">
-            
+          <div id="filedrop-box">  
             <Dropzone on:drop={handleFilesSelect} accept={["image/*"]} containerClasses="custom-dropzone">
               <span>Click / Drag and drop</span>
             </Dropzone>
@@ -412,20 +489,15 @@
           <Label>Similar Images by Upload</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_image} variant="raised">
-          <Label>Similar Images</Label>
+          <Label>Similar Images to Last Selection</Label>
         </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_bayes_update} variant="raised">
+        <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
           <Label>Bayes Update</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={reset_last} variant="raised">
           <Label>Reset Last Action</Label>
         </Button>
-        <!-- <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
-          <Label>Reset All Actions</Label>
-        </Button>-->
-        
         <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
-
         <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
           <Label>Must Contain Selected Classes</Label>
         </Button><br><br>
@@ -458,22 +530,18 @@
     </div>
     {#key display}
     <div id='image_container'>
-      <LayoutGrid>
-        {#await fetchData(image_items)}
-            <p>loading</p>
-        {:then items}
-          {#each items as image}
-            <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : ''}" on:click={() => imageClick(image.id) }  on:mouseover={() => (image_hover_states[image.id] = true)} on:mouseout={() => (image_hover_states[image.id] = false)} >
-              <img class="images" use:lazyLoad={"http://acheron.ms.mff.cuni.cz:42032/images/" + image['uri']} alt={image['id']}/>
-              {#if image_hover_states[image.id]}
-                <button class="hoverbutton">Send</button>
-              {/if}
-            </PrimaryAction>
+        <ImageList class="my-image-list-standard">
+          {#each Object.entries(image_items) as [key, image]}
+            <Item>
+              <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : 'transparentBorder'}" on:click={() => imageClick(image.id) }  on:mouseover={() => (image_hover_states[image.id] = true)} on:mouseout={() => (image_hover_states[image.id] = false)} >
+                  <Image src={"http://acheron.ms.mff.cuni.cz:42032/images/" + image['uri']} alt={image['id']}/>
+                  {#if image_hover_states[image.id]}
+                    <button class="hoverbutton">Send</button>
+                  {/if}
+              </PrimaryAction>
+            </Item>
           {/each}
-        {:catch error}
-          <p style="color: red">{error.message}</p>
-        {/await}
-      </LayoutGrid>
+        </ImageList>
     </div>
     {/key}
   </div>

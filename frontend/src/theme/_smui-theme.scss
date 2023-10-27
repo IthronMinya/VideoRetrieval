@@ -11,11 +11,35 @@
   $error: color-palette.$red-900
 );
 
+@use '@material/image-list/mixins' as image-list;
+
 html,
 body {
   background-color: theme.$surface;
   color: theme.$on-surface;
 }
+
+.my-image-list-standard {
+  @include image-list.standard-columns(7);
+  max-width: 2500px;
+}
+
+@media (max-width: 1499px) {
+  .my-image-list-standard {
+    @include image-list.standard-columns(5);
+  }
+}
+
+@media (max-width: 599px) {
+  .my-image-list-standard {
+    @include image-list.standard-columns(3);
+  }
+}
+
+.transparentBorder{
+  border: 3px solid transparent;
+}
+
 
 a {
   color: #40b3ff;
@@ -49,7 +73,7 @@ a:visited {
 }
 
 .redBorder {
-  border: 4px solid red;
+  border: 3px solid red;
 }
 
 .image_subtitle{

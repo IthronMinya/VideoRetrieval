@@ -23,6 +23,7 @@
     "vite": "^4.4.5"
   },
   "devDependencies": {
+    "@smui/image-list": "^7.0.0-beta.15",
     "@smui/select": "^7.0.0-beta.15",
     "@types/chart.js": "^2.9.38"
   }
