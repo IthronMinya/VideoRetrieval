@@ -1,27 +1,54 @@
 <script>
+// @ts-nocheck
+
+  import { selected_images } from './stores.js';
+  import ImageList from './ImageList.svelte';
+
+  import VirtualList from '@sveltejs/svelte-virtual-list';
+  
   import Button, { Label } from '@smui/button';
 
   // @ts-ignore
-  import LayoutGrid, { Cell } from '@smui/layout-grid';
-
-  // @ts-ignore
   import Select, { Option } from '@smui/select';
-  import {PrimaryAction} from '@smui/card';
 
-  // @ts-ignore
-
-  import { lazyLoad } from './lib/lazyload.js'
   import Dropzone from "svelte-file-dropzone/Dropzone.svelte";
-  // @ts-ignore
 
-  import ImageList, { Item, Image, ImageAspectContainer} from '@smui/image-list';
   
+  let start;
+	let end;
+  let image_items = {}
+  let alpha = 0.1;
+  let lion_text_query = "text query";
+
+  let custom_result = "custom text";
+
+  let max_display_size = 4000;
+
+  let test_image_av = false;
+
+  const row_size = 5;
+
+  $: image_items;
+
   let random_target = null;
   
   let files = {
     accepted: [],
     rejected: []
   };
+
+  let clicked = 0;
+
+  let previous_image_items = [];
+
+  let datasets = ['VBS', 'Medical'];
+ 
+  let value = 'VBS';
+
+  let username = "username";
+
+  image_items = initialization();
+
 
   function handleFilesSelect(e) {
     const { acceptedFiles, fileRejections } = e.detail;
@@ -33,16 +60,6 @@
     document.getElementById("filedrop-box").style.float = "left";
     document.getElementById("filedrop-box").style.marginBottom = "7.5px";
   }
-
-  var image_border_states = {};
-
-  var image_hover_states = {image_hover_states};
-
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
-  var num_image = 1000;
-
 
   async function get_test_image(){
     test_image_av = true;
@@ -80,341 +97,238 @@
   
   }
 
-  function getRandomInt(max) {
-    return Math.floor(Math.random() * max);
-  }
-
-  let lion_text_query = "text query";
-
-  let custom_result = "custom text";
-
-  let selected_images = [];
-
-  let max_display_size = 4000;
-
-  let test_image_av = false;
-
   async function initialization() {
-    const request_body = {
+    
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
+
+    const request_body = JSON.stringify({
       item_id: "00001_1",
       k: 50
-    };
+    });
+
+    await request_handler(request_url, request_body, true);
+    
+  }
+
+  async function request_handler(request_url, request_body, init=false, image_upload=false){
+
+    if(!init){
+      previous_image_items.push(image_items);
+
+      image_items = null;
+    }
+
+    let response;
 
     try {
-      const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(request_body)
-      });
+
+      if(!image_upload){
+        response = await fetch(request_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: request_body
+        });
+      }else{
+        response = await fetch(request_url, {
+          method: 'POST',
+          body: request_body
+        });
+      }
 
       if (!response.ok) {
         throw new Error('Request failed');
       }
 
       const responseData = await response.json();
-      console.log(responseData);
-      image_items = responseData;
+
+      let rows = [];
+      let row = -1;
+
+      for (let i = 0; i < responseData.length; i++) {
+        if (i % row_size == 0){
+          row = row + 1;
+          rows[row] = [];
+        }
+
+        rows[row].push(responseData[i]);
+
+      }
+
+      image_items = rows;
+
+      if(!init){
+        $selected_images = [];
+      }
+      
       create_chart(image_items);
 
     } catch (error) {
       console.error(error);
     }
+
   }
 
   async function get_scores_by_text() {
-    const request_body = {
+
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
+
+    const request_body = JSON.stringify({
       query: lion_text_query,
-      k: 4000,
+      k: max_display_size,
       dataset: 'vbs',
       model: 'laion',
       get_embeddings: true,
-    };
+    });
 
-    try {
-      const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/textQuery/", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(request_body)
-      });
-
-      if (!response.ok) {
-        throw new Error('Request failed');
-      }
-
-      const responseData = await response.json();
-      //console.log(responseData);
-      previous_image_items.push(image_items)
-      image_items = responseData;
-      load_display();
-      create_chart(image_items);
-
-    } catch (error) {
-      console.error(error);
-    }
-
+    await request_handler(request_url, request_body);
   }
 
-  // TODO after confirming functionality write data to scores, determine images ids to display from scores in descending score order, place into image_ids, use load_display() to render
   async function get_scores_by_image() {
 
-    if (selected_images.length == 0){
-      // TODO make a popup alert and do nothing
+
+    if ($selected_images.length == 0){
       return null;
     }
 
-    let selected_item = selected_images[selected_images.length - 1]
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/";
 
-    const request_body = {
+    let selected_item = $selected_images[$selected_images.length - 1]
+
+    const request_body = JSON.stringify({
       video_id: selected_item[0],
       frame_id: selected_item[1],
-      k: 4000,
+      k: max_display_size,
       dataset: 'vbs',
       model: 'laion',
       get_embeddings: true,
-    };
+    });
 
-    try {
-      const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/", {
-        method: 'POST',
-        body: JSON.stringify(request_body)
-      });
 
-      if (!response.ok) {
-        throw new Error('Request failed');
-      }
-
-      const responseData = await response.json();
-      console.log(responseData);
-      previous_image_items.push(image_items)
-      image_items = responseData;
-      load_display();
-      create_chart(image_items);
-
-    } catch (error) {
-      console.error(error);
-    }
+    await request_handler(request_url, request_body);
   }
   
   async function get_scores_by_image_upload() {
 
-      if (files.accepted.length == 0){
-        return null;
-      }
-      
-      const params = {
-        k: 4000,
-      };
 
-      const formData = new FormData();
-      formData.append('image', files.accepted[files.accepted.length - 1]);
-      formData.append('query_params', JSON.stringify(params));
-
-      try {
-        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/imageQuery/", {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error('Request failed');
-        }
-
-        const responseData = await response.json();
-        console.log(responseData);
-        previous_image_items.push(image_items)
-        image_items = responseData;
-        load_display();
-        create_chart(image_items);
-
-      } catch (error) {
-        console.error(error);
-      }
-        
+    if (files.accepted.length == 0){
+      return null;
     }
 
-    function dotProduct(vector1, vector2) {
-      if (vector1.length !== vector2.length) {
-          throw new Error("Vectors must have the same length for dot product computation.");
-      }
-
-      let result = 0;
-      for (let i = 0; i < vector1.length; i++) {
-          result += vector1[i] * vector2[i];
-      }
-
-      return result;
-    }
-
-    function matrixDotProduct(matrix, vector) {
-        if (matrix[0].length !== vector.length) {
-            throw new Error("Matrix column count must match the vector length for matrix-vector multiplication.");
-        }
-
-        const result = [];
-        for (let i = 0; i < matrix.length; i++) {
-            const row = matrix[i];
-            result.push(dotProduct(row, vector));
-        }
-
-        return result;
-    }
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
-    let alpha = 0.1;
+    const params = {
+      k: max_display_size,
+    };
+
+    const request_body = new FormData();
+    request_body.append('image', files.accepted[files.accepted.length - 1]);
+    request_body.append('query_params', JSON.stringify(params));
+
+    await request_handler(request_url, request_body, false, true);
+    
+  }
+
+  function dotProduct(vector1, vector2) {
+    if (vector1.length !== vector2.length) {
+        throw new Error("Vectors must have the same length for dot product computation.");
+    }
+
+    let result = 0;
+    for (let i = 0; i < vector1.length; i++) {
+        result += vector1[i] * vector2[i];
+    }
+
+    return result;
+  }
+
+  function matrixDotProduct(matrix, vector) {
+    if (matrix[0].length !== vector.length) {
+        throw new Error("Matrix column count must match the vector length for matrix-vector multiplication.");
+    }
+
+    const result = [];
+    for (let i = 0; i < matrix.length; i++) {
+        const row = matrix[i];
+        result.push(dotProduct(row, vector));
+    }
+
+    return result;
+  }
+
+  // @ts-ignore
+  function bayesUpdate() {
+
+    let imageFeatureVectors = []
+
+    for (let i = 0; i < image_items.length; i++){
+      imageFeatureVectors.push(image_items[i].features)
+    }
+
+    // Create items array
+    var items = Object.keys(image_items).map(function(key) {
+      return [key, image_items[key]];
+    });
+
+    let topDisplay = items.slice(0, 50);
 
     // @ts-ignore
-    function bayesUpdate() {
+    const negativeExamples = imageFeatureVectors.filter(item => !topDisplay.includes(item) && !selected_images.includes(item));
+    const positiveExamples = imageFeatureVectors.filter(item => selected_images.includes(item));
 
-      let imageFeatureVectors = []
+    let max_score = 0;
 
-      for (let i = 0; i < image_items.length; i++){
-        imageFeatureVectors.push(image_items[i].features)
-      }
+    for (let i = 0; i < image_items.length; i++) {
+        const featureVector = imageFeatureVectors[i];
 
-      // Create items array
-      var items = Object.keys(image_items).map(function(key) {
-        return [key, image_items[key]];
-      });
+        // @ts-ignore
+        const PF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, positiveExamples)) / alpha), 0);
 
-      let topDisplay = items.slice(0, 50);
+        // @ts-ignore
+        const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, negativeExamples)) / alpha), 0);
 
+        // @ts-ignore
+        image_items[i].score = image_items[i].score * PF / NF;
+
+        if (image_items[i].score > max_score){
+          max_score = image_items[i].score;
+        }
+    }
+
+    // Normalization
+    for (let i = 0; i < image_items.length; i++){
+      image_items[i].score = image_items[i].score/max_score;
+    }
+
+    // Create items array
+    var items = Object.keys(image_items).map(function(key) {
+      return [key, image_items[key]];
+    });
+
+    // Sort the array based on the second element
+    items.sort(function(first, second) {
       // @ts-ignore
-      const negativeExamples = imageFeatureVectors.filter(item => !topDisplay.includes(item) && !selected_images.includes(item));
-      const positiveExamples = imageFeatureVectors.filter(item => selected_images.includes(item));
+      return second.score - first.score;
+    });
 
-      let max_score = 0;
+    for (let i = 0; i < items.length; i++){
+      // @ts-ignore
+      items[i].rank = i;
+    }
 
-      for (let i = 0; i < image_items.length; i++) {
-          const featureVector = imageFeatureVectors[i];
+    image_items = items;
 
-          // @ts-ignore
-          const PF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, positiveExamples)) / alpha), 0);
-
-          // @ts-ignore
-          const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, negativeExamples)) / alpha), 0);
-
-          // @ts-ignore
-          image_items[i].score = image_items[i].score * PF / NF;
-
-          if (image_items[i].score > max_score){
-            max_score = image_items[i].score;
-          }
-      }
-
-      // Normalization
-      for (let i = 0; i < image_items.length; i++){
-        image_items[i].score = image_items[i].score/max_score;
-      }
-
-      // Create items array
-      var items = Object.keys(image_items).map(function(key) {
-        return [key, image_items[key]];
-      });
-
-      // Sort the array based on the second element
-      items.sort(function(first, second) {
-        // @ts-ignore
-        return second.score - first.score;
-      });
-
-      for (let i = 0; i < items.length; i++){
-        // @ts-ignore
-        items[i].rank = i;
-      }
-
-      image_items = items;
-
-      console.log(image_items);
-      load_display()
-}
-
-  let clicked = 0;
-
-  let display = {};
-
-  function load_display() {
     console.log(image_items);
-    fill_state_dict();
-    display = {};
-  }
-
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
-  function getKeysInDescendingOrder(obj) {
-    // Create an array of key-value pairs
-    const keyValuePairs = Object.entries(obj);
-
-    // Sort the array based on values in descending order
-    keyValuePairs.sort((a, b) => b[1] - a[1]);
-
-    // Extract the keys in the sorted order
-    const sortedKeys = keyValuePairs.map(pair => pair[0]);
-
-    return sortedKeys;
-  }
-
-  function fill_state_dict(){
-
-    for(var id of Object.keys(image_items)){
-      image_border_states[id] = false;
-      image_hover_states[id] = false;
-    }
-  }
-
-  let previous_image_items = [];
-
-  let image_items = {};
-
-  image_items = initialization();
-  // random initialization
-  //for(let i = 1; i <= max_display_size; i++){
-  //  image_items[getRandomInt(max_display_size)] = Math.random();
-  //}
-
-  fill_state_dict();
-
-  function imageClick(image_id) {
-    image_border_states[image_id] = !image_border_states[image_id];
-
-    if (image_border_states[image_id]){
-      selected_images.push(image_id);
-    }else{
-      selected_images = selected_images.filter(e => e !== image_id);
-    }
-    
-    console.log(image_id);
-
-    console.log(selected_images);
+    load_display()
   }
 
   function reset_last(){
     if (previous_image_items.length > 0){
       image_items = previous_image_items.pop()
     }
-
-    load_display()
   }
 
-  function reset_all(){
-    previous_image_items = []
-
-    // random initialization
-    for(let i = 1; i <= max_display_size; i++){
-      image_items[getRandomInt(max_display_size)] = Math.random();
-    }
-
-    load_display()
-  }
-
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
-  // @ts-ignore
   // @ts-ignore
   function create_chart(image_items){
 
@@ -446,19 +360,12 @@
 
   }
 
-  let datasets = ['VBS', 'Medical'];
- 
-  let value = 'VBS';
-
-  let username = "username";
-
 </script>
 
 <main>
   <div class='viewbox'>
     <div class='menu'>
       <br>
-      <!-- <h3 class="menu_item">Re-Rank Images</h3> -->
       <div class='buttons'>
         <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
           <Label>Random Test Image</Label>
@@ -498,7 +405,7 @@
           <Label>Reset Last Action</Label>
         </Button>
         <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
-        <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
+        <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Must Contain Selected Classes</Label>
         </Button><br><br>
         <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
@@ -508,7 +415,7 @@
         <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
           <Label>Send custom text</Label>
         </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={reset_all} variant="raised">
+        <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Download Test Data</Label>
         </Button><br><br>
         <input class="menu_item" bind:value={username} />
@@ -521,44 +428,40 @@
             </Select>
           </div>
         </div>
-        <!-- <button on:click={load_display}>Restart</button> -->
       </div>
     </div>
-    
     <div class="separator">
       <p> </p>
     </div>
-    {#key display}
-    <div id='image_container'>
-        <ImageList class="my-image-list-standard">
-          {#each Object.entries(image_items) as [key, image]}
-            <Item>
-              <PrimaryAction id={image.id} class="{image_border_states[image.id] ? 'redBorder' : 'transparentBorder'}" on:click={() => imageClick(image.id) }  on:mouseover={() => (image_hover_states[image.id] = true)} on:mouseout={() => (image_hover_states[image.id] = false)} >
-                  <Image src={"http://acheron.ms.mff.cuni.cz:42032/images/" + image['uri']} alt={image['id']}/>
-                  {#if image_hover_states[image.id]}
-                    <button class="hoverbutton">Send</button>
-                  {/if}
-              </PrimaryAction>
-            </Item>
-          {/each}
-        </ImageList>
-    </div>
+    {#key image_items}
+      <div id='container'>
+        {#if image_items === null}
+          <p>...loading</p>
+        {:else}
+          {#await image_items}
+            <p>...loading</p>
+          {:then imageData}
+            <VirtualList items={imageData} bind:start bind:end let:item>
+              <ImageList row={item} />
+            </VirtualList>
+            <p>showing image rows {start}-{end}. Total: {image_items.length}</p>
+          {/await}
+        {/if}
+      </div>     
     {/key}
+    
   </div>
 </main>
 
 <style>
 
-.hoverbutton{
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.5);
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  cursor: pointer;
+#container {
+  min-height: 200px;
+  height: calc(100vh - 5em);
+  width: 85%;
+  float: left;
+  margin-left: 15%;
+  background-color: rgb(202, 202, 202);
 }
 
 .filedrop-container{
@@ -581,12 +484,6 @@
 }
 
 #testimage{
-  height: 100%;
-  width: 100%;
-  object-fit: contain;
-}
-
-.images{
   height: 100%;
   width: 100%;
   object-fit: contain;
