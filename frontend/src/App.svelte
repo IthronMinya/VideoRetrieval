@@ -11,16 +11,15 @@
   // @ts-ignore
   import Select, { Option } from '@smui/select';
 
-  import Dropzone from "svelte-file-dropzone/Dropzone.svelte";
 
-  
+  let lion_text_query = "";
+
   let start;
 	let end;
   let image_items = {}
   let alpha = 0.1;
-  let lion_text_query = "text query";
 
-  let custom_result = "custom text";
+  let custom_result = "";
 
   let max_display_size = 4000;
 
@@ -41,24 +40,45 @@
 
   let previous_image_items = [];
 
-  let datasets = ['VBS', 'Medical'];
- 
-  let value = 'VBS';
+  let datasets = ['V3C', 'Medical'];
 
-  let username = "username";
+  let models = ['clip-laion', 'clip-openai'];
+ 
+  let value_dataset = 'V3C';
+
+  let value_model = 'clip-laion';
+
+  let username = "";
+
+  let action_log = [];
+
+  let bayes_display = 10 * row_size;
+
+  let dragged_url = null;
 
   image_items = initialization();
 
 
-  function handleFilesSelect(e) {
-    const { acceptedFiles, fileRejections } = e.detail;
-    files.accepted = [...files.accepted, ...acceptedFiles];
-    files.rejected = [...files.rejected, ...fileRejections];
+  function noopHandler(evt) {
+      evt.preventDefault();
+  }
+  
+  function drop(evt) {
 
-    console.log(files.accepted);
-    document.getElementById("filedrop-box").style.width = "50%";
-    document.getElementById("filedrop-box").style.float = "left";
-    document.getElementById("filedrop-box").style.marginBottom = "7.5px";
+    evt.preventDefault();
+    const file = evt.dataTransfer.files[0];
+
+    console.log(evt.dataTransfer.files);
+
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        dragged_url = reader.result;
+      };
+
+      reader.readAsDataURL(file);
+    }
   }
 
   async function get_test_image(){
@@ -110,6 +130,13 @@
     
   }
 
+  function handleKeypress(event){
+    var key=event.keyCode || event.which;
+    if (key==13){
+      get_scores_by_text();
+    }
+  }
+
   async function request_handler(request_url, request_body, init=false, image_upload=false){
 
     if(!init){
@@ -143,6 +170,8 @@
 
       const responseData = await response.json();
 
+      console.log(responseData);
+
       let rows = [];
       let row = -1;
 
@@ -172,13 +201,15 @@
 
   async function get_scores_by_text() {
 
+    action_log.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
+
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
     const request_body = JSON.stringify({
       query: lion_text_query,
       k: max_display_size,
       dataset: 'vbs',
-      model: 'laion',
+      model: 'clip-laion',
       get_embeddings: true,
     });
 
@@ -196,13 +227,15 @@
 
     let selected_item = $selected_images[$selected_images.length - 1]
 
+    action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
+
     const request_body = JSON.stringify({
       video_id: selected_item[0],
       frame_id: selected_item[1],
       k: max_display_size,
       dataset: 'vbs',
-      model: 'laion',
-      get_embeddings: true,
+      model: 'clip-laion',
+      add_features : true,
     });
 
 
@@ -218,8 +251,13 @@
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
+    action_log.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
+
     const params = {
       k: max_display_size,
+      dataset: 'vbs',
+      model: 'clip-laion',
+      add_features : true,
     };
 
     const request_body = new FormData();
@@ -260,26 +298,50 @@
   // @ts-ignore
   function bayesUpdate() {
 
-    let imageFeatureVectors = []
+    
+    if ($selected_images.length == 0){
+      return null;
+    }
 
-    for (let i = 0; i < image_items.length; i++){
-      imageFeatureVectors.push(image_items[i].features)
+    previous_image_items.push(image_items);
+
+    let image_items_workcopy = structuredClone(image_items);
+
+    image_items = null;
+
+    let imageFeatureVectors = [];
+
+    for (let i = 0; i < image_items_workcopy.length; i++){
+      imageFeatureVectors.push(image_items_workcopy[i].features)
     }
 
     // Create items array
-    var items = Object.keys(image_items).map(function(key) {
-      return [key, image_items[key]];
+    var items = Object.keys(image_items_workcopy).map(function(key) {
+      return [key, image_items_workcopy[key]];
     });
 
-    let topDisplay = items.slice(0, 50);
+    let topDisplay = items.slice(0, bayes_display);
+
+    action_log.push({'method': 'bayes', 'query': $selected_images, 'k': topDisplay});
 
     // @ts-ignore
-    const negativeExamples = imageFeatureVectors.filter(item => !topDisplay.includes(item) && !selected_images.includes(item));
-    const positiveExamples = imageFeatureVectors.filter(item => selected_images.includes(item));
+    const negativeExamplesIndices = items.filter(item => !topDisplay.includes(item) && !selected_images.includes(item));
+    const positiveExamplesIndices = items.filter(item => selected_images.includes(item));
+
+    const negativeExamples = [];
+    const positiveExamples = [];
+
+    for (let i = 0; i < negativeExamplesIndices.length; i++){
+      negativeExamples.push(imageFeatureVectors[negativeExamplesIndices[i]]);
+    }
+
+    for (let i = 0; i < positiveExamplesIndices.length; i++){
+      positiveExamples.push(imageFeatureVectors[positiveExamplesIndices[i]]);
+    }
 
     let max_score = 0;
 
-    for (let i = 0; i < image_items.length; i++) {
+    for (let i = 0; i < image_items_workcopy.length; i++) {
         const featureVector = imageFeatureVectors[i];
 
         // @ts-ignore
@@ -289,21 +351,21 @@
         const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, negativeExamples)) / alpha), 0);
 
         // @ts-ignore
-        image_items[i].score = image_items[i].score * PF / NF;
+        image_items_workcopy[i].score = image_items_workcopy[i].score * PF / NF;
 
-        if (image_items[i].score > max_score){
-          max_score = image_items[i].score;
+        if (image_items_workcopy[i].score > max_score){
+          max_score = image_items_workcopy[i].score;
         }
     }
 
     // Normalization
-    for (let i = 0; i < image_items.length; i++){
-      image_items[i].score = image_items[i].score/max_score;
+    for (let i = 0; i < image_items_workcopy.length; i++){
+      image_items_workcopy[i].score = image_items_workcopy[i].score/max_score;
     }
 
     // Create items array
-    var items = Object.keys(image_items).map(function(key) {
-      return [key, image_items[key]];
+    var items = Object.keys(image_items_workcopy).map(function(key) {
+      return [key, image_items_workcopy[key]];
     });
 
     // Sort the array based on the second element
@@ -320,7 +382,6 @@
     image_items = items;
 
     console.log(image_items);
-    load_display()
   }
 
   function reset_last(){
@@ -376,19 +437,20 @@
           </div>
         {/if}
         <br><br>
-        <input class="menu_item" bind:value={lion_text_query} />
+        <input class="menu_item" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
           <Label>Submit Text Query</Label>
         </Button>
         <div class="filedrop-container menu_item">
-          <div id="filedrop-box">  
-            <Dropzone on:drop={handleFilesSelect} accept={["image/*"]} containerClasses="custom-dropzone">
-              <span>Click / Drag and drop</span>
-            </Dropzone>
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <div class="file-drop-area menu_item" on:dragenter={noopHandler} on:dragexit={noopHandler} on:dragover={noopHandler} on:drop={drop}>
+            <span class="fake-btn">Choose files</span>
+            <span class="file-msg">or drag and drop file here</span>
+            <input class="file-input" type="file">
           </div>
-          {#if files.accepted.length > 0}
-            <div id="image-preview-container">
-              <img id="output" alt="preview upload" src={URL.createObjectURL(files.accepted[files.accepted.length - 1])}/>
+          {#if dragged_url != null}
+            <div class="image-preview-container menu_item">
+              <img class="preview_image" alt="preview upload" src={dragged_url}/>
             </div>
           {/if}
         </div>
@@ -411,19 +473,28 @@
         <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
           <Label>Send Selected Images</Label>
         </Button>
-        <input class="menu_item" bind:value={custom_result} /><br>
+        <input class="menu_item" bind:value={custom_result} placeholder="Your custom result message"/><br>
         <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
           <Label>Send custom text</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Download Test Data</Label>
         </Button><br><br>
-        <input class="menu_item" bind:value={username} />
+        <input class="menu_item" bind:value={username} placeholder="Your username"/>
         <div class="menu_item">
           <div id="select-dataset">
-            <Select bind:value label="Select Dataset">
+            <Select bind:value_dataset label="Select Dataset">
               {#each datasets as dataset}
                 <Option value={dataset}>{dataset}</Option>
+              {/each}
+            </Select>
+          </div>
+        </div>
+        <div class="menu_item">
+          <div id="select-model">
+            <Select bind:value_model label="Select Model">
+              {#each models as model}
+                <Option value={model}>{model}</Option>
               {/each}
             </Select>
           </div>
@@ -447,13 +518,58 @@
             <p>showing image rows {start}-{end}. Total: {image_items.length}</p>
           {/await}
         {/if}
-      </div>     
+      </div> 
     {/key}
-    
-  </div>
 </main>
 
 <style>
+
+.file-drop-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.5em;
+  border: 1px dashed rgba(61, 61, 61, 0.4);
+  border-radius: 3px;
+  transition: 0.2s;
+  &.is-active {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.fake-btn {
+  flex-shrink: 0;
+  background-color: rgba(54, 53, 53, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.1em;
+  padding: 0.2em 0.4em;
+  margin-right: 0.25em;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.file-msg {
+  font-size: 0.75em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+  opacity: 0;
+  &:focus {
+    outline: none;
+  }
+}
 
 #container {
   min-height: 200px;
@@ -471,13 +587,13 @@
   width: 90%;
 }
 
-#image-preview-container{
-  width: 50%;
+.image-preview-container{
+  width: 100%;
   height: 6em;
-  float: left;
+  display: block;
 }
 
-#output{
+.preview_image{
   height: 100%;
   width: 100%;
   object-fit: contain;

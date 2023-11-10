@@ -34,11 +34,8 @@
 
 <style>
 	img {
-        display: block;
-        width: 100%;
-        height: auto;
-        min-height: 200px;
-        
+        max-width: 100%;
+        height: 12em;   
     }
     .hoverbuttontop{
         position: absolute;
@@ -94,6 +91,7 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+
 <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
     alt="id: {img.id} score: {img.score}"
     on:click={imgClick} on:mouseover={() => (hover = true)}
