@@ -651,7 +651,7 @@
 }
 
 .top-negative-offset2{
-  margin-top: -1em;
+  margin-top: -0.9em;
 }
 
 </style>
