@@ -2,6 +2,8 @@
     import { selected_images } from './stores.js';
     import { fade } from 'svelte/transition';
     import VideoPlayer from 'svelte-video-player';
+    import { createEventDispatcher } from 'svelte'
+    const dispatch = createEventDispatcher()
 
     export let img;
 
@@ -12,9 +14,13 @@
     let selected = $selected_images.includes(img.id);
     let hover = false;
     let video = false;
-
+    
     function showVideo(){
         video = true;
+    }
+
+    function similarimage(){
+        dispatch('similarimage');
     }
 
     function imgClick() {
@@ -39,9 +45,21 @@
     }
     .hoverbuttontop{
         position: absolute;
-        top: 35%;
+        top: 27%;
         left: 50%;
-        transform: translate(-50%, -35%);
+        transform: translate(-50%, -27%);
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .hoverbuttonmiddle{
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
         padding: 10px 20px;
@@ -51,9 +69,9 @@
 
     .hoverbuttonbottom{
         position: absolute;
-        top: 65%;
+        top: 73%;
         left: 50%;
-        transform: translate(-50%, -65%);
+        transform: translate(-50%, -73%);
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
         padding: 10px 20px;
@@ -98,8 +116,12 @@
     on:mouseout={() => (hover = false)} in:fade/>
 
 {#if hover}
-    <button class="hoverbuttontop" transition:fade>Send</button>
-    <button class="hoverbuttonbottom" transition:fade on:click={showVideo}>Show Video</button>
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <button class="hoverbuttontop" on:mouseover={() => (hover = true)} transition:fade>Send</button>
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <button class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar To This</button>
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <button class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Video</button>
 {/if}
 {#if video}
     <!-- svelte-ignore a11y-no-static-element-interactions -->

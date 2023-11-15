@@ -6,17 +6,19 @@
 
   import VirtualList from '@sveltejs/svelte-virtual-list';
   
-  import Button, { Label } from '@smui/button';
+  import Button from '@smui/button';
 
   // @ts-ignore
   import Select, { Option } from '@smui/select';
+  
+  import Fab, { Label, Icon } from '@smui/fab';
 
 
   let lion_text_query = "";
 
   let start;
 	let end;
-  let image_items = {}
+  let image_items = [];
   let alpha = 0.1;
 
   let custom_result = "";
@@ -56,8 +58,9 @@
 
   let dragged_url = null;
 
-  image_items = initialization();
+  let action_pointer = 0;
 
+  initialization();
 
   function noopHandler(evt) {
       evt.preventDefault();
@@ -119,14 +122,17 @@
 
   async function initialization() {
     
+    image_items[action_pointer] = null;
+
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
 
     const request_body = JSON.stringify({
       item_id: "00001_1",
-      k: 50
+      k: 50,
+      add_features: 1
     });
 
-    await request_handler(request_url, request_body, true);
+    request_handler(request_url, request_body, true);
     
   }
 
@@ -139,10 +145,14 @@
 
   async function request_handler(request_url, request_body, init=false, image_upload=false){
 
-    if(!init){
-      previous_image_items.push(image_items);
 
-      image_items = null;
+    if(!init){
+      while(image_items.length > action_pointer + 1){
+        image_items.pop();
+      }
+      
+      image_items.push(null);
+      action_pointer += 1;
     }
 
     let response;
@@ -185,13 +195,16 @@
 
       }
 
-      image_items = rows;
-
       if(!init){
         $selected_images = [];
       }
-      
-      create_chart(image_items);
+
+      image_items[action_pointer] = rows;
+
+
+      image_items = image_items;
+
+      create_chart(image_items[action_pointer]);
 
     } catch (error) {
       console.error(error);
@@ -208,24 +221,16 @@
     const request_body = JSON.stringify({
       query: lion_text_query,
       k: max_display_size,
-      dataset: 'vbs',
-      model: 'clip-laion',
-      get_embeddings: true,
     });
 
     await request_handler(request_url, request_body);
   }
 
-  async function get_scores_by_image() {
-
-
-    if ($selected_images.length == 0){
-      return null;
-    }
+  async function get_scores_by_image(event) {
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/";
 
-    let selected_item = $selected_images[$selected_images.length - 1]
+    let selected_item = event.detail.image_id;
 
     action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
 
@@ -233,10 +238,10 @@
       video_id: selected_item[0],
       frame_id: selected_item[1],
       k: max_display_size,
-      dataset: 'vbs',
-      model: 'clip-laion',
-      add_features : true,
+      add_features : "0",
     });
+
+    console.log(request_body);
 
 
     await request_handler(request_url, request_body);
@@ -303,7 +308,14 @@
       return null;
     }
 
-    previous_image_items.push(image_items);
+    while(image_items.length > action_pointer + 1){
+      image_items.pop();
+    }
+    
+    image_items.push(null);
+    action_pointer += 1;
+    
+    
 
     let image_items_workcopy = structuredClone(image_items);
 
@@ -325,8 +337,8 @@
     action_log.push({'method': 'bayes', 'query': $selected_images, 'k': topDisplay});
 
     // @ts-ignore
-    const negativeExamplesIndices = items.filter(item => !topDisplay.includes(item) && !selected_images.includes(item));
-    const positiveExamplesIndices = items.filter(item => selected_images.includes(item));
+    const negativeExamplesIndices = items.filter(item => !topDisplay.includes(item) && !$selected_images.includes(item));
+    const positiveExamplesIndices = items.filter(item => $selected_images.includes(item));
 
     const negativeExamples = [];
     const positiveExamples = [];
@@ -384,9 +396,22 @@
     console.log(image_items);
   }
 
+  function forward_action(){
+    if (image_items.length - 1 > action_pointer){
+      
+      if(image_items[action_pointer + 1] === null){
+        image_items.pop();
+      }else{
+        action_pointer += 1;
+        image_items = image_items;
+      }
+    }
+  }
+
   function reset_last(){
-    if (previous_image_items.length > 0){
-      image_items = previous_image_items.pop()
+    if (image_items.length > 0 && action_pointer > 0){
+      action_pointer -= 1;
+      image_items = image_items;
     }
   }
 
@@ -425,6 +450,33 @@
 
 <main>
   <div class='viewbox'>
+    <div class='top-menu'>
+      <div class="margins top-menu-item top-negative-offset2">
+        <Fab on:click={reset_last} extended ripple={false}>
+          <Icon class="material-icons">arrow_back</Icon>
+        </Fab>
+        <Fab on:click={forward_action} extended ripple={false}>
+          <Icon class="material-icons">arrow_forward</Icon>
+        </Fab>
+      </div>
+      <input class="top-menu-item" bind:value={username} placeholder="Your username"/>
+        <div class="top-menu-item top-negative-offset">
+          <Select bind:value_dataset label="Select Dataset">
+            {#each datasets as dataset}
+              <Option value={dataset}>{dataset}</Option>
+            {/each}
+          </Select>
+        </div>
+        <div class="top-menu-item top-negative-offset">
+          <Select bind:value_model label="Select Model">
+            {#each models as model}
+              <Option value={model}>{model}</Option>
+            {/each}
+          </Select>
+        </div>
+      </div>   
+    </div>
+
     <div class='menu'>
       <br>
       <div class='buttons'>
@@ -436,7 +488,6 @@
             <img id="testimage" alt="" />
           </div>
         {/if}
-        <br><br>
         <input class="menu_item" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
           <Label>Submit Text Query</Label>
@@ -457,14 +508,8 @@
         <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_image_upload} variant="raised">
           <Label>Similar Images by Upload</Label>
         </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_image} variant="raised">
-          <Label>Similar Images to Last Selection</Label>
-        </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
           <Label>Bayes Update</Label>
-        </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={reset_last} variant="raised">
-          <Label>Reset Last Action</Label>
         </Button>
         <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
@@ -479,43 +524,25 @@
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Download Test Data</Label>
-        </Button><br><br>
-        <input class="menu_item" bind:value={username} placeholder="Your username"/>
-        <div class="menu_item">
-          <div id="select-dataset">
-            <Select bind:value_dataset label="Select Dataset">
-              {#each datasets as dataset}
-                <Option value={dataset}>{dataset}</Option>
-              {/each}
-            </Select>
-          </div>
-        </div>
-        <div class="menu_item">
-          <div id="select-model">
-            <Select bind:value_model label="Select Model">
-              {#each models as model}
-                <Option value={model}>{model}</Option>
-              {/each}
-            </Select>
-          </div>
-        </div>
+        </Button>
       </div>
     </div>
     <div class="separator">
       <p> </p>
     </div>
+
     {#key image_items}
       <div id='container'>
-        {#if image_items === null}
+        {#if image_items[action_pointer] === null}
           <p>...loading</p>
         {:else}
-          {#await image_items}
+          {#await image_items[action_pointer]}
             <p>...loading</p>
           {:then imageData}
             <VirtualList items={imageData} bind:start bind:end let:item>
-              <ImageList row={item} />
+              <ImageList on:similarimage={get_scores_by_image} row={item} />
             </VirtualList>
-            <p>showing image rows {start}-{end}. Total: {image_items.length}</p>
+            <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
           {/await}
         {/if}
       </div> 
@@ -536,6 +563,20 @@
     background-color: rgba(255, 255, 255, 0.05);
   }
 }
+
+.top-menu{
+  width: 85%;
+  float: left;
+  margin-left: 15%;
+
+}
+
+.top-menu-item{
+  float: left;
+  margin-left: 1em;
+  margin-bottom: 0.25em;
+}
+
 
 .fake-btn {
   flex-shrink: 0;
@@ -573,7 +614,7 @@
 
 #container {
   min-height: 200px;
-  height: calc(100vh - 5em);
+  height: calc(100vh - 6.5em);
   width: 85%;
   float: left;
   margin-left: 15%;
@@ -605,10 +646,12 @@
   object-fit: contain;
 }
 
-#select-dataset{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.top-negative-offset{
+  margin-top: -1.5em;
+}
+
+.top-negative-offset2{
+  margin-top: -1em;
 }
 
 </style>

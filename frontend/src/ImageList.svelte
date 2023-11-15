@@ -1,6 +1,14 @@
 <script>
     import Image from './Image.svelte';
+    import { createEventDispatcher } from 'svelte'
     export let row;
+    const dispatch = createEventDispatcher()
+
+    function similarimage(image_id){
+
+        dispatch('similarimage', {image_id});
+    }
+
 </script>
 
 <style>
@@ -16,12 +24,14 @@
         position: relative;
         width: 20%;
     }
+
+    
 </style>
 
 <div class="row">
 	{#each row as img, index}
         <div class="item">
-            <Image {img}/>
+            <Image on:similarimage={() => similarimage(img.id)} {img}/>
         </div>
 	{/each}
 </div>
