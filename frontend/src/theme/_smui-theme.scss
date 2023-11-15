@@ -36,8 +36,8 @@ a:visited {
 }
 
 .menu {
-  position: absolute;
-  width: 13%;
+  float:left;
+  width: 15%;
   background-color: color-palette.$grey-300;
   text-align: center;
 }
@@ -46,7 +46,6 @@ a:visited {
   width: 85%;
   float: left;
   background-color: color-palette.$grey-300;
-  margin-left: 15%;
 }
 
 .buttons{

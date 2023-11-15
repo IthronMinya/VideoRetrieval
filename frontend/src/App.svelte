@@ -60,6 +60,8 @@
 
   let action_pointer = 0;
 
+  let file = null;
+
   initialization();
 
   function noopHandler(evt) {
@@ -69,7 +71,7 @@
   function drop(evt) {
 
     evt.preventDefault();
-    const file = evt.dataTransfer.files[0];
+    file = evt.dataTransfer.files[0];
 
     console.log(evt.dataTransfer.files);
 
@@ -81,6 +83,8 @@
       };
 
       reader.readAsDataURL(file);
+
+      get_scores_by_image_upload();
     }
   }
 
@@ -250,7 +254,7 @@
   async function get_scores_by_image_upload() {
 
 
-    if (files.accepted.length == 0){
+    if (file === null){
       return null;
     }
 
@@ -260,13 +264,11 @@
 
     const params = {
       k: max_display_size,
-      dataset: 'vbs',
-      model: 'clip-laion',
-      add_features : true,
+      add_features : 0,
     };
 
     const request_body = new FormData();
-    request_body.append('image', files.accepted[files.accepted.length - 1]);
+    request_body.append('image', file);
     request_body.append('query_params', JSON.stringify(params));
 
     await request_handler(request_url, request_body, false, true);
@@ -451,7 +453,7 @@
 <main>
   <div class='viewbox'>
     <div class='top-menu'>
-      <div class="margins top-menu-item top-negative-offset2">
+      <div class="margins top-menu-item top-negative-offset3">
         <Fab on:click={reset_last} extended ripple={false}>
           <Icon class="material-icons">arrow_back</Icon>
         </Fab>
@@ -460,21 +462,32 @@
         </Fab>
       </div>
       <input class="top-menu-item" bind:value={username} placeholder="Your username"/>
-        <div class="top-menu-item top-negative-offset">
-          <Select bind:value_dataset label="Select Dataset">
-            {#each datasets as dataset}
-              <Option value={dataset}>{dataset}</Option>
-            {/each}
-          </Select>
-        </div>
-        <div class="top-menu-item top-negative-offset">
-          <Select bind:value_model label="Select Model">
-            {#each models as model}
-              <Option value={model}>{model}</Option>
-            {/each}
-          </Select>
-        </div>
-      </div>   
+      <div class="top-menu-item top-negative-offset">
+        <Select bind:value_dataset label="Select Dataset">
+          {#each datasets as dataset}
+            <Option value={dataset}>{dataset}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset">
+        <Select bind:value_model label="Select Model">
+          {#each models as model}
+            <Option value={model}>{model}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset3">
+        <Button color="primary" on:click={() => clicked++} variant="raised">
+          <Label>Send Selected Images</Label>
+        </Button>
+      </div>
+      <input class="top-menu-item" bind:value={custom_result} placeholder="Your custom result message"/>
+      <div class ="top-menu-item top-negative-offset3" >
+        <Button color="primary" on:click={() => clicked++} variant="raised">
+          <Label>Send custom text</Label>
+        </Button> 
+      </div>
+      
     </div>
 
     <div class='menu'>
@@ -505,30 +518,17 @@
             </div>
           {/if}
         </div>
-        <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_image_upload} variant="raised">
-          <Label>Similar Images by Upload</Label>
-        </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
           <Label>Bayes Update</Label>
         </Button>
         <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Must Contain Selected Classes</Label>
-        </Button><br><br>
-        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Send Selected Images</Label>
-        </Button>
-        <input class="menu_item" bind:value={custom_result} placeholder="Your custom result message"/><br>
-        <Button class="menu_item menu_button" color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Send custom text</Label>
         </Button>
         <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
           <Label>Download Test Data</Label>
         </Button>
       </div>
-    </div>
-    <div class="separator">
-      <p> </p>
     </div>
 
     {#key image_items}
@@ -565,10 +565,8 @@
 }
 
 .top-menu{
-  width: 85%;
+  width: 100%;
   float: left;
-  margin-left: 15%;
-
 }
 
 .top-menu-item{
@@ -617,7 +615,6 @@
   height: calc(100vh - 6.5em);
   width: 85%;
   float: left;
-  margin-left: 15%;
   background-color: rgb(202, 202, 202);
 }
 
@@ -652,6 +649,10 @@
 
 .top-negative-offset2{
   margin-top: -0.9em;
+}
+
+.top-negative-offset3{
+  margin-top: -0.2em;
 }
 
 </style>
