@@ -12,21 +12,22 @@
    ```
    > after that we activate it and install needed dependencies
 
-3. Get all svelte packages and npm dependencies
+2. Get all svelte packages and npm dependencies
 ```cmd
 cd ./frontend
-npm install
+npm install --legacy-peer-deps
 cd ../
 ```
 
-4. Build svelte and run fastapi with uvicorn. The prepare statement builds the css from the material design theme
+3. Build svelte and run fastapi with uvicorn. The prepare statement builds the css from the material design theme
 ```cmd
 cd ./frontend
 npm run prepare
-npm run build; cd ../
+npm run build
+cd ../
 uvicorn main:app --reload
 ```
-5. When developing in Svelte, you can use dev server
+4. When developing in Svelte, you can use dev server
 ```cmd
 npm run dev
 ```
