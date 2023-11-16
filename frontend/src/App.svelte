@@ -225,6 +225,8 @@
     const request_body = JSON.stringify({
       query: lion_text_query,
       k: max_display_size,
+      add_features: 1,
+      speed_up: 1,
     });
 
     await request_handler(request_url, request_body);
@@ -612,7 +614,7 @@
 
 #container {
   min-height: 200px;
-  height: calc(100vh - 6.5em);
+  height: calc(100vh - 7.0em);
   width: 85%;
   float: left;
   background-color: rgb(202, 202, 202);
