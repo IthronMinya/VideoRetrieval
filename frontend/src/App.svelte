@@ -225,8 +225,6 @@
     const request_body = JSON.stringify({
       query: lion_text_query,
       k: max_display_size,
-      add_features: 1,
-      speed_up: 1,
     });
 
     await request_handler(request_url, request_body);
