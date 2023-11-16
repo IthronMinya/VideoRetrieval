@@ -27,7 +27,7 @@
 
   let test_image_av = false;
 
-  const row_size = 5;
+  let row_size = 7;
 
   $: image_items;
 
@@ -39,8 +39,6 @@
   };
 
   let clicked = 0;
-
-  let previous_image_items = [];
 
   let datasets = ['V3C', 'Medical'];
 
@@ -540,7 +538,7 @@
             <p>...loading</p>
           {:then imageData}
             <VirtualList items={imageData} bind:start bind:end let:item>
-              <ImageList on:similarimage={get_scores_by_image} row={item} />
+              <ImageList on:similarimage={get_scores_by_image} row={item} bind:row_size/>
             </VirtualList>
             <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
           {/await}
