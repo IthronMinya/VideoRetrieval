@@ -6,6 +6,7 @@
     const dispatch = createEventDispatcher()
 
     export let img;
+    export let row_size;
 
     const poster = 'https://www.server.com/poster.jpg';
     const source = 'https://www.server.com/video.mp4';
@@ -21,6 +22,10 @@
 
     function similarimage(){
         dispatch('similarimage');
+    }
+
+    function send_result(){
+        dispatch('send_result');
     }
 
     function imgClick() {
@@ -40,41 +45,41 @@
 
 <style>
 	img {
-        max-width: 100%;
-        height: 12em;   
+        width: 100%;
+        height: auto;
     }
     .hoverbuttontop{
         position: absolute;
-        top: 27%;
-        left: 50%;
-        transform: translate(-50%, -27%);
+        top: 5%;
+        left: 5%;
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
-        padding: 10px 20px;
+        padding: 2.5% 2.5% 2.5% 2.5%;
+        font-size: 0.5vw;
         border: none;
         cursor: pointer;
     }
 
     .hoverbuttonmiddle{
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: 25%;
+        left: 5%;
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
-        padding: 10px 20px;
+        padding: 2.5% 2.5% 2.5% 2.5%;
+        font-size: 0.5vw;
         border: none;
         cursor: pointer;
     }
 
     .hoverbuttonbottom{
         position: absolute;
-        top: 73%;
-        left: 50%;
-        transform: translate(-50%, -73%);
+        top: 45%;
+        left: 5%;
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
-        padding: 10px 20px;
+        padding: 2.5% 2.5% 2.5% 2.5%;
+        font-size: 0.5vw;
         border: none;
         cursor: pointer;
     }
@@ -86,8 +91,7 @@
 		align-items: center;
 		left: 0;
 		top: 0;
-		width: 85%;
-        margin-left: 15%;
+		width: 100%;
 		height: 100%;
 		backdrop-filter: blur(20px);
         z-index: 3;
@@ -117,11 +121,11 @@
 
 {#if hover}
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button class="hoverbuttontop" on:mouseover={() => (hover = true)} transition:fade>Send</button>
+    <button style='--row_size:{row_size};' class="hoverbuttontop" on:mouseover={() => (hover = true)} transition:fade on:click={send_result}>Send</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar To This</button>
+    <button style='--row_size:{row_size};' class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar To This</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Video</button>
+    <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Video</button>
 {/if}
 {#if video}
     <!-- svelte-ignore a11y-no-static-element-interactions -->

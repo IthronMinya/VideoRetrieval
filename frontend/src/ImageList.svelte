@@ -10,20 +10,23 @@
         dispatch('similarimage', {image_id});
     }
 
+    function send_result(image_id){
+        dispatch('send_result', {image_id});
+    }
+
 </script>
 
 <style>
 	.row {
-        display: table;
-        border-collapse: collapse;
-        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
     }
+
     .item {
-        display: table-cell;
-        vertical-align: top;
-        padding: 5px;
-        position: relative;
-        width: calc( 100% / var(--row_size));
+        box-sizing: border-box;
+        flex: 1 0 auto; /* Allow items to grow, but not shrink */
+        position: relative; /* Make the container relative */
+        width: calc(100% / var(--row_size) ); /* Account for padding and margin */
     }
 
     
@@ -32,7 +35,7 @@
 <div class="row">
 	{#each row as img, index}
         <div class="item" style='--row_size:{row_size};'>
-            <Image on:similarimage={() => similarimage(img.id)} {img}/>
+            <Image on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} {img} row_size={row.length}/>
         </div>
 	{/each}
 </div>

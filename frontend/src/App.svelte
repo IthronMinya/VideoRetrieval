@@ -4,6 +4,8 @@
   import { selected_images } from './stores.js';
   import ImageList from './ImageList.svelte';
 
+  import Timer from './Timer.svelte';
+
   import VirtualList from '@sveltejs/svelte-virtual-list';
   
   import Button from '@smui/button';
@@ -13,8 +15,13 @@
   
   import Fab, { Label, Icon } from '@smui/fab';
 
+  let timer;
 
   let lion_text_query = "";
+
+  let text_query_log = [];
+
+  let text_query_log_pointer = 0;
 
   let start;
 	let end;
@@ -27,16 +34,11 @@
 
   let test_image_av = false;
 
-  let row_size = 7;
+  let row_size = 5;
 
   $: image_items;
 
   let random_target = null;
-  
-  let files = {
-    accepted: [],
-    rejected: []
-  };
 
   let clicked = 0;
 
@@ -50,7 +52,12 @@
 
   let username = "";
 
+  let send_results = "";
+
   let action_log = [];
+
+  let action_log_without_back_and_forth = [];
+  let action_log_pointer = 0;
 
   let bayes_display = 10 * row_size;
 
@@ -86,7 +93,37 @@
     }
   }
 
+  function send_results_custom(){
+    timer.stop();
+  }
+
+  function send_results_single(event){
+    timer.stop();
+
+    send_results = event.detail.image_id;
+
+  }
+
+  function send_results_multiple(){
+    timer.stop();
+
+    send_results = " ";
+
+    $selected_images.forEach((selection) => {
+      send_results += `${selection}; `;
+    });
+  }
+
+  function download_results(){
+    
+  }
+
   async function get_test_image(){
+
+    send_results = "";
+    timer.reset();
+    timer.start();
+
     test_image_av = true;
 
     const imgElement = document.getElementById('testimage');
@@ -126,6 +163,8 @@
     
     image_items[action_pointer] = null;
 
+    action_log_without_back_and_forth.push({'method': 'initialization', 'query': '', 'k': 50});
+    
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
 
     const request_body = JSON.stringify({
@@ -152,7 +191,11 @@
       while(image_items.length > action_pointer + 1){
         image_items.pop();
       }
-      
+
+      while(action_log_without_back_and_forth.length > action_log_pointer + 1){
+        action_log_without_back_and_forth.pop();
+      }
+
       image_items.push(null);
       action_pointer += 1;
     }
@@ -216,6 +259,8 @@
 
   async function get_scores_by_text() {
 
+    action_log_pointer +=1;
+    action_log_without_back_and_forth.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
     action_log.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
@@ -233,6 +278,10 @@
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/";
 
     let selected_item = event.detail.image_id;
+
+    action_log_pointer +=1;
+    action_log_without_back_and_forth.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
+
 
     action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
 
@@ -258,6 +307,9 @@
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
+    action_log_without_back_and_forth.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
+    action_log_pointer +=1;
+
     action_log.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
 
     const params = {
@@ -334,6 +386,9 @@
 
     let topDisplay = items.slice(0, bayes_display);
 
+    action_log_without_back_and_forth.push({'method': 'bayes', 'query': $selected_images, 'k': topDisplay});
+    action_log_pointer +=1;
+
     action_log.push({'method': 'bayes', 'query': $selected_images, 'k': topDisplay});
 
     // @ts-ignore
@@ -405,13 +460,35 @@
         action_pointer += 1;
         image_items = image_items;
       }
+
+      if(action_log_without_back_and_forth.length - 1 > action_log_pointer){
+        action_log_pointer += 1;
+      }
+
+      if (action_log_without_back_and_forth[action_log_pointer]['method'] == "textquery"){
+        lion_text_query = action_log_without_back_and_forth[action_log_pointer]['query'];
+      }
+
+      action_log.push({'method': 'forward'});
+
     }
   }
 
   function reset_last(){
     if (image_items.length > 0 && action_pointer > 0){
       action_pointer -= 1;
+      if(action_log_pointer > 0){
+        action_log_pointer -=1;
+      }
+      
       image_items = image_items;
+
+      if (action_log_without_back_and_forth[action_log_pointer]['method'] == "textquery" ||
+       action_log_without_back_and_forth[action_log_pointer]['method'] == "initialization"){
+        lion_text_query = action_log_without_back_and_forth[action_log_pointer]['query'];
+      }
+
+      action_log.push({'method': 'back'});
     }
   }
 
@@ -451,15 +528,9 @@
 <main>
   <div class='viewbox'>
     <div class='top-menu'>
-      <div class="margins top-menu-item top-negative-offset3">
-        <Fab on:click={reset_last} extended ripple={false}>
-          <Icon class="material-icons">arrow_back</Icon>
-        </Fab>
-        <Fab on:click={forward_action} extended ripple={false}>
-          <Icon class="material-icons">arrow_forward</Icon>
-        </Fab>
+      <div class="top-input">
+        <input class="top-menu-item resize-text top-offset" bind:value={username} placeholder="Your username"/>
       </div>
-      <input class="top-menu-item" bind:value={username} placeholder="Your username"/>
       <div class="top-menu-item top-negative-offset">
         <Select bind:value_dataset label="Select Dataset">
           {#each datasets as dataset}
@@ -475,85 +546,119 @@
         </Select>
       </div>
       <div class="top-menu-item top-negative-offset3">
-        <Button color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Send Selected Images</Label>
+        <Button color="primary" on:click={send_results_multiple} variant="raised">
+          <span class="resize-text">Send Selected Images</span>
         </Button>
       </div>
-      <input class="top-menu-item" bind:value={custom_result} placeholder="Your custom result message"/>
+      <div class="top-input">
+        <input class="top-menu-item resize-text top-offset" bind:value={custom_result} placeholder="Your custom result message"/>
+      </div>
       <div class ="top-menu-item top-negative-offset3" >
         <Button color="primary" on:click={() => clicked++} variant="raised">
-          <Label>Send custom text</Label>
+          <span class="resize-text">Send custom text</span>
         </Button> 
       </div>
       
     </div>
 
-    <div class='menu'>
-      <br>
-      <div class='buttons'>
-        <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
-          <Label>Random Test Image</Label>
-        </Button>
-        {#if true}
-          <div id="test-image-preview-container">
-            <img id="testimage" alt="" />
+    <div class="horizontal">
+      <div class='menu'>
+        <div class='buttons'>
+          <div class="centering" style="margin-bottom:0.5em;">
+            <Fab on:click={reset_last} extended ripple={false}>
+              <Icon class="material-icons">arrow_back</Icon>
+            </Fab>
+            <Fab on:click={forward_action} extended ripple={false}>
+              <Icon class="material-icons">arrow_forward</Icon>
+            </Fab>
           </div>
-        {/if}
-        <input class="menu_item" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
-        <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
-          <Label>Submit Text Query</Label>
-        </Button>
-        <div class="filedrop-container menu_item">
-          <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div class="file-drop-area menu_item" on:dragenter={noopHandler} on:dragexit={noopHandler} on:dragover={noopHandler} on:drop={drop}>
-            <span class="fake-btn">Choose files</span>
-            <span class="file-msg">or drag and drop file here</span>
-            <input class="file-input" type="file">
+          {#if send_results.length > 0}
+            <span>Your send results: {send_results}</span>
+          {/if}
+          <div class="timer centering" style="margin-bottom:0.5em;">
+            <Timer bind:this={timer}/>
           </div>
-          {#if dragged_url != null}
-            <div class="image-preview-container menu_item">
-              <img class="preview_image" alt="preview upload" src={dragged_url}/>
+          <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
+            <span class="resize-text">Random Test Image</span>
+          </Button>
+          {#if true}
+            <div id="test-image-preview-container">
+              <img id="testimage" alt="" />
             </div>
           {/if}
+          <input class="menu_item resize-text" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
+          <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
+            <span class="resize-text">Submit Text Query</span>
+          </Button>
+          <div class="filedrop-container menu_item">
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div class="file-drop-area menu_item" on:dragenter={noopHandler} on:dragexit={noopHandler} on:dragover={noopHandler} on:drop={drop}>
+              <span class="fake-btn">Choose files</span>
+              <span class="file-msg">or drag and drop file here</span>
+              <input class="file-input" type="file">
+            </div>
+            {#if dragged_url != null}
+              <div class="image-preview-container menu_item">
+                <img class="preview_image" alt="preview upload" src={dragged_url}/>
+              </div>
+            {/if}
+          </div>
+          <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
+            <span class="resize-text">Bayes Update</span>
+          </Button>
+          <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
+          <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
+            <span class="resize-text">Must Contain Selected Classes</span>
+          </Button>
+          <Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
+            <span class="resize-text">Download Test Data</span>
+          </Button>
         </div>
-        <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
-          <Label>Bayes Update</Label>
-        </Button>
-        <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
-        <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
-          <Label>Must Contain Selected Classes</Label>
-        </Button>
-        <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
-          <Label>Download Test Data</Label>
-        </Button>
       </div>
-    </div>
 
-    {#key image_items}
-      <div id='container'>
-        {#if image_items[action_pointer] === null}
-          <p>...loading</p>
-        {:else}
-          {#await image_items[action_pointer]}
+      {#key image_items}
+        <div id='container'>
+          {#if image_items[action_pointer] === null}
             <p>...loading</p>
-          {:then imageData}
-            <VirtualList items={imageData} bind:start bind:end let:item>
-              <ImageList on:similarimage={get_scores_by_image} row={item} bind:row_size/>
-            </VirtualList>
-            <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
-          {/await}
-        {/if}
-      </div> 
-    {/key}
+          {:else}
+            {#await image_items[action_pointer]}
+              <p>...loading</p>
+            {:then imageData}
+              <VirtualList items={imageData} bind:start bind:end let:item>
+                <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} row={item} bind:row_size/>
+              </VirtualList>
+              <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
+            {/await}
+          {/if}
+        </div> 
+      {/key}
+    </div>
+  </div>
 </main>
 
 <style>
+
+
+.centering{
+  display: flex;
+  flex-direction: row;
+  justify-content: center; /* Center items horizontally */
+  width: 100%;
+}
+
+.horizontal{
+  display: flex; /* Create a new flex container for the two bottom elements */
+  flex: 1;
+}
+.resize-text{
+  font-size: 0.75em;
+}
 
 .file-drop-area {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0.5em;
+  width: 100%;
   border: 1px dashed rgba(61, 61, 61, 0.4);
   border-radius: 3px;
   transition: 0.2s;
@@ -563,14 +668,22 @@
 }
 
 .top-menu{
-  width: 100%;
-  float: left;
+  flex: 1;
+  display: flex;
 }
 
 .top-menu-item{
-  float: left;
+  display: flex;
   margin-left: 1em;
   margin-bottom: 0.25em;
+}
+
+.top-offset{
+  margin-top: 1.25em;
+}
+
+.top-input{
+  height: 100%;
 }
 
 
@@ -643,10 +756,6 @@
 
 .top-negative-offset{
   margin-top: -1.5em;
-}
-
-.top-negative-offset2{
-  margin-top: -0.9em;
 }
 
 .top-negative-offset3{
