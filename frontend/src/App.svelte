@@ -15,13 +15,11 @@
   
   import Fab, { Label, Icon } from '@smui/fab';
 
+  import { onMount, onDestroy } from 'svelte';
+
   let timer;
 
   let lion_text_query = "";
-
-  let text_query_log = [];
-
-  let text_query_log_pointer = 0;
 
   let start;
 	let end;
@@ -30,13 +28,17 @@
 
   let custom_result = "";
 
-  let max_display_size = 4000;
+  let max_display_size = 2000;
 
   let test_image_av = false;
 
-  let row_size = 5;
+  let row_size;
+  let num_rows;
 
-  $: image_items;
+  $: {
+    image_items;
+    row_size;
+  }
 
   let random_target = null;
 
@@ -67,7 +69,37 @@
 
   let file = null;
 
+  let iterator_structure = [];
+  
   initialization();
+
+  const handleResize = () => {
+   
+    row_size = Math.floor(window.innerWidth / 450);
+
+    if (image_items[action_pointer] != null){
+      num_rows = Math.ceil(image_items[action_pointer].length / row_size);
+    }
+    
+    console.log(row_size);
+    console.log(num_rows);
+
+  };
+
+  onMount(() => {
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initialize the variable and check the threshold on component mount
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  });
+
+  onDestroy(() => {
+    // Cleanup event listener on component destroy
+    window.removeEventListener('resize', handleResize);
+  });
+
 
   function noopHandler(evt) {
       evt.preventDefault();
@@ -95,6 +127,8 @@
 
   function send_results_custom(){
     timer.stop();
+
+    send_results = custom_result;
   }
 
   function send_results_single(event){
@@ -112,6 +146,8 @@
     $selected_images.forEach((selection) => {
       send_results += `${selection}; `;
     });
+
+    send_results = send_results.slice(0, -2); // remove last space and semicolon
   }
 
   function download_results(){
@@ -120,7 +156,12 @@
 
   async function get_test_image(){
 
-    send_results = "";
+    $selected_images.forEach((selection) => {
+      send_results += `${selection}; `;
+    });
+    
+    $selected_images = [];
+
     timer.reset();
     timer.start();
 
@@ -244,7 +285,9 @@
         $selected_images = [];
       }
 
-      image_items[action_pointer] = rows;
+      image_items[action_pointer] = responseData;
+
+      console.log(image_items[action_pointer]);
 
 
       image_items = image_items;
@@ -554,7 +597,7 @@
         <input class="top-menu-item resize-text top-offset" bind:value={custom_result} placeholder="Your custom result message"/>
       </div>
       <div class ="top-menu-item top-negative-offset3" >
-        <Button color="primary" on:click={() => clicked++} variant="raised">
+        <Button color="primary" on:click={send_results_custom} variant="raised">
           <span class="resize-text">Send custom text</span>
         </Button> 
       </div>
@@ -615,22 +658,23 @@
           </Button>
         </div>
       </div>
-
-      {#key image_items}
-        <div id='container'>
-          {#if image_items[action_pointer] === null}
-            <p>...loading</p>
-          {:else}
-            {#await image_items[action_pointer]}
+      {#key row_size}
+        {#key image_items}
+          <div id='container'>
+            {#if image_items[action_pointer] === null}
               <p>...loading</p>
-            {:then imageData}
-              <VirtualList items={imageData} bind:start bind:end let:item>
-                <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} row={item} bind:row_size/>
-              </VirtualList>
-              <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
-            {/await}
-          {/if}
-        </div> 
+            {:else}
+              {#await image_items[action_pointer]}
+                <p>...loading</p> 
+              {:then imageData}
+                <VirtualList items={imageData} bind:start bind:end let:item>
+                  <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} row={item} bind:row_size/>
+                </VirtualList>
+                <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
+              {/await}
+            {/if}
+          </div> 
+        {/key}
       {/key}
     </div>
   </div>

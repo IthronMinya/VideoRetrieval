@@ -11,8 +11,7 @@
     const poster = 'https://www.server.com/poster.jpg';
     const source = 'https://www.server.com/video.mp4';
 
-
-    let selected = $selected_images.includes(img.id);
+    let selected;
     let hover = false;
     let video = false;
     
@@ -28,7 +27,7 @@
         dispatch('send_result');
     }
 
-    function imgClick() {
+    export function imgClick() {
 
         if (!selected){
             $selected_images = [...$selected_images, img.id];
@@ -55,7 +54,6 @@
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
         padding: 2.5% 2.5% 2.5% 2.5%;
-        font-size: 0.5vw;
         border: none;
         cursor: pointer;
     }
@@ -67,7 +65,6 @@
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
         padding: 2.5% 2.5% 2.5% 2.5%;
-        font-size: 0.5vw;
         border: none;
         cursor: pointer;
     }
@@ -79,7 +76,6 @@
         background-color: rgba(0, 0, 0, 0.5);
         color: white;
         padding: 2.5% 2.5% 2.5% 2.5%;
-        font-size: 0.5vw;
         border: none;
         cursor: pointer;
     }
@@ -131,7 +127,6 @@
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="modal-background" on:click|self={() => video = false}
         on:keydown={(e) => {
-            console.log("test");
             if (e.key === 'Escape') video = false;
         }}>
         <div class="player">
