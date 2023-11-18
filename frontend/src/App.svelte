@@ -173,8 +173,25 @@
     action_log.push({'method': 'send_multi_result', 'query': send_results, 'k': 0});
   }
 
+  function download(content, fileName, contentType) {
+      var a = document.createElement("a");
+      var file = new Blob([content], {type: contentType});
+      a.href = URL.createObjectURL(file);
+      a.download = fileName;
+      a.click();
+  }
+
   function download_results(){
-    console.log(action_log);
+
+    const target = {'target': random_target[0]['id']};
+    const full_data = [target].concat(action_log);
+
+    console.log(full_data);
+
+    var action_log_json = JSON.stringify(full_data);
+
+    download(action_log_json, 'action_log.txt', 'text/plain');
+
   }
 
   async function get_test_image(){
