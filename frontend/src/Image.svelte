@@ -11,7 +11,7 @@
     const poster = 'https://www.server.com/poster.jpg';
     const source = 'https://www.server.com/video.mp4';
 
-    let selected;
+    export let selected;
     let hover = false;
     let video = false;
     

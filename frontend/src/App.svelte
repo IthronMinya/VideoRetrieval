@@ -33,11 +33,11 @@
   let test_image_av = false;
 
   let row_size;
-  let num_rows;
+  let prepared_display = null;
 
   $: {
-    image_items;
-    row_size;
+    handleResize(image_items);
+    prepared_display;
   }
 
   let random_target = null;
@@ -69,22 +69,33 @@
 
   let file = null;
 
-  let iterator_structure = [];
-  
   initialization();
 
-  const handleResize = () => {
-   
-    row_size = Math.floor(window.innerWidth / 450);
+  function handleResize(){
+    row_size = Math.floor(window.innerWidth / 350);
 
     if (image_items[action_pointer] != null){
-      num_rows = Math.ceil(image_items[action_pointer].length / row_size);
-    }
-    
-    console.log(row_size);
-    console.log(num_rows);
+      console.log("resizing...");
+      let rows = [];
+      let row = -1;
 
-  };
+      for (let i = 0; i < image_items[action_pointer].length; i++) {
+        if (i % row_size == 0){
+          row = row + 1;
+          rows[row] = [];
+        }
+
+        rows[row].push(image_items[action_pointer][i]);
+
+      }
+
+      start = 0;
+
+      prepared_display = rows;
+    }else{
+      prepared_display = null;
+    }   
+  }
 
   onMount(() => {
     window.addEventListener('resize', handleResize);
@@ -129,12 +140,16 @@
     timer.stop();
 
     send_results = custom_result;
+
+    $selected_images = [];
   }
 
   function send_results_single(event){
     timer.stop();
 
     send_results = event.detail.image_id;
+
+    $selected_images = [];
 
   }
 
@@ -148,6 +163,8 @@
     });
 
     send_results = send_results.slice(0, -2); // remove last space and semicolon
+
+    $selected_images = [];
   }
 
   function download_results(){
@@ -227,19 +244,27 @@
 
   async function request_handler(request_url, request_body, init=false, image_upload=false){
 
+    prepared_display = null;
+    
+    action_log_pointer += 1;
 
     if(!init){
       while(image_items.length > action_pointer + 1){
         image_items.pop();
       }
 
-      while(action_log_without_back_and_forth.length > action_log_pointer + 1){
-        action_log_without_back_and_forth.pop();
+      while(action_log_without_back_and_forth.length > action_log_pointer){
+        action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
       }
 
+      console.log(action_log_without_back_and_forth);
+
       image_items.push(null);
+
       action_pointer += 1;
+           
     }
+
 
     let response;
 
@@ -260,6 +285,7 @@
         });
       }
 
+
       if (!response.ok) {
         throw new Error('Request failed');
       }
@@ -268,29 +294,13 @@
 
       console.log(responseData);
 
-      let rows = [];
-      let row = -1;
+      image_items[action_pointer] = responseData;
 
-      for (let i = 0; i < responseData.length; i++) {
-        if (i % row_size == 0){
-          row = row + 1;
-          rows[row] = [];
-        }
-
-        rows[row].push(responseData[i]);
-
-      }
-
+      handleResize();
+      
       if(!init){
         $selected_images = [];
       }
-
-      image_items[action_pointer] = responseData;
-
-      console.log(image_items[action_pointer]);
-
-
-      image_items = image_items;
 
       create_chart(image_items[action_pointer]);
 
@@ -302,7 +312,6 @@
 
   async function get_scores_by_text() {
 
-    action_log_pointer +=1;
     action_log_without_back_and_forth.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
     action_log.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
 
@@ -322,7 +331,6 @@
 
     let selected_item = event.detail.image_id;
 
-    action_log_pointer +=1;
     action_log_without_back_and_forth.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
 
 
@@ -351,7 +359,6 @@
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
     action_log_without_back_and_forth.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
-    action_log_pointer +=1;
 
     action_log.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
 
@@ -495,6 +502,15 @@
   }
 
   function forward_action(){
+
+    if(action_log_without_back_and_forth.length > action_log_pointer){
+      action_log_pointer += 1;
+    }
+
+    if (action_log_without_back_and_forth[action_log_pointer-1]['method'] == "textquery"){
+      lion_text_query = action_log_without_back_and_forth[action_log_pointer-1]['query'];
+    }
+    
     if (image_items.length - 1 > action_pointer){
       
       if(image_items[action_pointer + 1] === null){
@@ -504,32 +520,26 @@
         image_items = image_items;
       }
 
-      if(action_log_without_back_and_forth.length - 1 > action_log_pointer){
-        action_log_pointer += 1;
-      }
-
-      if (action_log_without_back_and_forth[action_log_pointer]['method'] == "textquery"){
-        lion_text_query = action_log_without_back_and_forth[action_log_pointer]['query'];
-      }
-
       action_log.push({'method': 'forward'});
 
     }
   }
 
   function reset_last(){
+    
+    if(action_log_pointer > 1){
+      action_log_pointer -=1;
+    }
+
+    if (action_log_without_back_and_forth[action_log_pointer -1]['method'] == "textquery" ||
+       action_log_without_back_and_forth[action_log_pointer -1]['method'] == "initialization"){
+        lion_text_query = action_log_without_back_and_forth[action_log_pointer-1]['query'];
+    }
+
     if (image_items.length > 0 && action_pointer > 0){
       action_pointer -= 1;
-      if(action_log_pointer > 0){
-        action_log_pointer -=1;
-      }
-      
+            
       image_items = image_items;
-
-      if (action_log_without_back_and_forth[action_log_pointer]['method'] == "textquery" ||
-       action_log_without_back_and_forth[action_log_pointer]['method'] == "initialization"){
-        lion_text_query = action_log_without_back_and_forth[action_log_pointer]['query'];
-      }
 
       action_log.push({'method': 'back'});
     }
@@ -658,22 +668,22 @@
           </Button>
         </div>
       </div>
-      {#key row_size}
-        {#key image_items}
+      {#key image_items}
+        {#key prepared_display}
           <div id='container'>
-            {#if image_items[action_pointer] === null}
+            {#if prepared_display === null}
               <p>...loading</p>
             {:else}
-              {#await image_items[action_pointer]}
-                <p>...loading</p> 
-              {:then imageData}
-                <VirtualList items={imageData} bind:start bind:end let:item>
+              {#await prepared_display}
+                <p>...loading</p>
+              {:then prepared_display}             
+                <VirtualList items={prepared_display} bind:start bind:end let:item>
                   <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} row={item} bind:row_size/>
                 </VirtualList>
-                <p>showing image rows {start}-{end}. Total: {image_items[action_pointer].length}</p>
+                <p>showing image rows {start}-{end}. Total: {prepared_display.length}</p>
               {/await}
             {/if}
-          </div> 
+          </div>
         {/key}
       {/key}
     </div>

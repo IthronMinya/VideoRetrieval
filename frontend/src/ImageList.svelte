@@ -1,6 +1,6 @@
 <script>
     import Image from './Image.svelte';
-
+    import { selected_images } from './stores.js';
     import { createEventDispatcher } from 'svelte';
     export let row;
     export let row_size;
@@ -39,7 +39,7 @@
 <div class="row">
 	{#each row as img, index}
         <div class="item" style='--row_size:{row_size};'>
-            <Image bind:this={images[index]} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} {img} row_size={row.length}/>
+            <Image bind:this={images[index]} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} {img} row_size={row.length} selected={$selected_images.includes(img.id)}/>
         </div>
 	{/each}
 </div>
