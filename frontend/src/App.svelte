@@ -142,6 +142,8 @@
     send_results = custom_result;
 
     $selected_images = [];
+
+    action_log.push({'method': 'send_custom_result', 'query': send_results, 'k': 0});
   }
 
   function send_results_single(event){
@@ -150,6 +152,8 @@
     send_results = event.detail.image_id;
 
     $selected_images = [];
+
+    action_log.push({'method': 'send_single_result', 'query': send_results, 'k': 0});
 
   }
 
@@ -165,13 +169,25 @@
     send_results = send_results.slice(0, -2); // remove last space and semicolon
 
     $selected_images = [];
+
+    action_log.push({'method': 'send_multi_result', 'query': send_results, 'k': 0});
   }
 
   function download_results(){
-    
+    console.log(action_log);
   }
 
   async function get_test_image(){
+
+    image_items = [];
+    action_log = [];
+    action_log_without_back_and_forth = [];
+
+    initialization();
+
+    action_pointer = 0;
+
+    action_log_pointer = 1;
 
     $selected_images.forEach((selection) => {
       send_results += `${selection}; `;
@@ -238,7 +254,7 @@
 
           const request_body = JSON.stringify({
             item_id: String(random_id[0]) + "_" + String(random_id[1]),
-            k: 100/2,
+            k: 50,
             add_features: 0
           });
 
@@ -272,8 +288,6 @@
       while(action_log_without_back_and_forth.length > action_log_pointer){
         action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
       }
-
-      console.log(action_log_without_back_and_forth);
 
       image_items.push(null);
 
@@ -519,10 +533,11 @@
 
     if(action_log_without_back_and_forth.length > action_log_pointer){
       action_log_pointer += 1;
-    }
 
-    if (action_log_without_back_and_forth[action_log_pointer-1]['method'] == "textquery"){
-      lion_text_query = action_log_without_back_and_forth[action_log_pointer-1]['query'];
+      if (action_log_without_back_and_forth[action_log_pointer-1]['method'] == "textquery"){
+        lion_text_query = action_log_without_back_and_forth[action_log_pointer-1]['query'];
+      }
+      
     }
     
     if (image_items.length - 1 > action_pointer){
@@ -532,9 +547,8 @@
       }else{
         action_pointer += 1;
         image_items = image_items;
+        action_log.push({'method': 'forward'});
       }
-
-      action_log.push({'method': 'forward'});
 
     }
   }
