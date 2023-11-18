@@ -225,13 +225,29 @@
     
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
 
-    const request_body = JSON.stringify({
-      item_id: "00001_1",
-      k: 50,
-      add_features: 1
-    });
 
-    request_handler(request_url, request_body, true);
+    try {
+        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
+        if (response.ok) {
+
+          random_target = await response.json();
+
+          console.log(random_target[0]["id"]);
+          
+          let random_id = random_target[0]["id"];
+
+          const request_body = JSON.stringify({
+            item_id: String(random_id[0]) + "_" + String(random_id[1]),
+            k: 100/2,
+            add_features: 0
+          });
+
+          request_handler(request_url, request_body, true);
+          
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
     
   }
 
@@ -245,7 +261,7 @@
   async function request_handler(request_url, request_body, init=false, image_upload=false){
 
     prepared_display = null;
-    
+
     action_log_pointer += 1;
 
     if(!init){
@@ -333,14 +349,12 @@
 
     action_log_without_back_and_forth.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
 
-
     action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
 
     const request_body = JSON.stringify({
       video_id: selected_item[0],
       frame_id: selected_item[1],
       k: max_display_size,
-      add_features : "0",
     });
 
     console.log(request_body);
