@@ -14,9 +14,14 @@
     export let selected;
     let hover = false;
     let video = false;
+    let large = false;
     
     function showVideo(){
         video = true;
+    }
+
+    function largeImage(){
+        large = true;
     }
 
     function similarimage(){

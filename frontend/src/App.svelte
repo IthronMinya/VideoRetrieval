@@ -573,7 +573,9 @@
         lion_text_query = current['query'];
 
       }else if(current['method'] == "text_filtering"){
-        filtered_lables.push(current['label'])
+        if (!filtered_lables.has(current['label'])){
+          filtered_lables.push(current['label']);
+        }
 
       }else if(current['method'] == "text_restore_filtering"){
         filtered_lables.splice(filtered_lables.indexOf(current['label']), 1);
@@ -592,6 +594,8 @@
       }
 
     }
+
+    handleResize();
   }
 
   function reset_last(){
@@ -605,7 +609,9 @@
         lion_text_query = previous['query'];
 
     }else if(previous['method'] == "text_filtering"){
-      filtered_lables.push(previous['label'])
+      if (!filtered_lables.has(previous['label'])){
+        filtered_lables.push(previous['label']);
+      }
 
     }else if(previous['method'] == "text_restore_filtering"){
       filtered_lables.splice(filtered_lables.indexOf(previous['label']), 1);
@@ -618,6 +624,8 @@
 
       action_log.push({'method': 'back'});
     }
+
+    handleResize();
   }
 
   async function readTextFile(filePath) {
