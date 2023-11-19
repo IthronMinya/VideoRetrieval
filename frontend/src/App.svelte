@@ -13,9 +13,10 @@
   // @ts-ignore
   import Select, { Option } from '@smui/select';
   
-  import Fab, { Label, Icon } from '@smui/fab';
+  import Fab, { Icon } from '@smui/fab';
 
   import { onMount, onDestroy } from 'svelte';
+
 
   let timer;
 
@@ -28,7 +29,7 @@
 
   let custom_result = "";
 
-  let max_display_size = 2000;
+  let max_display_size = 10;
 
   let test_image_av = false;
 
@@ -69,32 +70,52 @@
 
   let file = null;
 
+  let allLabels = [];
+
+  let allOccurrences = [];
+
+  let allIds = [];
+
+  let filtered_lables = [];
+
   initialization();
 
   function handleResize(){
     row_size = Math.floor(window.innerWidth / 350);
-
+    
     if (image_items[action_pointer] != null){
-      console.log("resizing...");
+      console.log("resizing or reloading display");
+
+      let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
+     
       let rows = [];
       let row = -1;
 
-      for (let i = 0; i < image_items[action_pointer].length; i++) {
+      for (let i = 0; i < temp_items.length; i++) {
         if (i % row_size == 0){
           row = row + 1;
           rows[row] = [];
         }
-
-        rows[row].push(image_items[action_pointer][i]);
-
+        
+        if (temp_items[i].hasOwnProperty('disabled') && !temp_items[i]['disabled']) {
+          rows[row].push(temp_items[i]);
+        }else if(temp_items[i].hasOwnProperty('disabled') && temp_items[i]['disabled']){
+          // do nothing
+        }else{
+          rows[row].push(temp_items[i]);
+        }
       }
 
       start = 0;
 
       prepared_display = rows;
+
+      create_chart();
+
     }else{
       prepared_display = null;
-    }   
+    }
+
   }
 
   onMount(() => {
@@ -337,19 +358,16 @@
         throw new Error('Request failed');
       }
 
-      const responseData = await response.json();
+      let responseData = await response.json();
 
       console.log(responseData);
 
       image_items[action_pointer] = responseData;
-
       handleResize();
       
       if(!init){
         $selected_images = [];
       }
-
-      create_chart(image_items[action_pointer]);
 
     } catch (error) {
       console.error(error);
@@ -404,7 +422,6 @@
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
     action_log_without_back_and_forth.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
-
     action_log.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
 
     const params = {
@@ -551,8 +568,15 @@
     if(action_log_without_back_and_forth.length > action_log_pointer){
       action_log_pointer += 1;
 
-      if (action_log_without_back_and_forth[action_log_pointer-1]['method'] == "textquery"){
-        lion_text_query = action_log_without_back_and_forth[action_log_pointer-1]['query'];
+      let current = action_log_without_back_and_forth[action_log_pointer-1]
+      if (current['method'] == "textquery"){
+        lion_text_query = current['query'];
+
+      }else if(current['method'] == "text_filtering"){
+        filtered_lables.push(current['label'])
+
+      }else if(current['method'] == "text_restore_filtering"){
+        filtered_lables.splice(filtered_lables.indexOf(current['label']), 1);
       }
       
     }
@@ -575,10 +599,16 @@
     if(action_log_pointer > 1){
       action_log_pointer -=1;
     }
+    let previous = action_log_without_back_and_forth[action_log_pointer -1];
 
-    if (action_log_without_back_and_forth[action_log_pointer -1]['method'] == "textquery" ||
-       action_log_without_back_and_forth[action_log_pointer -1]['method'] == "initialization"){
-        lion_text_query = action_log_without_back_and_forth[action_log_pointer-1]['query'];
+    if (previous['method'] == "textquery" || previous['method'] == "initialization"){
+        lion_text_query = previous['query'];
+
+    }else if(previous['method'] == "text_filtering"){
+      filtered_lables.push(previous['label'])
+
+    }else if(previous['method'] == "text_restore_filtering"){
+      filtered_lables.splice(filtered_lables.indexOf(previous['label']), 1);
     }
 
     if (image_items.length > 0 && action_pointer > 0){
@@ -590,35 +620,229 @@
     }
   }
 
-  // @ts-ignore
-  function create_chart(image_items){
+  async function readTextFile(filePath) {
+    try {
+      const response = await fetch(filePath);
+      const data = await response.text();
+      return data.split('\n').map(label => label.trim());
+    } catch (error) {
+      console.error('Error reading text file:', error);
+      return [];
+    }
+  }
 
-    //var ctx = document.getElementById('myChart');
-    // @ts-ignore
-    var ctx = document.getElementById('myChart').getContext('2d'); // 2d context
-    //var ctx = 'myChart'; // element id
+  async function findTopNNumbersWithLabels(dictionary, n, labelsFilePath) {
+    const allNumbers = Object.values(dictionary).flatMap(obj => obj.label);
+    const numberOccurrences = {};
 
-    // @ts-ignore
-    new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: ['Person', 'Car', 'Maple Tree', 'Dog', 'Cat'],
-        datasets: [{
-          label: 'Display Clusters',
-          backgroundColor: [
-            '#F7464A',
-            '#46BFBD',
-            '#FDB45C',
-            '#949FB1',
-            '#4D5360',
-            '#AC64AD',
-          ],
-          data: [2000, 1000, 150, 500, 350]
-        }]
-      }
+    // Read labels from the text file
+    const labels = await readTextFile(labelsFilePath);
+
+    // Count occurrences and associate with labels
+    allNumbers.forEach(number => {
+      const label = labels[number];
+      numberOccurrences[label] = (numberOccurrences[label] || 0) + 1;
     });
-    
 
+    // Sort the array based on occurrences and then label
+    const sortedLabels = Object.keys(numberOccurrences).sort((a, b) => {
+      const frequencyComparison = numberOccurrences[b] - numberOccurrences[a];
+      if (frequencyComparison !== 0) {
+        return frequencyComparison;
+      }
+      return a.localeCompare(b);
+    });
+
+    // Take the top N labels with occurrences
+    const topNLabels = sortedLabels.slice(0, n).map(label => ({
+      label,
+      occurrences: numberOccurrences[label],
+      id: labels.indexOf(label),
+    }));
+
+    return topNLabels;
+  }
+
+  // @ts-ignore
+  async function create_chart(){
+    if (image_items[action_pointer][0] != null && image_items[action_pointer][0]['label'] != null){
+      
+      // remove disabled items
+      let temp_items = {};
+
+      console.log("Start");
+      console.log(filtered_lables);
+      console.log(image_items[action_pointer]);
+
+      for (let i = 0; i < image_items[action_pointer].length; i++) {
+        if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
+          temp_items[i] = image_items[action_pointer][i]
+        }else if(image_items[action_pointer][i].hasOwnProperty('disabled') && image_items[action_pointer][i]['disabled']){
+          // do nothing
+        }else{
+          temp_items[i] = image_items[action_pointer][i]
+        }
+      }
+
+      temp_items = Object.values(temp_items);
+      
+      console.log(temp_items);
+      console.log("END");
+
+      const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, 7, './assets/nounlist.txt');
+
+      allLabels = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.label);
+      allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
+      allIds = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.id);
+
+      console.log(allLabels);
+      let border_colors = [];
+
+      for(let i=0; i < allIds.length; i++){
+        if (filtered_lables.includes(allIds[i])) {
+          border_colors.push('#FF0000');
+        }else{
+          border_colors.push('#00FFFF');
+        }
+      }
+
+      // @ts-ignore
+
+      const canvas = document.getElementById('myChart');
+
+      // clear previous canvas
+      var new_canvas = document.createElement("canvas");
+      new_canvas.setAttribute("id", "myChart");
+      new_canvas.setAttribute("class", "menu_item");
+      new_canvas.setAttribute("style", "width:300px;height:300px");
+      canvas.replaceWith(new_canvas)
+
+      const ctx = document.getElementById('myChart').getContext('2d'); // 2d context
+
+      // @ts-ignore
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: allLabels,
+          datasets: [{
+            label: 'Display Clusters',
+            borderColor: border_colors,
+            borderWidth: 3,
+            backgroundColor: [
+              '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'
+            ],
+            data: allOccurrences
+          }]
+        },
+        options: {
+          onClick: function (event, elements) {
+            if (elements.length > 0) {
+              // Get the index of the clicked bar
+              const clickedIndex = elements[0]._index;
+
+              const clickedLabel = allLabels[clickedIndex];
+              const clickedOccurrence = allOccurrences[clickedIndex];
+              const clickedId = allIds[clickedIndex];
+
+              console.log(`Clicked bar with label: ${clickedLabel}, Occurrence: ${clickedOccurrence}, Id: ${clickedId}`);
+              
+              if (filtered_lables.includes(clickedId)){
+                // restore disabled items again
+
+                filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
+
+                console.log(filtered_lables);
+
+                let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
+                
+                if (filtered_lables.length > 0){
+                  for (const [key, value] of Object.entries(temp_items)) {
+                    temp_items[key]['disabled'] = true;
+                  }
+
+                  for (const [key, value] of Object.entries(temp_items)) {
+                    for(let i=0; i < filtered_lables.length; i++){
+                      if (temp_items[key].label.includes(filtered_lables[i])) {
+                        temp_items[key]['disabled'] = false;
+                      }
+                    }
+                  }
+                }else{
+                  for (const [key, value] of Object.entries(temp_items)) {
+                    temp_items[key]['disabled'] = false;
+                  }
+                }
+                
+                while(image_items.length > action_pointer + 1){
+                  image_items.pop();
+                }
+
+                while(action_log_without_back_and_forth.length > action_log_pointer){
+                  action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+                }
+                
+                image_items.push(temp_items);
+
+                action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel});
+                action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel});
+
+              }else{          
+                
+                filtered_lables.push(clickedId);
+                
+                let num_filtered = 0;
+
+                // Filter out elements in the image_items dictionary that don't contain the clicked label
+
+                let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
+
+                for (const [key, value] of Object.entries(temp_items)) {
+                  temp_items[key]['disabled'] = false;
+                }
+
+                for (const [key, value] of Object.entries(temp_items)) {
+                  for(let i=0; i < filtered_lables.length; i++){
+                    if (!temp_items[key].label.includes(filtered_lables[i])) {
+                      temp_items[key]['disabled'] = true;
+                    }
+                  }
+                }
+                
+                while(image_items.length > action_pointer + 1){
+                  image_items.pop();
+                }
+
+                while(action_log_without_back_and_forth.length > action_log_pointer){
+                  action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+                }
+
+                image_items.push(temp_items);
+                
+                action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
+                action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
+
+              }
+              
+              action_pointer += 1;
+              action_log_pointer += 1;
+
+              console.log(image_items[action_pointer]);
+
+              handleResize();
+
+            }
+          },
+          scales: {
+            yAxes: [{
+              ticks: {
+                beginAtZero: true,
+                callback: function(value) {if (value % 1 === 0) {return value;}}
+              },
+            }]
+          }  
+        },
+      });
+    }   
   }
 
 </script>
@@ -705,9 +929,6 @@
             <span class="resize-text">Bayes Update</span>
           </Button>
           <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
-          <Button class="menu_item menu_button" color="secondary" on:click={() => clicked++} variant="raised">
-            <span class="resize-text">Must Contain Selected Classes</span>
-          </Button>
           <Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
             <span class="resize-text">Download Test Data</span>
           </Button>
@@ -725,7 +946,7 @@
                 <VirtualList items={prepared_display} bind:start bind:end let:item>
                   <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} row={item} bind:row_size/>
                 </VirtualList>
-                <p>showing image rows {start}-{end}. Total: {prepared_display.length}</p>
+                <p>showing image rows {start}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
               {/await}
             {/if}
           </div>
@@ -737,6 +958,9 @@
 
 <style>
 
+#myChart{
+  width: auto;
+}
 
 .centering{
   display: flex;
