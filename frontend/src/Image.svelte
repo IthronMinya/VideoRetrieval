@@ -28,6 +28,10 @@
         dispatch('similarimage');
     }
 
+    function video_images(){
+        dispatch('video_images');
+    }
+
     function send_result(){
         dispatch('send_result');
     }
@@ -47,6 +51,7 @@
     }
 </script>
 
+<!-- svelte-ignore a11y-mouse-events-have-key-events -->
 <style>
 	img {
         width: 100%;
@@ -85,6 +90,17 @@
         cursor: pointer;
     }
 
+    .hoverbuttonfurtherbottom{
+        position: absolute;
+        top: 65%;
+        left: 5%;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 2.5% 2.5% 2.5% 2.5%;
+        border: none;
+        cursor: pointer;
+    }
+
     .modal-background {
 		position: fixed;
 		display: flex;
@@ -108,6 +124,16 @@
         z-index: 4;
     }
 
+    .large_image{
+        position: fixed;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		width: 45%;
+		height: 45%;
+        z-index: 4;
+    }
+
 </style>
 
 
@@ -115,10 +141,19 @@
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
 
+<svelte:window
+    on:keydown={(e) => {
+        video = false;
+        large = false;
+    }}
+/>
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+<!-- svelte-ignore a11y-mouse-events-have-key-events -->
 <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
     alt="id: {img.id} score: {img.score}"
     on:click={imgClick} on:mouseover={() => (hover = true)}
-    on:mouseout={() => (hover = false)} in:fade/>
+    on:mouseout={() => (hover = false)} on:dblclick={largeImage} in:fade/>
 
 {#if hover}
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
@@ -127,15 +162,29 @@
     <button style='--row_size:{row_size};' class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar To This</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
     <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Video</button>
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Show Nearby Frames</button>
 {/if}
 {#if video}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div class="modal-background" on:click|self={() => video = false}
-        on:keydown={(e) => {
-            if (e.key === 'Escape') video = false;
-        }}>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div class="modal-background" on:click|self={() => video = false}>
         <div class="player">
             <VideoPlayer {poster} {source} />
+        </div>
+    </div>
+{/if}
+{#if large}
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div class="modal-background" on:click|self={() => large = false}>
+        <div class="large_image">
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
+            alt="id: {img.id} score: {img.score}"
+            on:click={imgClick} in:fade/>
         </div>
     </div>
 {/if}

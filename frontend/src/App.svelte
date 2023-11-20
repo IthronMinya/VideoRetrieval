@@ -29,7 +29,7 @@
 
   let custom_result = "";
 
-  let max_display_size = 10;
+  let max_display_size = 2000;
 
   let test_image_av = false;
 
@@ -39,6 +39,7 @@
   $: {
     handleResize(image_items);
     prepared_display;
+    filtered_lables;
   }
 
   let random_target = null;
@@ -78,37 +79,50 @@
 
   let filtered_lables = [];
 
+  let file_labels = [];
+
   initialization();
 
   function handleResize(){
+
+    console.log(filtered_lables)
     row_size = Math.floor(window.innerWidth / 350);
-    
+    console.log(row_size);
+
     if (image_items[action_pointer] != null){
       console.log("resizing or reloading display");
 
-      let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-     
       let rows = [];
       let row = -1;
 
-      for (let i = 0; i < temp_items.length; i++) {
-        if (i % row_size == 0){
-          row = row + 1;
-          rows[row] = [];
-        }
+      let s = 0
+      for (let i = 0; i < image_items[action_pointer].length; i++) {
         
-        if (temp_items[i].hasOwnProperty('disabled') && !temp_items[i]['disabled']) {
-          rows[row].push(temp_items[i]);
-        }else if(temp_items[i].hasOwnProperty('disabled') && temp_items[i]['disabled']){
+        if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
+          if (s % row_size == 0){
+            row = row + 1;
+            rows[row] = [];
+          }
+          rows[row].push(image_items[action_pointer][i]);
+          s += 1;
+        }else if(image_items[action_pointer][i].hasOwnProperty('disabled') && image_items[action_pointer][i]['disabled']){
           // do nothing
         }else{
-          rows[row].push(temp_items[i]);
+          if (s % row_size == 0){
+            row = row + 1;
+            rows[row] = [];
+          }
+          rows[row].push(image_items[action_pointer][i]);
+          s += 1;
         }
       }
+
 
       start = 0;
 
       prepared_display = rows;
+
+      console.log(prepared_display);
 
       create_chart();
 
@@ -271,14 +285,37 @@
   
   }
 
+  async function video_images(event) {
+    
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
+
+    let selected_item = event.detail.image_id;
+
+    action_log_without_back_and_forth.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]], 'k': 50});
+
+    action_log.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]], 'k': 50});
+
+    const request_body = JSON.stringify({
+      item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
+      k: 50,
+      add_features: 0
+    });
+
+    request_handler(request_url, request_body);
+    
+  }
+
   async function initialization() {
+
+    // Read labels from the text file
+    file_labels = await readTextFile('./assets/nounlist.txt');
+
     
     image_items[action_pointer] = null;
 
     action_log_without_back_and_forth.push({'method': 'initialization', 'query': '', 'k': 50});
     
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
-
 
     try {
         const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
@@ -362,6 +399,24 @@
 
       console.log(responseData);
 
+      if (filtered_lables.length > 0){
+        for (const [key, value] of Object.entries(responseData)) {
+          responseData[key]['disabled'] = true;
+        }
+
+        for (const [key, value] of Object.entries(responseData)) {
+          for(let i=0; i < filtered_lables.length; i++){
+            if (responseData[key].label.includes(filtered_lables[i])) {
+              responseData[key]['disabled'] = false;
+            }
+          }
+        }
+      }else{
+        for (const [key, value] of Object.entries(responseData)) {
+          responseData[key]['disabled'] = false;
+        }
+      }
+      
       image_items[action_pointer] = responseData;
       handleResize();
       
@@ -575,10 +630,12 @@
       }else if(current['method'] == "text_filtering"){
         if (!filtered_lables.has(current['label'])){
           filtered_lables.push(current['label']);
+          filtered_lables = filtered_lables;
         }
 
       }else if(current['method'] == "text_restore_filtering"){
         filtered_lables.splice(filtered_lables.indexOf(current['label']), 1);
+        filtered_lables = filtered_lables;
       }
       
     }
@@ -611,10 +668,12 @@
     }else if(previous['method'] == "text_filtering"){
       if (!filtered_lables.has(previous['label'])){
         filtered_lables.push(previous['label']);
+        filtered_lables = filtered_lables;
       }
 
     }else if(previous['method'] == "text_restore_filtering"){
       filtered_lables.splice(filtered_lables.indexOf(previous['label']), 1);
+      filtered_lables = filtered_lables;
     }
 
     if (image_items.length > 0 && action_pointer > 0){
@@ -639,16 +698,13 @@
     }
   }
 
-  async function findTopNNumbersWithLabels(dictionary, n, labelsFilePath) {
+  async function findTopNNumbersWithLabels(dictionary, n) {
     const allNumbers = Object.values(dictionary).flatMap(obj => obj.label);
     const numberOccurrences = {};
 
-    // Read labels from the text file
-    const labels = await readTextFile(labelsFilePath);
-
     // Count occurrences and associate with labels
     allNumbers.forEach(number => {
-      const label = labels[number];
+      const label = file_labels[number];
       numberOccurrences[label] = (numberOccurrences[label] || 0) + 1;
     });
 
@@ -665,10 +721,106 @@
     const topNLabels = sortedLabels.slice(0, n).map(label => ({
       label,
       occurrences: numberOccurrences[label],
-      id: labels.indexOf(label),
+      id: file_labels.indexOf(label),
     }));
 
     return topNLabels;
+  }
+
+  function label_click(event){
+
+    const clickedId = event;
+    const clickedLabel = file_labels[clickedId];
+
+    console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
+    
+    if (filtered_lables.includes(clickedId)){
+      // restore disabled items again
+
+      filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
+      filtered_lables = filtered_lables;
+
+      console.log(filtered_lables);
+
+      let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
+      
+      if (filtered_lables.length > 0){
+        for (const [key, value] of Object.entries(temp_items)) {
+          temp_items[key]['disabled'] = true;
+        }
+
+        for (const [key, value] of Object.entries(temp_items)) {
+          for(let i=0; i < filtered_lables.length; i++){
+            if (temp_items[key].label.includes(filtered_lables[i])) {
+              temp_items[key]['disabled'] = false;
+            }
+          }
+        }
+      }else{
+        for (const [key, value] of Object.entries(temp_items)) {
+          temp_items[key]['disabled'] = false;
+        }
+      }
+      
+      while(image_items.length > action_pointer + 1){
+        image_items.pop();
+      }
+
+      while(action_log_without_back_and_forth.length > action_log_pointer){
+        action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+      }
+      
+      image_items.push(temp_items);
+
+      action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel});
+      action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel});
+
+    }else{          
+      
+      filtered_lables.push(clickedId);
+      filtered_lables = filtered_lables;
+      
+      let num_filtered = 0;
+
+      // Filter out elements in the image_items dictionary that don't contain the clicked label
+
+      let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
+
+      for (const [key, value] of Object.entries(temp_items)) {
+        temp_items[key]['disabled'] = false;
+      }
+
+      for (const [key, value] of Object.entries(temp_items)) {
+        for(let i=0; i < filtered_lables.length; i++){
+          if (!temp_items[key].label.includes(filtered_lables[i])) {
+            temp_items[key]['disabled'] = true;
+          }
+        }
+      }
+      
+      while(image_items.length > action_pointer + 1){
+        image_items.pop();
+      }
+
+      while(action_log_without_back_and_forth.length > action_log_pointer){
+        action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+      }
+
+      image_items.push(temp_items);
+      
+      action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
+      action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
+
+    }
+    
+    action_pointer += 1;
+    action_log_pointer += 1;
+
+    console.log(image_items[action_pointer]);
+
+    handleResize();
+
+    
   }
 
   // @ts-ignore
@@ -697,7 +849,7 @@
       console.log(temp_items);
       console.log("END");
 
-      const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, 7, './assets/nounlist.txt');
+      const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, 7);
 
       allLabels = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.label);
       allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
@@ -710,7 +862,7 @@
         if (filtered_lables.includes(allIds[i])) {
           border_colors.push('#FF0000');
         }else{
-          border_colors.push('#00FFFF');
+          border_colors.push('rgba(0, 0, 0, 0.0)');
         }
       }
 
@@ -737,7 +889,7 @@
             borderColor: border_colors,
             borderWidth: 3,
             backgroundColor: [
-              '#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'
+              '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'
             ],
             data: allOccurrences
           }]
@@ -752,12 +904,13 @@
               const clickedOccurrence = allOccurrences[clickedIndex];
               const clickedId = allIds[clickedIndex];
 
-              console.log(`Clicked bar with label: ${clickedLabel}, Occurrence: ${clickedOccurrence}, Id: ${clickedId}`);
+              console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
               
               if (filtered_lables.includes(clickedId)){
                 // restore disabled items again
 
                 filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
+                filtered_lables = filtered_lables;
 
                 console.log(filtered_lables);
 
@@ -797,6 +950,7 @@
               }else{          
                 
                 filtered_lables.push(clickedId);
+                filtered_lables = filtered_lables;
                 
                 let num_filtered = 0;
 
@@ -937,6 +1091,16 @@
             <span class="resize-text">Bayes Update</span>
           </Button>
           <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
+          {#key filtered_lables}
+            {#if filtered_lables.length > 0}
+              <p >Active label filter</p>
+            {/if}
+            {#each filtered_lables as label}
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+              <p class='active_label' on:click={() => label_click(label)}>{file_labels[label]}</p>
+            {/each}
+          {/key}
           <Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
             <span class="resize-text">Download Test Data</span>
           </Button>
@@ -952,7 +1116,7 @@
                 <p>...loading</p>
               {:then prepared_display}             
                 <VirtualList items={prepared_display} bind:start bind:end let:item>
-                  <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} row={item} bind:row_size/>
+                  <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
                 </VirtualList>
                 <p>showing image rows {start}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
               {/await}
@@ -965,6 +1129,16 @@
 </main>
 
 <style>
+
+.active_label{
+  color: red;
+  text-align: left;
+  margin-left: 2em;
+  margin-right: 2em;
+  padding: 0.5em;
+  background-color: lightgray;
+  cursor: pointer;
+}
 
 #myChart{
   width: auto;

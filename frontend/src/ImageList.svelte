@@ -13,6 +13,11 @@
         dispatch('similarimage', {image_id});
     }
 
+    function video_images(image_id){
+
+        dispatch('video_images', {image_id});
+    }
+
     function send_result(image_id){
         dispatch('send_result', {image_id});
     }
@@ -39,7 +44,7 @@
 <div class="row">
 	{#each row as img, index}
         <div class="item" style='--row_size:{row_size};'>
-            <Image bind:this={images[index]} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} {img} row_size={row.length} selected={$selected_images.includes(img.id)}/>
+            <Image bind:this={images[index]} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} on:video_images={() => video_images(img.id)} {img} row_size={row.length} selected={$selected_images.includes(img.id)}/>
         </div>
 	{/each}
 </div>
