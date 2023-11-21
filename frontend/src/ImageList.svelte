@@ -29,6 +29,7 @@
         display: flex;
         flex-wrap: nowrap;
         box-sizing: border-box;
+        width: calc((100% / var(--row_size)) * var(--row_items) )
     }
 
     .item {
@@ -41,9 +42,9 @@
     
 </style>
 
-<div class="row">
+<div class="row" style='--row_size:{row_size};--row_items:{row.length};'>
 	{#each row as img, index}
-        <div class="item" style='--row_size:{row_size};'>
+        <div class="item">
             <Image bind:this={images[index]} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} on:video_images={() => video_images(img.id)} {img} row_size={row.length} selected={$selected_images.includes(img.id)}/>
         </div>
 	{/each}

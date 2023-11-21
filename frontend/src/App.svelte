@@ -29,7 +29,7 @@
 
   let custom_result = "";
 
-  let max_display_size = 2000;
+  let max_display_size = 1000;
 
   let test_image_av = false;
 
@@ -37,7 +37,7 @@
   let prepared_display = null;
 
   $: {
-    handleResize(image_items);
+    reloading_display(image_items);
     prepared_display;
     filtered_lables;
   }
@@ -81,24 +81,41 @@
 
   let file_labels = [];
 
+  let labelColorMap = {};
+
+  let target_in_display_text = "Target is not in current Display!";
+  let target_in_display = false;
   initialization();
 
-  function handleResize(){
+  function arrayEquals(a, b) {
+    return Array.isArray(a) &&
+        Array.isArray(b) &&
+        a.length === b.length &&
+        a.every((val, index) => val === b[index]);
+  }
 
-    console.log(filtered_lables)
+  function reloading_display(){
+
     row_size = Math.floor(window.innerWidth / 350);
-    console.log(row_size);
 
     if (image_items[action_pointer] != null){
-      console.log("resizing or reloading display");
+      console.log("reloading display");
 
       let rows = [];
       let row = -1;
 
-      let s = 0
+      let s = 0;
+
+      target_in_display = false;
+
       for (let i = 0; i < image_items[action_pointer].length; i++) {
-        
+        if (random_target != null && arrayEquals(image_items[action_pointer][i]['id'], random_target[0]['id'])){
+          target_in_display = true;
+        }
+
         if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
+          
+
           if (s % row_size == 0){
             row = row + 1;
             rows[row] = [];
@@ -108,6 +125,7 @@
         }else if(image_items[action_pointer][i].hasOwnProperty('disabled') && image_items[action_pointer][i]['disabled']){
           // do nothing
         }else{
+
           if (s % row_size == 0){
             row = row + 1;
             rows[row] = [];
@@ -117,12 +135,16 @@
         }
       }
 
+      if (target_in_display){
+        target_in_display_text = "Target in current Display!"
+      }else{
+        target_in_display_text = "Target is not in current Display!";
+      }
+
 
       start = 0;
 
       prepared_display = rows;
-
-      console.log(prepared_display);
 
       create_chart();
 
@@ -133,19 +155,11 @@
   }
 
   onMount(() => {
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initialize the variable and check the threshold on component mount
-    
+    window.addEventListener('resize', reloading_display);    
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', reloading_display);
     };
   });
-
-  onDestroy(() => {
-    // Cleanup event listener on component destroy
-    window.removeEventListener('resize', handleResize);
-  });
-
 
   function noopHandler(evt) {
       evt.preventDefault();
@@ -259,10 +273,12 @@
         if (response.ok) {
 
           random_target = await response.json();
+
+          console.log("TESTTARGET");
+          console.log(random_target[0]);
+
           
           let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/images/" + String(random_target[0]["uri"]);
-
-          console.log(imageUrl);
 
           try {
             const response_image = await fetch(imageUrl);
@@ -298,7 +314,7 @@
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
       k: 50,
-      add_features: 0
+      add_features: 1,
     });
 
     request_handler(request_url, request_body);
@@ -321,14 +337,12 @@
         const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
         if (response.ok) {
 
-          random_target = await response.json();
+          let init = await response.json();
 
-          console.log(random_target[0]["id"]);
-          
-          let random_id = random_target[0]["id"];
+          let init_id = init[0]["id"];
 
           const request_body = JSON.stringify({
-            item_id: String(random_id[0]) + "_" + String(random_id[1]),
+            item_id: String(init_id[0]) + "_" + String(init_id[1]),
             k: 50,
             add_features: 0
           });
@@ -418,7 +432,6 @@
       }
       
       image_items[action_pointer] = responseData;
-      handleResize();
       
       if(!init){
         $selected_images = [];
@@ -440,6 +453,8 @@
     const request_body = JSON.stringify({
       query: lion_text_query,
       k: max_display_size,
+      add_features: 1,
+      speed_up: 1,
     });
 
     await request_handler(request_url, request_body);
@@ -459,10 +474,9 @@
       video_id: selected_item[0],
       frame_id: selected_item[1],
       k: max_display_size,
+      add_features: 1,
+      speed_up: 1,
     });
-
-    console.log(request_body);
-
 
     await request_handler(request_url, request_body);
   }
@@ -482,6 +496,8 @@
     const params = {
       k: max_display_size,
       add_features : 0,
+      add_features: 1,
+      speed_up: 1,
     };
 
     const request_body = new FormData();
@@ -614,8 +630,6 @@
     }
 
     image_items = items;
-
-    console.log(image_items);
   }
 
   function forward_action(){
@@ -652,7 +666,7 @@
 
     }
 
-    handleResize();
+    reloading_display();
   }
 
   function reset_last(){
@@ -684,7 +698,7 @@
       action_log.push({'method': 'back'});
     }
 
-    handleResize();
+    reloading_display();
   }
 
   async function readTextFile(filePath) {
@@ -816,11 +830,29 @@
     action_pointer += 1;
     action_log_pointer += 1;
 
-    console.log(image_items[action_pointer]);
-
-    handleResize();
+    reloading_display();
 
     
+  }
+
+  function generateColor(label) {
+    // Check if the label already has a color assigned
+    if (!labelColorMap[label]) {
+      // Generate a random color for the label
+      var r = Math.floor(Math.random() * 256);
+      var g = Math.floor(Math.random() * 256);
+      var b = Math.floor(Math.random() * 256);
+
+      // Mix with white to create a pastel effect
+      var mixColor = 255; // White color
+      r = Math.floor((r + mixColor) / 2);
+      g = Math.floor((g + mixColor) / 2);
+      b = Math.floor((b + mixColor) / 2);
+
+      labelColorMap[label] = 'rgba(' + r + ',' + g + ',' + b + ', 1.0)';
+    }
+
+    return labelColorMap[label];
   }
 
   // @ts-ignore
@@ -829,11 +861,6 @@
       
       // remove disabled items
       let temp_items = {};
-
-      console.log("Start");
-      console.log(filtered_lables);
-      console.log(image_items[action_pointer]);
-
       for (let i = 0; i < image_items[action_pointer].length; i++) {
         if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
           temp_items[i] = image_items[action_pointer][i]
@@ -845,9 +872,7 @@
       }
 
       temp_items = Object.values(temp_items);
-      
-      console.log(temp_items);
-      console.log("END");
+
 
       const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, 7);
 
@@ -855,7 +880,6 @@
       allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
       allIds = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.id);
 
-      console.log(allLabels);
       let border_colors = [];
 
       for(let i=0; i < allIds.length; i++){
@@ -871,7 +895,7 @@
       const canvas = document.getElementById('myChart');
 
       // clear previous canvas
-      var new_canvas = document.createElement("canvas");
+      let new_canvas = document.createElement("canvas");
       new_canvas.setAttribute("id", "myChart");
       new_canvas.setAttribute("class", "menu_item");
       new_canvas.setAttribute("style", "width:300px;height:300px");
@@ -880,25 +904,23 @@
       const ctx = document.getElementById('myChart').getContext('2d'); // 2d context
 
       // @ts-ignore
-      new Chart(ctx, {
+      let myHorizontalBarChart = new Chart(ctx, {
         type: "bar",
         data: {
+          
           labels: allLabels,
           datasets: [{
             label: 'Display Clusters',
             borderColor: border_colors,
             borderWidth: 3,
-            backgroundColor: [
-              '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#ffffff', '#000000'
-            ],
             data: allOccurrences
           }]
         },
         options: {
           onClick: function (event, elements) {
-            if (elements.length > 0) {
+            if (elements && elements.length > 0) {
               // Get the index of the clicked bar
-              const clickedIndex = elements[0]._index;
+              const clickedIndex = elements[0].index;
 
               const clickedLabel = allLabels[clickedIndex];
               const clickedOccurrence = allOccurrences[clickedIndex];
@@ -911,8 +933,6 @@
 
                 filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
                 filtered_lables = filtered_lables;
-
-                console.log(filtered_lables);
 
                 let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
                 
@@ -988,22 +1008,40 @@
               action_pointer += 1;
               action_log_pointer += 1;
 
-              console.log(image_items[action_pointer]);
-
-              handleResize();
+              reloading_display();
 
             }
           },
+          indexAxis: 'y',
           scales: {
-            yAxes: [{
-              ticks: {
-                beginAtZero: true,
-                callback: function(value) {if (value % 1 === 0) {return value;}}
-              },
-            }]
-          }  
+            x: {
+              beginAtZero: true
+            },
+            y: {
+              position: 'left',
+              reverse: false,
+              callback: function(value) {if (value % 1 === 0) {return value;}}
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  return context.dataset.data[context.dataIndex];
+                }
+              }
+            }
+          }
         },
       });
+
+      // Dynamically assign colors based on labels
+      myHorizontalBarChart.data.datasets[0].backgroundColor = myHorizontalBarChart.data.labels.map(generateColor);
+      myHorizontalBarChart.update(); // Update the chart
+      
     }   
   }
 
@@ -1042,7 +1080,7 @@
           <span class="resize-text">Send custom text</span>
         </Button> 
       </div>
-      
+        <span class="top-menu-item" id="target_text">{target_in_display_text}</span>
     </div>
 
     <div class="horizontal">
@@ -1091,6 +1129,7 @@
             <span class="resize-text">Bayes Update</span>
           </Button>
           <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
+          <div id="customLegend" class="menu_item" ></div>
           {#key filtered_lables}
             {#if filtered_lables.length > 0}
               <p >Active label filter</p>
@@ -1118,7 +1157,7 @@
                 <VirtualList items={prepared_display} bind:start bind:end let:item>
                   <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
                 </VirtualList>
-                <p>showing image rows {start}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
+                <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
               {/await}
             {/if}
           </div>
@@ -1129,6 +1168,12 @@
 </main>
 
 <style>
+
+#target_text{
+  margin-top: 0.5em;
+  color: red;
+  font-weight: bold;
+}
 
 .active_label{
   color: red;

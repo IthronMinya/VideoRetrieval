@@ -53,9 +53,15 @@
 
 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
 <style>
+
+    .wrapper{
+        height: 100%;
+    }
+
 	img {
         width: 100%;
         height: auto;
+        min-height: 200px;
     }
     .hoverbuttontop{
         position: absolute;
@@ -150,6 +156,9 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div class="wrapper" on:mouseover={() => (hover = true)}
+    on:mouseout={() => (hover = false)}>
 <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
     alt="id: {img.id} score: {img.score}"
     on:click={imgClick} on:mouseover={() => (hover = true)}
@@ -165,6 +174,7 @@
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
     <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Show Nearby Frames</button>
 {/if}
+</div>
 {#if video}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <!-- svelte-ignore a11y-click-events-have-key-events -->
