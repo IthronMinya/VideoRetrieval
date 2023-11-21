@@ -31,6 +31,8 @@
 
   let max_display_size = 1000;
 
+  let chart_labels = 7;
+
   let test_image_av = false;
 
   let row_size;
@@ -874,7 +876,7 @@
       temp_items = Object.values(temp_items);
 
 
-      const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, 7);
+      const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, chart_labels);
 
       allLabels = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.label);
       allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
