@@ -344,7 +344,7 @@
           const request_body = JSON.stringify({
             item_id: String(init_id[0]) + "_" + String(init_id[1]),
             k: 50,
-            add_features: 0
+            add_features: 1
           });
 
           request_handler(request_url, request_body, true);
