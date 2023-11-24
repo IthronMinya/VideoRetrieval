@@ -65,7 +65,7 @@
   let action_log_without_back_and_forth = [];
   let action_log_pointer = 0;
 
-  let bayes_display = 10 * row_size;
+  let bayes_display = 10;
 
   let dragged_url = null;
 
@@ -87,6 +87,7 @@
 
   let target_in_display_text = "Target is not in current Display!";
   let target_in_display = false;
+  
   initialization();
 
   function arrayEquals(a, b) {
@@ -99,6 +100,8 @@
   function reloading_display(){
 
     row_size = Math.floor(window.innerWidth / 350);
+
+    bayes_display = 10 * row_size;
 
     if (image_items[action_pointer] != null){
       console.log("reloading display");
@@ -137,10 +140,12 @@
         }
       }
 
-      if (target_in_display){
+      if (target_in_display && random_target != null ){
         target_in_display_text = "Target in current Display!"
-      }else{
+      }else if(random_target != null){
         target_in_display_text = "Target is not in current Display!";
+      }else{
+        target_in_display_text = "Currently no Target."
       }
 
 
@@ -523,7 +528,23 @@
     return result;
   }
 
+  function normalizeVector(vector) {
+    const norm = Math.sqrt(vector.reduce((sum, value) => sum + value ** 2, 0));
+
+    // Check for division by zero or zero vector
+    if (norm === 0 || isNaN(norm)) {
+        return vector.map(value => 0); // Return a vector of zeros
+    }
+
+    return vector.map(value => value / norm);
+  }
+
+  function normalizeMatrix(matrix) {
+      return matrix.map(row => normalizeVector(row));
+  }
+
   function matrixDotProduct(matrix, vector) {
+
     if (matrix[0].length !== vector.length) {
         throw new Error("Matrix column count must match the vector length for matrix-vector multiplication.");
     }
@@ -537,87 +558,122 @@
     return result;
   }
 
+
   // @ts-ignore
   function bayesUpdate() {
 
-    
     if ($selected_images.length == 0){
+      console.log("Nothing was selected. Cannot perform the Bayes update without a positve example.");
       return null;
     }
+
+    if(!image_items[action_pointer][0].hasOwnProperty('score')){
+      console.log("No Score to compare images with. Please initialize them with a query!");
+      return null;
+    }
+
+
 
     while(image_items.length > action_pointer + 1){
       image_items.pop();
     }
-    
-    image_items.push(null);
-    action_pointer += 1;
-    
-    
 
-    let image_items_workcopy = structuredClone(image_items);
-
-    image_items = null;
+    while(action_log_without_back_and_forth.length > action_log_pointer){
+      action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+    }
 
     let imageFeatureVectors = [];
 
-    for (let i = 0; i < image_items_workcopy.length; i++){
-      imageFeatureVectors.push(image_items_workcopy[i].features)
+    for (let i = 0; i < image_items[action_pointer].length; i++){
+      imageFeatureVectors.push(image_items[action_pointer][i].features);
     }
+
+    //console.log(image_items_workcopy);
 
     // Create items array
-    var items = Object.keys(image_items_workcopy).map(function(key) {
-      return [key, image_items_workcopy[key]];
+    var items = Object.keys(image_items[action_pointer]).map(function(key) {
+      return image_items[action_pointer][key];
     });
 
-    let topDisplay = items.slice(0, bayes_display);
+    let topDisplay = items.slice(Math.min(items.length, bayes_display, -1));
 
-    action_log_without_back_and_forth.push({'method': 'bayes', 'query': $selected_images, 'k': topDisplay});
-    action_log_pointer +=1;
+    //image_items.push(null);
+    //action_pointer += 1;
 
-    action_log.push({'method': 'bayes', 'query': $selected_images, 'k': topDisplay});
+    action_log_without_back_and_forth.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay});
 
-    // @ts-ignore
-    const negativeExamplesIndices = items.filter(item => !topDisplay.includes(item) && !$selected_images.includes(item));
-    const positiveExamplesIndices = items.filter(item => $selected_images.includes(item));
+    action_log_pointer += 1;
+    
+    action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay});
 
-    const negativeExamples = [];
-    const positiveExamples = [];
+    let negativeExamples = topDisplay.filter(item =>
+      !$selected_images.some(selectedImage =>
+        selectedImage[0] === item.id[0] && selectedImage[1] === item.id[1]
+      )
+    ).map(filteredItem => filteredItem.features);
 
-    for (let i = 0; i < negativeExamplesIndices.length; i++){
-      negativeExamples.push(imageFeatureVectors[negativeExamplesIndices[i]]);
-    }
+    let  positiveExamples = items
+    .filter(item =>
+      $selected_images.some(selectedImage =>
+        selectedImage[0] === item.id[0] && selectedImage[1] === item.id[1]
+      )
+    )
+    .map(filteredItem => filteredItem.features);
 
-    for (let i = 0; i < positiveExamplesIndices.length; i++){
-      positiveExamples.push(imageFeatureVectors[positiveExamplesIndices[i]]);
-    }
-
+    positiveExamples = normalizeMatrix(positiveExamples);
+    negativeExamples = normalizeMatrix(negativeExamples);
+    
     let max_score = 0;
 
-    for (let i = 0; i < image_items_workcopy.length; i++) {
-        const featureVector = imageFeatureVectors[i];
+  
+    for (let i = 0; i < items.length; i++) {
+        let featureVector = imageFeatureVectors[i];
+        
+        let prod = matrixDotProduct(positiveExamples, normalizeVector(featureVector));
+
+        if (prod.length > 1){
+          prod = prod.reduce((partialSum, a) => partialSum + a, 0); // sum array
+        }
+        
+        const PF = Math.exp(- (1 - prod) / alpha);
 
         // @ts-ignore
-        const PF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, positiveExamples)) / alpha), 0);
+        //const PF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, positiveExamples)) / alpha), 0);
+        /*const PF = negativeExamples.reduce((sum, features) => {
+          const dotProductValue = matrixDotProduct(positive, features);
+          return sum + Math.exp(- (1 - dotProductValue) / alpha);
+        }, 0);*/
+
 
         // @ts-ignore
-        const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, negativeExamples)) / alpha), 0);
+        //const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(negativeExamples, featureVector)) / alpha), 0);
+        
+        prod = matrixDotProduct(negativeExamples, normalizeVector(featureVector))
+  
+        if (prod.length > 1){
+          prod = prod.reduce((partialSum, a) => partialSum + a, 0); // sum array
+        }
 
+        
+        const NF = Math.exp(- (1 - prod) / alpha);
+
+        
         // @ts-ignore
-        image_items_workcopy[i].score = image_items_workcopy[i].score * PF / NF;
-
-        if (image_items_workcopy[i].score > max_score){
-          max_score = image_items_workcopy[i].score;
+        image_items[action_pointer][i].score = image_items[action_pointer][i].score * PF / NF;
+        
+        if (image_items[action_pointer][i].score > max_score){
+          max_score = image_items[action_pointer][i].score;
         }
     }
 
     // Normalization
-    for (let i = 0; i < image_items_workcopy.length; i++){
-      image_items_workcopy[i].score = image_items_workcopy[i].score/max_score;
+    for (let i = 0; i < image_items[action_pointer].length; i++){
+      image_items[action_pointer][i].score = image_items[action_pointer][i].score/max_score;
     }
 
     // Create items array
-    var items = Object.keys(image_items_workcopy).map(function(key) {
-      return [key, image_items_workcopy[key]];
+    var items = Object.keys(image_items[action_pointer]).map(function(key) {
+      return image_items[action_pointer][key];
     });
 
     // Sort the array based on the second element
@@ -631,7 +687,9 @@
       items[i].rank = i;
     }
 
-    image_items = items;
+    image_items.push(items);
+    action_pointer += 1;
+    image_items = image_items;
   }
 
   function forward_action(){
@@ -1087,6 +1145,7 @@
 
     <div class="horizontal">
       <div class='menu'>
+        <br>
         <div class='buttons'>
           <div class="centering" style="margin-bottom:0.5em;">
             <Fab on:click={reset_last} extended ripple={false}>
@@ -1172,7 +1231,7 @@
 <style>
 
 #target_text{
-  margin-top: 0.5em;
+  margin-top: 0.2em;
   color: red;
   font-weight: bold;
 }
@@ -1236,6 +1295,7 @@
 
 .top-input{
   height: 100%;
+  margin-top: -0.6em;
 }
 
 
