@@ -1169,7 +1169,7 @@
               <img id="testimage" alt="" />
             </div>
           {/if}
-          <input class="menu_item resize-text" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
+          <textarea  id="text_query_input" class="menu_item resize-text" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
           <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
             <span class="resize-text">Submit Text Query</span>
           </Button>
@@ -1331,6 +1331,11 @@
   &:focus {
     outline: none;
   }
+}
+
+#text_query_input{
+  height: 10em;
+  margin-top: 2em;
 }
 
 #container {
