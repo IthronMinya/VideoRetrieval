@@ -117,6 +117,8 @@
 
       image_from_target_video_in_display = false;
 
+      let temp_selection = [];
+
       for (let i = 0; i < image_items[action_pointer].length; i++) {
         if (random_target != null && arrayEquals(image_items[action_pointer][i]['id'], random_target[0]['id'])){
           target_in_display = true;
@@ -125,7 +127,9 @@
           image_from_target_video_in_display = true;
         }
 
-
+        if(image_items[action_pointer][i]['id'] in $selected_images){
+          temp_selection.push(image_items[action_pointer][i]['id']);
+        }
 
         if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
           
@@ -148,6 +152,8 @@
           s += 1;
         }
       }
+
+      $selected_images = temp_selection;
 
       if (target_in_display && random_target != null ){
         target_in_display_text = "Target in current Display!"
