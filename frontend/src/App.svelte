@@ -31,7 +31,7 @@
 
   let max_display_size = 1000;
 
-  let chart_labels = 7;
+  let chart_labels = 15;
 
   let test_image_av = false;
 
@@ -87,6 +87,8 @@
 
   let target_in_display_text = "Target is not in current Display!";
   let target_in_display = false;
+
+  let image_from_target_video_in_display = false;
   
   initialization();
 
@@ -113,10 +115,17 @@
 
       target_in_display = false;
 
+      image_from_target_video_in_display = false;
+
       for (let i = 0; i < image_items[action_pointer].length; i++) {
         if (random_target != null && arrayEquals(image_items[action_pointer][i]['id'], random_target[0]['id'])){
           target_in_display = true;
+          image_from_target_video_in_display = true;
+        }else if (random_target != null && image_items[action_pointer][i]['id'][0] == random_target[0]['id'][0]){
+          image_from_target_video_in_display = true;
         }
+
+
 
         if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
           
@@ -142,8 +151,10 @@
 
       if (target_in_display && random_target != null ){
         target_in_display_text = "Target in current Display!"
+      }else if(image_from_target_video_in_display && random_target != null){
+        target_in_display_text = "Image from target video in current Display, but not the target!"
       }else if(random_target != null){
-        target_in_display_text = "Target is not in current Display!";
+        target_in_display_text = "No image from target video in current Display!";
       }else{
         target_in_display_text = "Currently no Target."
       }
@@ -199,7 +210,7 @@
 
     $selected_images = [];
 
-    action_log.push({'method': 'send_custom_result', 'query': send_results, 'k': 0});
+    action_log.push({'method': 'send_custom_result', 'result_items': send_results});
   }
 
   function send_results_single(event){
@@ -209,7 +220,7 @@
 
     $selected_images = [];
 
-    action_log.push({'method': 'send_single_result', 'query': send_results, 'k': 0});
+    action_log.push({'method': 'send_single_result', 'result_items': send_results});
 
   }
 
@@ -226,7 +237,7 @@
 
     $selected_images = [];
 
-    action_log.push({'method': 'send_multi_result', 'query': send_results, 'k': 0});
+    action_log.push({'method': 'send_multi_result', 'result_items': send_results});
   }
 
   function download(content, fileName, contentType) {
@@ -238,9 +249,14 @@
   }
 
   function download_results(){
+    let full_data;
 
-    const target = {'target': random_target[0]['id']};
-    const full_data = [target].concat(action_log);
+    if (random_target != null){
+      const target = {'target': random_target[0]['id']};
+      full_data = [target].concat(action_log);
+    }else{
+      full_data = action_log
+    }
 
     console.log(full_data);
 
@@ -314,9 +330,9 @@
 
     let selected_item = event.detail.image_id;
 
-    action_log_without_back_and_forth.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]], 'k': 50});
+    action_log_without_back_and_forth.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]]});
 
-    action_log.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]], 'k': 50});
+    action_log.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]]});
 
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
@@ -439,7 +455,14 @@
       }
       
       image_items[action_pointer] = responseData;
-      
+
+      console.log(action_log.length - 1);
+
+      if (action_log.length - 1 >= 0){
+        action_log_without_back_and_forth[action_log_without_back_and_forth.length - 1]['data'] = image_items[action_pointer];
+        action_log[action_log.length - 1]['data'] = image_items[action_pointer];
+      }
+    
       if(!init){
         $selected_images = [];
       }
@@ -452,8 +475,8 @@
 
   async function get_scores_by_text() {
 
-    action_log_without_back_and_forth.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
-    action_log.push({'method': 'textquery', 'query': lion_text_query, 'k': max_display_size});
+    action_log_without_back_and_forth.push({'method': 'textquery', 'query': lion_text_query});
+    action_log.push({'method': 'textquery', 'query': lion_text_query});
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
@@ -473,9 +496,9 @@
 
     let selected_item = event.detail.image_id;
 
-    action_log_without_back_and_forth.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
+    action_log_without_back_and_forth.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]]});
 
-    action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]], 'k': max_display_size});
+    action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]]});
 
     const request_body = JSON.stringify({
       video_id: selected_item[0],
@@ -497,8 +520,8 @@
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
-    action_log_without_back_and_forth.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
-    action_log.push({'method': 'image_upload_query', 'query': 'uploaded image', 'k': max_display_size});
+    action_log_without_back_and_forth.push({'method': 'image_upload_query', 'query': 'uploaded image'});
+    action_log.push({'method': 'image_upload_query', 'query': 'uploaded image'});
 
     const params = {
       k: max_display_size,
@@ -600,12 +623,6 @@
     //image_items.push(null);
     //action_pointer += 1;
 
-    action_log_without_back_and_forth.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay});
-
-    action_log_pointer += 1;
-    
-    action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay});
-
     let negativeExamples = topDisplay.filter(item =>
       !$selected_images.some(selectedImage =>
         selectedImage[0] === item.id[0] && selectedImage[1] === item.id[1]
@@ -687,6 +704,12 @@
       items[i].rank = i;
     }
 
+    action_log_without_back_and_forth.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
+
+    action_log_pointer += 1;
+    
+    action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
+
     image_items.push(items);
     action_pointer += 1;
     image_items = image_items;
@@ -721,7 +744,7 @@
       }else{
         action_pointer += 1;
         image_items = image_items;
-        action_log.push({'method': 'forward'});
+        action_log.push({'method': 'forward', 'data': image_items[action_pointer]});
       }
 
     }
@@ -755,7 +778,7 @@
             
       image_items = image_items;
 
-      action_log.push({'method': 'back'});
+      action_log.push({'method': 'back', 'data': image_items[action_pointer]});
     }
 
     reloading_display();
@@ -846,8 +869,8 @@
       
       image_items.push(temp_items);
 
-      action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel});
-      action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel});
+      action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
+      action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
 
     }else{          
       
@@ -882,8 +905,8 @@
 
       image_items.push(temp_items);
       
-      action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
-      action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
+      action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
+      action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
     }
     
@@ -958,7 +981,7 @@
       let new_canvas = document.createElement("canvas");
       new_canvas.setAttribute("id", "myChart");
       new_canvas.setAttribute("class", "menu_item");
-      new_canvas.setAttribute("style", "width:300px;height:300px");
+      new_canvas.setAttribute("style", "margin-left: 2em; margin-right: 2em;  height: 30em");
       canvas.replaceWith(new_canvas)
 
       const ctx = document.getElementById('myChart').getContext('2d'); // 2d context
@@ -1024,8 +1047,8 @@
                 
                 image_items.push(temp_items);
 
-                action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel});
-                action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel});
+                action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
+                action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
 
               }else{          
                 
@@ -1060,8 +1083,8 @@
 
                 image_items.push(temp_items);
                 
-                action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
-                action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered});
+                action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
+                action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
               }
               
@@ -1149,10 +1172,10 @@
         <div class='buttons'>
           <div class="centering" style="margin-bottom:0.5em;">
             <Fab on:click={reset_last} extended ripple={false}>
-              <Icon class="material-icons">arrow_back</Icon>
+              <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon>
             </Fab>
             <Fab on:click={forward_action} extended ripple={false}>
-              <Icon class="material-icons">arrow_forward</Icon>
+              <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
             </Fab>
           </div>
           {#if send_results.length > 0}
@@ -1189,7 +1212,7 @@
           <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
             <span class="resize-text">Bayes Update</span>
           </Button>
-          <canvas class="menu_item" id="myChart" style="width:300px;height:300px;"></canvas>
+          <canvas class="menu_item" id="myChart"></canvas>
           <div id="customLegend" class="menu_item" ></div>
           {#key filtered_lables}
             {#if filtered_lables.length > 0}
@@ -1247,7 +1270,9 @@
 }
 
 #myChart{
-  width: auto;
+  width: 80%;
+  float: left;
+  margin-left: 2em;
 }
 
 .centering{
@@ -1269,7 +1294,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  width: 100%;
+  height: 2em;
+  margin-left: 1em;
+  margin-right: 1em;
   border: 1px dashed rgba(61, 61, 61, 0.4);
   border-radius: 3px;
   transition: 0.2s;
