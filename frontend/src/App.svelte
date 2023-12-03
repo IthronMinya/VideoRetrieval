@@ -648,6 +648,8 @@
     
     let max_score = 0;
 
+
+    let DeepCopyImageItems = structuredClone(image_items[action_pointer]);
   
     for (let i = 0; i < items.length; i++) {
         let featureVector = imageFeatureVectors[i];
@@ -682,21 +684,21 @@
 
         
         // @ts-ignore
-        image_items[action_pointer][i].score = image_items[action_pointer][i].score * PF / NF;
+        DeepCopyImageItems[i].score = DeepCopyImageItems[i].score * PF / NF;
         
-        if (image_items[action_pointer][i].score > max_score){
-          max_score = image_items[action_pointer][i].score;
+        if (DeepCopyImageItems[i].score > max_score){
+          max_score = DeepCopyImageItems[i].score;
         }
     }
 
     // Normalization
-    for (let i = 0; i < image_items[action_pointer].length; i++){
-      image_items[action_pointer][i].score = image_items[action_pointer][i].score/max_score;
+    for (let i = 0; i < DeepCopyImageItems.length; i++){
+      DeepCopyImageItems[i].score = DeepCopyImageItems[i].score/max_score;
     }
 
     // Create items array
-    var items = Object.keys(image_items[action_pointer]).map(function(key) {
-      return image_items[action_pointer][key];
+    var items = Object.keys(DeepCopyImageItems).map(function(key) {
+      return DeepCopyImageItems[key];
     });
 
     // Sort the array based on the second element
