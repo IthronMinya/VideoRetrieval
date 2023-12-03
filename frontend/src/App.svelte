@@ -712,14 +712,16 @@
       items[i].rank = i;
     }
 
-    action_log_without_back_and_forth.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
+    image_items.push(items);
 
     action_log_pointer += 1;
-    
-    action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
 
-    image_items.push(items);
     action_pointer += 1;
+
+    action_log_without_back_and_forth.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
+
+    action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
+    
     image_items = image_items;
   }
 
