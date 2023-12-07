@@ -1,5 +1,5 @@
 <script>
-    import { selected_images } from './stores.js';
+    import { selected_images, in_video_view } from './stores.js';
     import { fade } from 'svelte/transition';
     import VideoPlayer from 'svelte-video-player';
     import { createEventDispatcher } from 'svelte'
@@ -96,17 +96,6 @@
         cursor: pointer;
     }
 
-    .hoverbuttonfurtherbottom{
-        position: absolute;
-        top: 65%;
-        left: 5%;
-        background-color: rgba(0, 0, 0, 0.5);
-        color: white;
-        padding: 2.5% 2.5% 2.5% 2.5%;
-        border: none;
-        cursor: pointer;
-    }
-
     .modal-background {
 		position: fixed;
 		display: flex;
@@ -167,13 +156,17 @@
 {#if hover}
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
     <button style='--row_size:{row_size};' class="hoverbuttontop" on:mouseover={() => (hover = true)} transition:fade on:click={send_result}>Send</button>
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar To This</button>
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Video</button>
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Show Nearby Frames</button>
 {/if}
+
+{#if hover && !$in_video_view}
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <button style='--row_size:{row_size};' class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar</button>
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video</button>
+    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+    <!--<button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Nearby Frames</button>-->
+{/if}
+
 </div>
 {#if video}
     <!-- svelte-ignore a11y-no-static-element-interactions -->

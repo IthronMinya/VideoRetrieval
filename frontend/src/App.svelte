@@ -1,21 +1,20 @@
 <script>
 // @ts-nocheck
 
-  import { selected_images } from './stores.js';
+  import { selected_images, scroll_height, in_video_view } from './stores.js';
   import ImageList from './ImageList.svelte';
 
   import Timer from './Timer.svelte';
 
-  import VirtualList from '@sveltejs/svelte-virtual-list';
+  import VirtualList from './VirtualListNew.svelte';
   
   import Button from '@smui/button';
 
-  // @ts-ignore
   import Select, { Option } from '@smui/select';
   
   import Fab, { Icon } from '@smui/fab';
 
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick} from 'svelte';
 
 
   let timer;
@@ -39,16 +38,15 @@
   let prepared_display = null;
 
   $: {
-    reloading_display(image_items);
+    //reloading_display(image_items);
+    set_scroll($scroll_height);
     prepared_display;
     filtered_lables;
   }
 
   let random_target = null;
 
-  let clicked = 0;
-
-  let datasets = ['V3C', 'Medical'];
+  let datasets = ['V3C', 'mvk', 'Medical'];
 
   let models = ['clip-laion', 'clip-openai'];
  
@@ -63,13 +61,13 @@
   let action_log = [];
 
   let action_log_without_back_and_forth = [];
-  let action_log_pointer = 0;
+  let action_log_pointer = -1;
 
   let bayes_display = 10;
 
   let dragged_url = null;
 
-  let action_pointer = 0;
+  let action_pointer = -1;
 
   let file = null;
 
@@ -90,8 +88,18 @@
 
   let image_from_target_video_in_display = false;
   
+  let virtual_list;
+
+  let current_action_pointer = -1;
+
   initialization();
 
+  function set_scroll(scroll){
+    if (action_log[action_log_pointer] != null){
+      action_log[action_log_pointer]['scroll'] = $scroll_height;
+    }
+  }
+ 
   function arrayEquals(a, b) {
     return Array.isArray(a) &&
         Array.isArray(b) &&
@@ -99,13 +107,57 @@
         a.every((val, index) => val === b[index]);
   }
 
-  function reloading_display(){
+  function scrollToHeight(height) {
 
-    row_size = Math.floor(window.innerWidth / 350);
+    setTimeout(function(){
+      if(virtual_list){
+        virtual_list.scrollToScrollHeight(height, { behavior: 'auto' });
+      }
+    }, 100);
+  }
 
-    bayes_display = 10 * row_size;
+  async function reloading_display(){
 
-    if (image_items[action_pointer] != null){
+    const previous_btn = document.getElementById("previous");
+
+    if(action_log_pointer <= 0){
+      previous_btn.style.backgroundColor = "lightgrey";
+      previous_btn.style.cursor = "default";
+    }else{
+      previous_btn.style.backgroundColor = "grey";
+      previous_btn.style.cursor = "pointer";
+    }
+  
+    const next_btn = document.getElementById("next");
+
+    if(action_log.length - 1 <= action_log_pointer){
+      next_btn.style.backgroundColor = "lightgrey";
+      next_btn.style.cursor = "default";
+    }else{
+      next_btn.style.backgroundColor = "grey";
+      next_btn.style.cursor = "pointer";
+    }
+    
+    if(image_items[action_pointer] != null){
+
+      console.log(action_log)
+
+      if(action_log[action_log_pointer]['method'] == 'show_video_frames'){
+        $in_video_view = true;
+      }else{
+        $in_video_view = false;
+      }
+
+      if(action_log[action_log_pointer]['method'] == 'textquery'){
+        lion_text_query = action_log[action_log_pointer]['query'];
+      }else{
+        lion_text_query = '';
+      }
+
+      row_size = Math.floor(window.innerWidth / 350);
+
+      bayes_display = 300 * row_size;
+      
       console.log("reloading display");
 
       let rows = [];
@@ -165,9 +217,6 @@
         target_in_display_text = "Currently no Target."
       }
 
-
-      start = 0;
-
       prepared_display = rows;
 
       create_chart();
@@ -193,8 +242,6 @@
 
     evt.preventDefault();
     file = evt.dataTransfer.files[0];
-
-    console.log(evt.dataTransfer.files);
 
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -276,17 +323,17 @@
 
     image_items = [];
     action_log = [];
-    action_log_without_back_and_forth = [];
+
 
     initialization();
 
     action_pointer = 0;
 
-    action_log_pointer = 1;
+    action_log_pointer = 0;
 
-    $selected_images.forEach((selection) => {
-      send_results += `${selection}; `;
-    });
+    //$selected_images.forEach((selection) => {
+    //  send_results += `${selection}; `;
+    //});
     
     $selected_images = [];
 
@@ -302,10 +349,6 @@
         if (response.ok) {
 
           random_target = await response.json();
-
-          console.log("TESTTARGET");
-          console.log(random_target[0]);
-
           
           let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/images/" + String(random_target[0]["uri"]);
 
@@ -331,19 +374,19 @@
   }
 
   async function video_images(event) {
-    
+     
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
 
     let selected_item = event.detail.image_id;
-
-    action_log_without_back_and_forth.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]]});
 
     action_log.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]]});
 
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
-      k: 50,
+      k: -1,
+      dataset: value_dataset,
       add_features: 1,
+      speed_up: 1,
     });
 
     request_handler(request_url, request_body);
@@ -356,9 +399,10 @@
     file_labels = await readTextFile('./assets/nounlist.txt');
 
     
-    image_items[action_pointer] = null;
+    // setting this to null temporarily will make a loading display to appear
+    prepared_display = null;
 
-    action_log_without_back_and_forth.push({'method': 'initialization', 'query': '', 'k': 50});
+    action_log.push({'method': 'initialization', 'query': '', 'k': 50});
     
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
 
@@ -372,8 +416,10 @@
 
           const request_body = JSON.stringify({
             item_id: String(init_id[0]) + "_" + String(init_id[1]),
-            k: 50,
-            add_features: 1
+            k: -1,
+            dataset: value_dataset,
+            add_features: 1,
+            speed_up: 1,
           });
 
           request_handler(request_url, request_body, true);
@@ -394,24 +440,30 @@
 
   async function request_handler(request_url, request_body, init=false, image_upload=false){
 
-    prepared_display = null;
-
+    // action log got a new entry in function that called the request_handler. We increment here have less code
     action_log_pointer += 1;
 
-    if(!init){
-      while(image_items.length > action_pointer + 1){
-        image_items.pop();
-      }
+    $scroll_height = 0;
 
-      while(action_log_without_back_and_forth.length > action_log_pointer){
-        action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
-      }
+    // setting this to null temporarily will make a loading display to appear
+    prepared_display = null;
 
-      image_items.push(null);
 
-      action_pointer += 1;
-           
+    // unwind actions after backtracking
+    while(image_items.length -1 > action_pointer){
+      image_items.pop();
     }
+
+    while(action_log.length -1 > action_log_pointer){
+      // remove the second to last elements because we newly added the last before the request_handler
+      action_log.splice(action_log.length - 2, 1);
+    }
+
+    
+    action_pointer += 1;
+
+
+    console.log(action_log)
 
 
     let response;
@@ -462,16 +514,15 @@
       
       image_items[action_pointer] = responseData;
 
-      console.log(action_log.length - 1);
-
       if (action_log.length - 1 >= 0){
-        action_log_without_back_and_forth[action_log_without_back_and_forth.length - 1]['data'] = image_items[action_pointer];
+        // insert the data to the action we performed before calling the requesthandler
         action_log[action_log.length - 1]['data'] = image_items[action_pointer];
       }
-    
-      if(!init){
-        $selected_images = [];
-      }
+      
+      // reset the selection
+      $selected_images = [];
+      
+      reloading_display();
 
     } catch (error) {
       console.error(error);
@@ -489,6 +540,7 @@
     const request_body = JSON.stringify({
       query: lion_text_query,
       k: max_display_size,
+      dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
     });
@@ -510,6 +562,7 @@
       video_id: selected_item[0],
       frame_id: selected_item[1],
       k: max_display_size,
+      dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
     });
@@ -531,8 +584,8 @@
 
     const params = {
       k: max_display_size,
-      add_features : 0,
       add_features: 1,
+      dataset: value_dataset,
       speed_up: 1,
     };
 
@@ -587,10 +640,8 @@
     return result;
   }
 
-
-  // @ts-ignore
   function bayesUpdate() {
-
+    
     if ($selected_images.length == 0){
       console.log("Nothing was selected. Cannot perform the Bayes update without a positve example.");
       return null;
@@ -601,33 +652,31 @@
       return null;
     }
 
-
-
-    while(image_items.length > action_pointer + 1){
+    // unwind actions after backtracking
+    while(image_items.length -1 > action_pointer){
       image_items.pop();
     }
 
-    while(action_log_without_back_and_forth.length > action_log_pointer){
-      action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+    while(action_log.length -1 > action_log_pointer){
+      // remove the second to last elements because we newly added the last before the request_handler
+      action_log.splice(action_log.length - 2, 1);
     }
 
+    let DeepCopyImageItems = structuredClone(image_items[action_pointer]);
+    
     let imageFeatureVectors = [];
 
     for (let i = 0; i < image_items[action_pointer].length; i++){
       imageFeatureVectors.push(image_items[action_pointer][i].features);
     }
 
-    //console.log(image_items_workcopy);
+    // Create items array format so we can filter
 
-    // Create items array
     var items = Object.keys(image_items[action_pointer]).map(function(key) {
       return image_items[action_pointer][key];
     });
-
-    let topDisplay = items.slice(Math.min(items.length, bayes_display, -1));
-
-    //image_items.push(null);
-    //action_pointer += 1;
+    
+    let topDisplay = items.slice(0, Math.min(items.length, bayes_display));
 
     let negativeExamples = topDisplay.filter(item =>
       !$selected_images.some(selectedImage =>
@@ -635,7 +684,7 @@
       )
     ).map(filteredItem => filteredItem.features);
 
-    let  positiveExamples = items
+    let positiveExamples = items
     .filter(item =>
       $selected_images.some(selectedImage =>
         selectedImage[0] === item.id[0] && selectedImage[1] === item.id[1]
@@ -645,55 +694,30 @@
 
     positiveExamples = normalizeMatrix(positiveExamples);
     negativeExamples = normalizeMatrix(negativeExamples);
-    
-    let max_score = 0;
 
+    let prod;
+    let PF;
+    let NF;
+    let featureVector;
 
-    let DeepCopyImageItems = structuredClone(image_items[action_pointer]);
-  
     for (let i = 0; i < items.length; i++) {
-        let featureVector = imageFeatureVectors[i];
+        featureVector = imageFeatureVectors[i];
         
-        let prod = matrixDotProduct(positiveExamples, normalizeVector(featureVector));
+        prod = matrixDotProduct(positiveExamples, normalizeVector(featureVector));
 
         if (prod.length > 1){
-          prod = prod.reduce((partialSum, a) => partialSum + a, 0); // sum array
+          PF = prod.reduce((partialSum, a) => partialSum +  Math.exp(- (1 - a) / alpha), 0); // sum array
+        }else{
+          PF = Math.exp(- (1 - prod[0]) / alpha)
         }
-        
-        const PF = Math.exp(- (1 - prod) / alpha);
-
-        // @ts-ignore
-        //const PF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(featureVector, positiveExamples)) / alpha), 0);
-        /*const PF = negativeExamples.reduce((sum, features) => {
-          const dotProductValue = matrixDotProduct(positive, features);
-          return sum + Math.exp(- (1 - dotProductValue) / alpha);
-        }, 0);*/
-
-
-        // @ts-ignore
-        //const NF = negativeExamples.reduce((sum, item) => sum + Math.exp(- (1 - matrixDotProduct(negativeExamples, featureVector)) / alpha), 0);
         
         prod = matrixDotProduct(negativeExamples, normalizeVector(featureVector))
-  
+
         if (prod.length > 1){
-          prod = prod.reduce((partialSum, a) => partialSum + a, 0); // sum array
+          NF = prod.reduce((partialSum, a) => partialSum +  Math.exp(- (1 - a) / alpha), 0); // sum array
         }
 
-        
-        const NF = Math.exp(- (1 - prod) / alpha);
-
-        
-        // @ts-ignore
-        DeepCopyImageItems[i].score = DeepCopyImageItems[i].score * PF / NF;
-        
-        if (DeepCopyImageItems[i].score > max_score){
-          max_score = DeepCopyImageItems[i].score;
-        }
-    }
-
-    // Normalization
-    for (let i = 0; i < DeepCopyImageItems.length; i++){
-      DeepCopyImageItems[i].score = DeepCopyImageItems[i].score/max_score;
+        DeepCopyImageItems[i].score = DeepCopyImageItems[i].score * PF / NF;        
     }
 
     // Create items array
@@ -703,93 +727,71 @@
 
     // Sort the array based on the second element
     items.sort(function(first, second) {
-      // @ts-ignore
       return second.score - first.score;
     });
 
     for (let i = 0; i < items.length; i++){
-      // @ts-ignore
       items[i].rank = i;
     }
 
     image_items.push(items);
 
-    action_log_pointer += 1;
-
     action_pointer += 1;
 
-    action_log_without_back_and_forth.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
-
     action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
-    
-    image_items = image_items;
-  }
 
-  function forward_action(){
-
-    if(action_log_without_back_and_forth.length > action_log_pointer){
-      action_log_pointer += 1;
-
-      let current = action_log_without_back_and_forth[action_log_pointer-1]
-      if (current['method'] == "textquery"){
-        lion_text_query = current['query'];
-
-      }else if(current['method'] == "text_filtering"){
-        if (!filtered_lables.has(current['label'])){
-          filtered_lables.push(current['label']);
-          filtered_lables = filtered_lables;
-        }
-
-      }else if(current['method'] == "text_restore_filtering"){
-        filtered_lables.splice(filtered_lables.indexOf(current['label']), 1);
-        filtered_lables = filtered_lables;
-      }
-      
-    }
-    
-    if (image_items.length - 1 > action_pointer){
-      
-      if(image_items[action_pointer + 1] === null){
-        image_items.pop();
-      }else{
-        action_pointer += 1;
-        image_items = image_items;
-        action_log.push({'method': 'forward', 'data': image_items[action_pointer]});
-      }
-
-    }
-
+    action_log_pointer += 1;
     reloading_display();
+
+    scrollToHeight(0);
   }
 
-  function reset_last(){
-    
-    if(action_log_pointer > 1){
-      action_log_pointer -=1;
+  function traverse_states(a){
+
+    // no action when we are at the initialization or there is no next action yet.
+    if(a == -1 && action_log_pointer <= 0){
+      return null;
+    }else if(a == 1 && action_log.length - 1 <= action_log_pointer){
+      return null;
     }
-    let previous = action_log_without_back_and_forth[action_log_pointer -1];
 
-    if (previous['method'] == "textquery" || previous['method'] == "initialization"){
-        lion_text_query = previous['query'];
+    console.log(filtered_lables);
 
-    }else if(previous['method'] == "text_filtering"){
-      if (!filtered_lables.has(previous['label'])){
-        filtered_lables.push(previous['label']);
-        filtered_lables = filtered_lables;
+    if(a == -1){
+      // current state before taking action
+      let display_state = action_log[action_log_pointer];
+
+      if(display_state['method'] == "text_filtering"){
+        filtered_lables.splice(filtered_lables.indexOf(display_state['label']), 1);
+      }else if(display_state['method'] == "text_restore_filtering"){
+        if (!filtered_lables.includes(display_state['label'])){
+          filtered_lables.push(display_state['label']);
+        }
       }
+    }else{
+      // state after taking action
+      let after_state = action_log[action_log_pointer + a];
 
-    }else if(previous['method'] == "text_restore_filtering"){
-      filtered_lables.splice(filtered_lables.indexOf(previous['label']), 1);
-      filtered_lables = filtered_lables;
+      if(after_state['method'] == "text_filtering"){
+        if (!filtered_lables.includes(after_state['label'])){
+          filtered_lables.push(after_state['label']);
+        }
+      }else if(after_state['method'] == "text_restore_filtering"){
+        filtered_lables.splice(filtered_lables.indexOf(after_state['label']), 1);
+      }
     }
 
-    if (image_items.length > 0 && action_pointer > 0){
-      action_pointer -= 1;
-            
-      image_items = image_items;
+    // trigger reload of labels under chart
+    filtered_lables = filtered_lables;
 
-      action_log.push({'method': 'back', 'data': image_items[action_pointer]});
-    }
+    console.log(filtered_lables);
+
+    // will be decreased if action is -1 and increased if action is + 1
+    action_log_pointer = action_log_pointer + a;
+    action_pointer = action_pointer + a;
+
+    // will be previous if action is -1 and next if action is + 1
+    scrollToHeight(action_log[action_log_pointer]['scroll']);
 
     reloading_display();
   }
@@ -842,12 +844,10 @@
     console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
     
     if (filtered_lables.includes(clickedId)){
+
       // restore disabled items again
 
       filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
-      filtered_lables = filtered_lables;
-
-      console.log(filtered_lables);
 
       let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
       
@@ -856,36 +856,43 @@
           temp_items[key]['disabled'] = true;
         }
 
+        let one_not_included = false;
         for (const [key, value] of Object.entries(temp_items)) {
+          one_not_included = false;
+
           for(let i=0; i < filtered_lables.length; i++){
-            if (temp_items[key].label.includes(filtered_lables[i])) {
-              temp_items[key]['disabled'] = false;
-            }
+            if (!temp_items[key].label.includes(filtered_lables[i])) {
+              one_not_included = true;
+            } 
+          }
+          if(!one_not_included){
+            temp_items[key]['disabled'] = false;
           }
         }
+        
       }else{
         for (const [key, value] of Object.entries(temp_items)) {
           temp_items[key]['disabled'] = false;
         }
       }
       
-      while(image_items.length > action_pointer + 1){
+      // unwind actions after backtracking
+      while(image_items.length -1 > action_pointer){
         image_items.pop();
       }
 
-      while(action_log_without_back_and_forth.length > action_log_pointer){
-        action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+      while(action_log.length -1 > action_log_pointer){
+        // remove the second to last elements because we newly added the last before the request_handler
+        action_log.splice(action_log.length - 2, 1);
       }
       
       image_items.push(temp_items);
-
-      action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
-      action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
+      
+      action_log.push({'method': 'text_restore_filtering', 'label': clickedId, 'data': image_items[action_pointer]});
 
     }else{          
       
       filtered_lables.push(clickedId);
-      filtered_lables = filtered_lables;
       
       let num_filtered = 0;
 
@@ -905,20 +912,24 @@
         }
       }
       
-      while(image_items.length > action_pointer + 1){
+      // unwind actions after backtracking
+      while(image_items.length -1 > action_pointer){
         image_items.pop();
       }
 
-      while(action_log_without_back_and_forth.length > action_log_pointer){
-        action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+      while(action_log.length -1 > action_log_pointer){
+        // remove the second to last elements because we newly added the last before the request_handler
+        action_log.splice(action_log.length - 2, 1);
       }
 
       image_items.push(temp_items);
       
-      action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
-      action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
+      action_log.push({'method': 'text_filtering', 'label': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
     }
+
+    // trigger reload of labels under chart
+    filtered_lables = filtered_lables;
     
     action_pointer += 1;
     action_log_pointer += 1;
@@ -948,7 +959,6 @@
     return labelColorMap[label];
   }
 
-  // @ts-ignore
   async function create_chart(){
     if (image_items[action_pointer][0] != null && image_items[action_pointer][0]['label'] != null){
       
@@ -975,6 +985,8 @@
 
       let border_colors = [];
 
+      console.log("filtered_lables", filtered_lables);
+
       for(let i=0; i < allIds.length; i++){
         if (filtered_lables.includes(allIds[i])) {
           border_colors.push('#FF0000');
@@ -983,7 +995,6 @@
         }
       }
 
-      // @ts-ignore
 
       const canvas = document.getElementById('myChart');
 
@@ -996,7 +1007,6 @@
 
       const ctx = document.getElementById('myChart').getContext('2d'); // 2d context
 
-      // @ts-ignore
       let myHorizontalBarChart = new Chart(ctx, {
         type: "bar",
         data: {
@@ -1012,6 +1022,7 @@
         options: {
           onClick: function (event, elements) {
             if (elements && elements.length > 0) {
+              
               // Get the index of the clicked bar
               const clickedIndex = elements[0].index;
 
@@ -1033,32 +1044,41 @@
                   for (const [key, value] of Object.entries(temp_items)) {
                     temp_items[key]['disabled'] = true;
                   }
+                  
+                  let one_not_included = false;
 
                   for (const [key, value] of Object.entries(temp_items)) {
+                    one_not_included = false;
+
                     for(let i=0; i < filtered_lables.length; i++){
-                      if (temp_items[key].label.includes(filtered_lables[i])) {
-                        temp_items[key]['disabled'] = false;
-                      }
+                      if (!temp_items[key].label.includes(filtered_lables[i])) {
+                        one_not_included = true;
+                      } 
+                    }
+                    if(!one_not_included){
+                      temp_items[key]['disabled'] = false;
                     }
                   }
+
                 }else{
                   for (const [key, value] of Object.entries(temp_items)) {
                     temp_items[key]['disabled'] = false;
                   }
                 }
                 
-                while(image_items.length > action_pointer + 1){
+                // unwind actions after backtracking
+                while(image_items.length -1 > action_pointer){
                   image_items.pop();
                 }
 
-                while(action_log_without_back_and_forth.length > action_log_pointer){
-                  action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+                while(action_log.length -1 > action_log_pointer){
+                  // remove the second to last elements because we newly added the last before the request_handler
+                  action_log.splice(action_log.length - 2, 1);
                 }
                 
                 image_items.push(temp_items);
 
-                action_log_without_back_and_forth.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
-                action_log.push({'method': 'text_restore_filtering', 'label': clickedLabel, 'data': image_items[action_pointer]});
+                action_log.push({'method': 'text_restore_filtering', 'label': clickedId, 'data': image_items[action_pointer]});
 
               }else{          
                 
@@ -1083,18 +1103,19 @@
                   }
                 }
                 
-                while(image_items.length > action_pointer + 1){
+                // unwind actions after backtracking
+                while(image_items.length -1 > action_pointer){
                   image_items.pop();
                 }
 
-                while(action_log_without_back_and_forth.length > action_log_pointer){
-                  action_log_without_back_and_forth.splice(action_log_without_back_and_forth.length - 2, 1);
+                while(action_log.length -1 > action_log_pointer){
+                  // remove the second to last elements because we newly added the last before the request_handler
+                  action_log.splice(action_log.length - 2, 1);
                 }
 
                 image_items.push(temp_items);
                 
-                action_log_without_back_and_forth.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
-                action_log.push({'method': 'text_filtering', 'label': clickedLabel, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
+                action_log.push({'method': 'text_filtering', 'label': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
               }
               
@@ -1181,10 +1202,10 @@
         <br>
         <div class='buttons'>
           <div class="centering" style="margin-bottom:0.5em;">
-            <Fab on:click={reset_last} extended ripple={false}>
+            <Fab id="previous" on:click={() => traverse_states(-1)} extended ripple={false}>
               <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon>
             </Fab>
-            <Fab on:click={forward_action} extended ripple={false}>
+            <Fab id="next" on:click={() => traverse_states(1)} extended ripple={false}>
               <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
             </Fab>
           </div>
@@ -1239,24 +1260,16 @@
           </Button>
         </div>
       </div>
-      {#key image_items}
-        {#key prepared_display}
           <div id='container'>
             {#if prepared_display === null}
               <p>...loading</p>
-            {:else}
-              {#await prepared_display}
-                <p>...loading</p>
-              {:then prepared_display}             
-                <VirtualList items={prepared_display} bind:start bind:end let:item>
-                  <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
-                </VirtualList>
-                <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
-              {/await}
+            {:else}           
+              <VirtualList items={prepared_display} bind:this={virtual_list} bind:start bind:end let:item>
+                <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
+              </VirtualList>
+              <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
             {/if}
           </div>
-        {/key}
-      {/key}
     </div>
   </div>
 </main>
@@ -1288,12 +1301,12 @@
 .centering{
   display: flex;
   flex-direction: row;
-  justify-content: center; /* Center items horizontally */
+  justify-content: center;
   width: 100%;
 }
 
 .horizontal{
-  display: flex; /* Create a new flex container for the two bottom elements */
+  display: flex;
   flex: 1;
 }
 .resize-text{
