@@ -140,8 +140,6 @@
     
     if(image_items[action_pointer] != null){
 
-      console.log(action_log)
-
       if(action_log[action_log_pointer]['method'] == 'show_video_frames'){
         $in_video_view = true;
       }else{
@@ -324,13 +322,13 @@
     image_items = [];
     action_log = [];
 
+    action_pointer = -1;
+
+    action_log_pointer = -1;
 
     initialization();
 
-    action_pointer = 0;
-
-    action_log_pointer = 0;
-
+  
     //$selected_images.forEach((selection) => {
     //  send_results += `${selection}; `;
     //});
@@ -459,12 +457,7 @@
       action_log.splice(action_log.length - 2, 1);
     }
 
-    
     action_pointer += 1;
-
-
-    console.log(action_log)
-
 
     let response;
 
@@ -755,8 +748,6 @@
       return null;
     }
 
-    console.log(filtered_lables);
-
     if(a == -1){
       // current state before taking action
       let display_state = action_log[action_log_pointer];
@@ -783,8 +774,6 @@
 
     // trigger reload of labels under chart
     filtered_lables = filtered_lables;
-
-    console.log(filtered_lables);
 
     // will be decreased if action is -1 and increased if action is + 1
     action_log_pointer = action_log_pointer + a;
@@ -984,8 +973,6 @@
       allIds = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.id);
 
       let border_colors = [];
-
-      console.log("filtered_lables", filtered_lables);
 
       for(let i=0; i < allIds.length; i++){
         if (filtered_lables.includes(allIds[i])) {
