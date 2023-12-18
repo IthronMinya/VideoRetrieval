@@ -63,7 +63,7 @@
   let action_log_without_back_and_forth = [];
   let action_log_pointer = -1;
 
-  let bayes_display = 10;
+  let bayes_display = max_display_size;
 
   let dragged_url = null;
 
@@ -154,7 +154,7 @@
 
       row_size = Math.floor(window.innerWidth / 350);
 
-      bayes_display = 300 * row_size;
+      bayes_display = max_display_size;
       
       console.log("reloading display");
 
