@@ -108,16 +108,30 @@
   }
 
   function scrollToHeight(height) {
-
     setTimeout(function(){
       if(virtual_list){
         virtual_list.scrollToScrollHeight(height, { behavior: 'auto' });
+
+        virtual_list.handle_scroll();
       }
-    }, 100);
+    }, 50);
+
+
   }
 
-  async function reloading_display(){
+  function scroll_to_index(index) {
+    setTimeout(function(){
+      if(virtual_list){
+        virtual_list.scrollToIndex(index, { behavior: 'auto' });
+        
+        virtual_list.handle_scroll();
+      }
+    }, 50);
+  }
 
+  async function reloading_display(video_image_id=0){
+
+    start = 0;
     const previous_btn = document.getElementById("previous");
 
     if(action_log_pointer <= 0){
@@ -169,7 +183,17 @@
 
       let temp_selection = [];
 
+      let scroll_index;
+
       for (let i = 0; i < image_items[action_pointer].length; i++) {
+
+        if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0){
+            
+          if (image_items[action_pointer][i]['id'][0] == video_image_id[0] && image_items[action_pointer][i]['id'][1] == video_image_id[1]){
+            scroll_index = rows.length;
+          }
+        }
+
         if (random_target != null && arrayEquals(image_items[action_pointer][i]['id'], random_target[0]['id'])){
           target_in_display = true;
           image_from_target_video_in_display = true;
@@ -201,6 +225,7 @@
           rows[row].push(image_items[action_pointer][i]);
           s += 1;
         }
+
       }
 
       $selected_images = temp_selection;
@@ -217,11 +242,19 @@
 
       prepared_display = rows;
 
+      
+      if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0 && scroll_index != undefined){
+        scroll_to_index(scroll_index);
+      }
+
+
       create_chart();
 
     }else{
       prepared_display = null;
     }
+
+    console.log(prepared_display);
 
   }
 
@@ -387,7 +420,7 @@
       speed_up: 1,
     });
 
-    request_handler(request_url, request_body);
+    request_handler(request_url, request_body, false, false, selected_item);
     
   }
 
@@ -436,12 +469,10 @@
     }
   }
 
-  async function request_handler(request_url, request_body, init=false, image_upload=false){
+  async function request_handler(request_url, request_body, init=false, image_upload=false, video_image_id=0){
 
     // action log got a new entry in function that called the request_handler. We increment here have less code
     action_log_pointer += 1;
-
-    $scroll_height = 0;
 
     // setting this to null temporarily will make a loading display to appear
     prepared_display = null;
@@ -490,18 +521,19 @@
       if (filtered_lables.length > 0){
         for (const [key, value] of Object.entries(responseData)) {
           responseData[key]['disabled'] = true;
-        }
+        }     
 
         for (const [key, value] of Object.entries(responseData)) {
           for(let i=0; i < filtered_lables.length; i++){
             if (responseData[key].label.includes(filtered_lables[i])) {
               responseData[key]['disabled'] = false;
-            }
+            }           
           }
         }
       }else{
+        
         for (const [key, value] of Object.entries(responseData)) {
-          responseData[key]['disabled'] = false;
+          responseData[key]['disabled'] = false;          
         }
       }
       
@@ -515,7 +547,12 @@
       // reset the selection
       $selected_images = [];
       
-      reloading_display();
+      if (video_image_id != 0){
+        reloading_display(video_image_id);
+      }else{
+        reloading_display();
+      }
+      
 
     } catch (error) {
       console.error(error);
@@ -779,10 +816,11 @@
     action_log_pointer = action_log_pointer + a;
     action_pointer = action_pointer + a;
 
+    reloading_display();
+
     // will be previous if action is -1 and next if action is + 1
     scrollToHeight(action_log[action_log_pointer]['scroll']);
 
-    reloading_display();
   }
 
   async function readTextFile(filePath) {
@@ -1254,7 +1292,7 @@
               <VirtualList items={prepared_display} bind:this={virtual_list} bind:start bind:end let:item>
                 <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
               </VirtualList>
-              <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images:  {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
+              <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images: {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
             {/if}
           </div>
     </div>

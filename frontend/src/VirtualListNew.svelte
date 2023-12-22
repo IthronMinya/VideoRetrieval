@@ -70,7 +70,7 @@
 
 	}
 
-	async function handle_scroll() {
+	export async function handle_scroll() {
 		const { scrollTop } = viewport;
 
 		if (scrollTop != undefined){
