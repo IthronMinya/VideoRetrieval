@@ -49,12 +49,16 @@
   let datasets = ['V3C', 'mvk', 'Medical'];
 
   let models = ['clip-laion', 'clip-openai'];
+
+  let users = ['PraK1', 'PraK2', 'PraK3', 'PraK4', 'PraK5'];
+
+  let passwords = ['G5L>q:e{', 't+6^y%T[', 'K}84dH/`', 'Lq&9Mc6Z', 'gb~.8mMy'];
  
   let value_dataset = 'V3C';
 
   let value_model = 'clip-laion';
 
-  let username = "";
+  let username = "PraK1";
 
   let send_results = "";
 
@@ -92,7 +96,122 @@
 
   let current_action_pointer = -1;
 
+  let session_id;
+
+  let servertime;
+
   initialization();
+
+  get_session_id_for_user();
+
+  async function handle_submission(video, frame, text=''){
+
+    let synchtime = await getSyncedServerTime();
+    let request_url = "https://vbs.videobrowsing.org:443/api/v1/submit/VBS2024Test/?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
+
+    console.log(request_url);
+
+    let response = await fetch(request_url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'text'
+      },
+    });
+
+    if (response.ok) { 
+      
+      let res = await response.text()
+      console.log('Successfully submitted result to DRES server!');
+    }
+
+    /*request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/VBS2024Test";
+
+    console.log(request_url);
+    
+    let request_body = JSON.stringify({
+        item: '12791',
+        frame: '1',
+        session: session_id,
+        evaluationId: 'VBS2024Test',
+    });
+
+    response = await fetch(request_url, {
+      method: 'POST',
+      session: session_id,
+      evaluationId: 'VBS2024Test',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response.ok) {
+
+      res = await response.json();
+
+      console.log(res);
+
+    }*/
+  }
+
+  async function getSyncedServerTime() {
+    // Get current timestamp in milliseconds
+    const clientTimestamp = new Date().getTime();
+
+    const response = await fetch('https://vbs.videobrowsing.org:443/api/v2/status/time', {
+        method: 'GET',
+    });
+
+    if (response.ok) {
+
+      let res = await response.json();
+
+      const serverTimestamp = res['timeStamp'];
+
+      // Get current timestamp in milliseconds
+      const nowTimeStamp = new Date().getTime();
+
+      // Calculate server-client difference time on response and response time
+      const serverClientResponseDiffTime = nowTimeStamp - serverTimestamp;
+      const responseTime = (clientTimestamp - serverTimestamp - nowTimeStamp + clientTimestamp - serverClientResponseDiffTime ) / 2;
+
+      // Calculate the synced server time
+      const syncedServerTime = new Date(nowTimeStamp + (serverClientResponseDiffTime - responseTime));
+
+      return syncedServerTime;
+    }else{
+      return null;
+    }
+
+  }
+  async function get_session_id_for_user(){
+
+    let request_url = "https://vbs.videobrowsing.org:443/api/v2/login";
+
+    let request_body = JSON.stringify({
+        username: username,
+        password: passwords[users.indexOf(username)],
+    });
+    
+    let response = await fetch(request_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response.ok) {
+
+      let res = await response.json();
+
+      session_id = res['sessionId'];
+
+      console.log(session_id);
+    }else{
+      console.log(response);
+    }
+  }
 
   function set_scroll(scroll){
     if (action_log[action_log_pointer] != null){
@@ -295,6 +414,8 @@
     $selected_images = [];
 
     action_log.push({'method': 'send_custom_result', 'result_items': send_results});
+
+    handle_submission(null, null, send_results);
   }
 
   function send_results_single(event){
@@ -306,6 +427,7 @@
 
     action_log.push({'method': 'send_single_result', 'result_items': send_results});
 
+    handle_submission(send_results[0], send_results[1]);
   }
 
   function send_results_multiple(){
@@ -1189,18 +1311,22 @@
 <main>
   <div class='viewbox'>
     <div class='top-menu'>
-      <div class="top-input">
-        <input class="top-menu-item resize-text top-offset" bind:value={username} placeholder="Your username"/>
+      <div class="top-menu-item top-negative-offset">
+        <Select on:SMUISelect:change={get_session_id_for_user} bind:value={username} label="Select User">
+          {#each users as user}
+            <Option value={user}>{user}</Option>
+          {/each}
+        </Select>
       </div>
       <div class="top-menu-item top-negative-offset">
-        <Select bind:value_dataset label="Select Dataset">
+        <Select bind:value={value_dataset} label="Select Dataset">
           {#each datasets as dataset}
             <Option value={dataset}>{dataset}</Option>
           {/each}
         </Select>
       </div>
       <div class="top-menu-item top-negative-offset">
-        <Select bind:value_model label="Select Model">
+        <Select bind:value={value_model} label="Select Model">
           {#each models as model}
             <Option value={model}>{model}</Option>
           {/each}

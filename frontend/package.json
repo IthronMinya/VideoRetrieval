@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "npm run smui-theme",
-    "smui-theme": "smui-theme compile public/assets/css/smui.css -i src/theme"
+    "smui-theme": "smui-theme compile public/assets/css/smui.css -i src/theme",
+    "gen-dres-client": "openapi-generator-cli generate -g typescript-angular -i https://raw.githubusercontent.com/dres-dev/DRES/master/doc/oas-client.json -o openapi/dres --skip-validate-spec --additional-properties npmName=@dres-client-openapi/api,ngVersion=13.0.0,enumPropertyNaming=original"
   },
   "dependencies": {
     "@smui/button": "^7.0.0-beta.15",
@@ -17,9 +18,11 @@
     "@sveltejs/svelte-virtual-list": "^3.0.1",
     "@sveltejs/vite-plugin-svelte": "^2.4.2",
     "lazyload": "^2.0.0-rc.2",
+    "openapi-generator": "^0.1.39",
     "smui-theme": "^7.0.0-beta.15",
     "svelte": "^4.0.5",
     "svelte-file-dropzone": "^2.0.2",
+    "svelte-select": "^5.8.3",
     "svelte-video-player": "^1.2.5",
     "vite": "^4.4.5"
   },
