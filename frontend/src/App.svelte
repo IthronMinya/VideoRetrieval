@@ -285,7 +285,7 @@
         lion_text_query = '';
       }
 
-      row_size = Math.floor(window.innerWidth / 350);
+      row_size = Math.floor(window.innerWidth / 550);
 
       bayes_display = max_display_size;
       
