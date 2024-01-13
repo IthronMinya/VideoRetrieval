@@ -107,7 +107,14 @@
   async function handle_submission(video, frame, text=''){
 
     let synchtime = await getSyncedServerTime();
-    let request_url = "https://vbs.videobrowsing.org:443/api/v1/submit/VBS2024Test/?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
+    let request_url;
+
+    if (text != ''){
+      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit/?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
+    }else{
+      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit/?item=" + video + "&frame=" + frame + "&session=" + session_id;
+    }
+    
 
     console.log(request_url);
 
