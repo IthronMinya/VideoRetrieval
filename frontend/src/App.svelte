@@ -292,7 +292,7 @@
         lion_text_query = '';
       }
 
-      row_size = Math.floor(window.innerWidth / 550);
+      row_size = 4;
 
       bayes_display = max_display_size;
       
