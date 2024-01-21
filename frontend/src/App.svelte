@@ -16,7 +16,9 @@
 
   import { onMount, onDestroy, tick} from 'svelte';
 
+  import { generate } from "random-words";
 
+  let user_id;
   let timer;
 
   let lion_text_query = "";
@@ -29,6 +31,8 @@
   let custom_result = "";
 
   let max_display_size = 1000;
+
+  let max_labels = 10;
 
   let chart_labels = 15;
 
@@ -67,7 +71,7 @@
   let action_log_without_back_and_forth = [];
   let action_log_pointer = -1;
 
-  let bayes_display = max_display_size;
+  let bayes_display = 100;
 
   let dragged_url = null;
 
@@ -94,29 +98,37 @@
   
   let virtual_list;
 
-  let current_action_pointer = -1;
-
   let session_id;
 
-  let servertime;
+  let text_display_size = 200;
+
+  let unique_video_frames = false;
 
   initialization();
 
   get_session_id_for_user();
 
+  
+
+  function getKeyByValue(obj, value) {
+      return Object.keys(obj)
+            .filter(key => obj[key]['id'][0] === value[0] && obj[key]['id'][1] === value[1]);
+  }
+
   async function handle_submission(video, frame, text=''){
 
-    let synchtime = await getSyncedServerTime();
+    //let synchtime = await getSyncedServerTime();
+
     let request_url;
 
     if (text != ''){
-      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit/?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
+      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
     }else{
-      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit/?item=" + video + "&frame=" + frame + "&session=" + session_id;
+      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit?item=" + video + "&frame=" + frame + "&session=" + session_id;
     }
     
 
-    console.log(request_url);
+    let time = new Date();
 
     let response = await fetch(request_url, {
       method: 'GET',
@@ -124,37 +136,103 @@
         'Content-Type': 'text'
       },
     });
-
+       
     if (response.ok) { 
-      
+
       let res = await response.text()
       console.log('Successfully submitted result to DRES server!');
+
+      let result_key = getKeyByValue(image_items[action_pointer], [video, frame]);
+
+      let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
+
+      const concatenatedValues = Object.values(action_log)
+      .filter(obj => !valuesToExclude.includes(obj.method))
+      .map(obj => obj.method)
+      .join(' ');
+      
+      let request_body = {
+                        "timestamp": time,
+                        "sortType": concatenatedValues,
+                        "resultSetAvailability": "Sample",
+                        "results": [
+                          {
+                            "item": video,
+                            "segment": null,
+                            "frame": frame,
+                            "score": image_items[action_pointer][result_key].score,
+                            "rank": image_items[action_pointer][result_key].rank
+                          }
+                        ]
+                      }
+
+      console.log(request_body)
+
+      let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result?session=" + session_id, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text'
+        },
+        body: request_body
+      });
+      
+      console.log(result_log_response)
+
+      if (result_log_response.ok){
+        console.log("Successfully submitted log to DRES server!");
+      }
     }
 
-    /*request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/VBS2024Test";
+    /*let i = "https://vbs.videobrowsing.org:443/api/v2/client/evaluation/list?session="+session_id;
+
+    let test = await fetch(i, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (test.ok) {
+
+      let res = await test.json();
+
+      console.log(res);
+
+    }
+
+    request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/f26fed35-3874-4d65-aac6-7f2d71b1429a?session=" + session_id;
 
     console.log(request_url);
     
+    let answers = [];
+
+    let answer = {
+              'text': text, //text - in case the task is not targeting a particular content object but plaintext
+              'mediaItemName': video, // item -  item which is to be submitted
+              'mediaItemCollectionName': null, // collection - does not usually need to be set
+              'start': null, //start time in milliseconds
+              'end': null //end time in milliseconds, in case an explicit time interval is to be specified
+            };
+
+    answers.push(answer);
+
+    let answerSet = {'answers': answers, "taskId": "KIS-LONGRUNNING", "taskName": "AVSTest"};
+
     let request_body = JSON.stringify({
-        item: '12791',
-        frame: '1',
-        session: session_id,
-        evaluationId: 'VBS2024Test',
+      answerSets: answerSet
     });
 
-    response = await fetch(request_url, {
+    let response2 = await fetch(request_url, {
       method: 'POST',
-      session: session_id,
-      evaluationId: 'VBS2024Test',
       headers: {
         'Content-Type': 'application/json'
       },
       body: request_body
     });
 
-    if (response.ok) {
+    if (response2.ok) {
 
-      res = await response.json();
+      res = await response2.json();
 
       console.log(res);
 
@@ -211,13 +289,15 @@
     if (response.ok) {
 
       let res = await response.json();
-
+      user_id = res['id']
       session_id = res['sessionId'];
 
-      console.log(session_id);
+      console.log(user_id, session_id);
     }else{
       console.log(response);
     }
+
+    
   }
 
   function set_scroll(scroll){
@@ -293,8 +373,6 @@
       }
 
       row_size = 4;
-
-      bayes_display = max_display_size;
       
       console.log("reloading display");
 
@@ -504,11 +582,15 @@
 
     const imgElement = document.getElementById('testimage');
 
+
     try {
-        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
+        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/?dataset="+value_dataset);
+
         if (response.ok) {
 
           random_target = await response.json();
+
+          console.log(random_target)
           
           let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/images/" + String(random_target[0]["uri"]);
 
@@ -547,6 +629,7 @@
       dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
+      max_labels: max_labels
     });
 
     request_handler(request_url, request_body, false, false, selected_item);
@@ -562,33 +645,24 @@
     // setting this to null temporarily will make a loading display to appear
     prepared_display = null;
 
-    action_log.push({'method': 'initialization', 'query': '', 'k': 50});
+    let q = generate()
+
+    action_log.push({'method': 'initialization', 'query': q});
     
-    const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
-    try {
-        const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/");
-        if (response.ok) {
+    const request_body = JSON.stringify({
+      query: q,
+      k: text_display_size,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels
+    });
 
-          let init = await response.json();
 
-          let init_id = init[0]["id"];
-
-          const request_body = JSON.stringify({
-            item_id: String(init_id[0]) + "_" + String(init_id[1]),
-            k: -1,
-            dataset: value_dataset,
-            add_features: 1,
-            speed_up: 1,
-          });
-
-          request_handler(request_url, request_body, true);
+    request_handler(request_url, request_body, true);
           
-        }
-    } catch (error) {
-        console.error('Error:', error);
-    }
-    
   }
 
   function handleKeypress(event){
@@ -645,6 +719,29 @@
 
       let responseData = await response.json();
 
+      if (unique_video_frames){
+
+        let unique_videos = []
+
+        for (const [key, value] of Object.entries(responseData)) {
+          if (unique_videos.includes(responseData[key].id[0])) {
+            delete responseData[key];
+          }else{
+            unique_videos.push(responseData[key].id[0]); 
+          }
+        }
+        // Create a new object with consecutive keys
+        let array = [];
+
+        console.log(responseData)
+        for (const [key, value] of Object.entries(responseData)) {
+          array.push(value);
+          array[array.length - 1].rank = array.length - 1;
+        }
+
+        responseData = array;
+      }
+      
       console.log(responseData);
 
       if (filtered_lables.length > 0){
@@ -698,10 +795,11 @@
 
     const request_body = JSON.stringify({
       query: lion_text_query,
-      k: max_display_size,
+      k: text_display_size,
       dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
+      max_labels: max_labels
     });
 
     await request_handler(request_url, request_body);
@@ -724,6 +822,7 @@
       dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
+      max_labels: max_labels
     });
 
     await request_handler(request_url, request_body);
@@ -746,6 +845,7 @@
       add_features: 1,
       dataset: value_dataset,
       speed_up: 1,
+      max_labels: max_labels
     };
 
     const request_body = new FormData();
@@ -1032,6 +1132,14 @@
         }
       }
       
+      let new_rank = 0;
+      for (let i = 0; i < temp_items.length; i++){
+        if (temp_items[i]['disabled'] == false){
+          temp_items[i].rank = new_rank;
+          new_rank++;
+        }
+      }
+      
       // unwind actions after backtracking
       while(image_items.length -1 > action_pointer){
         image_items.pop();
@@ -1065,6 +1173,14 @@
           if (!temp_items[key].label.includes(filtered_lables[i])) {
             temp_items[key]['disabled'] = true;
           }
+        }
+      }
+
+      let new_rank = 0;
+      for (let i = 0; i < temp_items.length; i++){
+        if (temp_items[i]['disabled'] == false){
+          temp_items[i].rank = new_rank;
+          new_rank++;
         }
       }
       
@@ -1219,6 +1335,14 @@
                     temp_items[key]['disabled'] = false;
                   }
                 }
+
+                let new_rank = 0;
+                for (let i = 0; i < temp_items.length; i++){
+                  if (temp_items[i]['disabled'] == false){
+                    temp_items[i].rank = new_rank;
+                    new_rank++;
+                  }
+                }
                 
                 // unwind actions after backtracking
                 while(image_items.length -1 > action_pointer){
@@ -1254,6 +1378,14 @@
                     if (!temp_items[key].label.includes(filtered_lables[i])) {
                       temp_items[key]['disabled'] = true;
                     }
+                  }
+                }
+
+                let new_rank = 0;
+                for (let i = 0; i < temp_items.length; i++){
+                  if (temp_items[i]['disabled'] == false){
+                    temp_items[i].rank = new_rank;
+                    new_rank++;
                   }
                 }
                 
@@ -1416,6 +1548,14 @@
           <Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
             <span class="resize-text">Download Test Data</span>
           </Button>
+          <div>
+            <input type="checkbox" id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames}/>
+            <label for="unique_video_frames">Limit Frames per Video to 1</label>
+          </div><br>
+          <div>
+            <label for="labels_per_frame">Labels per Frame</label>
+            <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
+          </div><br>
         </div>
       </div>
           <div id='container'>
