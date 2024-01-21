@@ -934,8 +934,19 @@
     var items = Object.keys(image_items[action_pointer]).map(function(key) {
       return image_items[action_pointer][key];
     });
-    
-    let topDisplay = items.slice(0, Math.min(items.length, bayes_display));
+
+    max_rank = 0
+    for (let i = 0; i < selected_images.length; i++){
+      selected_item_key = getKeyByValue(image_items[action_pointer], selected_images[i])
+
+      r = image_items[action_pointer].rank
+
+      if (r > max_rank){
+        max_rank = r;
+      }
+    }
+
+    let topDisplay = items.slice(0, Math.min(items.length, max_rank));
 
     let negativeExamples = topDisplay.filter(item =>
       !$selected_images.some(selectedImage =>
