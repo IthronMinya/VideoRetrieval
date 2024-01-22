@@ -18,6 +18,8 @@
 
   import { generate } from "random-words";
 
+  let evaluation_id = "f26fed35-3874-4d65-aac6-7f2d71b1429a";
+  let task_id = "KIS-LONGRUNNING";
   let user_id;
   let timer;
 
@@ -119,7 +121,7 @@
 
     //let synchtime = await getSyncedServerTime();
 
-    let request_url;
+    /*let request_url;
 
     if (text != ''){
       request_url = "https://vbs.videobrowsing.org:443/api/v1/submit?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
@@ -183,7 +185,7 @@
       }
     }
 
-    /*let i = "https://vbs.videobrowsing.org:443/api/v2/client/evaluation/list?session="+session_id;
+    let i = "https://vbs.videobrowsing.org:443/api/v2/client/evaluation/list?session="+session_id;
 
     let test = await fetch(i, {
       method: 'GET',
@@ -198,9 +200,9 @@
 
       console.log(res);
 
-    }
+    }*/
 
-    request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/f26fed35-3874-4d65-aac6-7f2d71b1429a?session=" + session_id;
+    let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/f26fed35-3874-4d65-aac6-7f2d71b1429a?session=" + session_id;
 
     console.log(request_url);
     
@@ -210,8 +212,8 @@
               'text': text, //text - in case the task is not targeting a particular content object but plaintext
               'mediaItemName': video, // item -  item which is to be submitted
               'mediaItemCollectionName': null, // collection - does not usually need to be set
-              'start': null, //start time in milliseconds
-              'end': null //end time in milliseconds, in case an explicit time interval is to be specified
+              'start': 0, //start time in milliseconds
+              'end': 2 //end time in milliseconds, in case an explicit time interval is to be specified
             };
 
     answers.push(answer);
@@ -219,10 +221,12 @@
     let answerSet = {'answers': answers, "taskId": "KIS-LONGRUNNING", "taskName": "AVSTest"};
 
     let request_body = JSON.stringify({
-      answerSets: answerSet
+      answerSets: [answerSet]
     });
 
-    let response2 = await fetch(request_url, {
+    let time = new Date();
+
+    let response = await fetch(request_url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -230,13 +234,53 @@
       body: request_body
     });
 
-    if (response2.ok) {
+    if (response.ok) {
 
-      res = await response2.json();
+      let res = await response.json();
 
       console.log(res);
 
-    }*/
+      let result_key = getKeyByValue(image_items[action_pointer], [video, frame]);
+
+      let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
+
+      const concatenatedValues = Object.values(action_log)
+      .filter(obj => !valuesToExclude.includes(obj.method))
+      .map(obj => obj.method)
+      .join(' ');
+      
+      let request_body = {
+                        "timestamp": time,
+                        "sortType": concatenatedValues,
+                        "resultSetAvailability": "Sample",
+                        "results": [
+                          {
+                            "item": video,
+                            "segment": null,
+                            "frame": frame,
+                            "score": image_items[action_pointer][result_key].score,
+                            "rank": image_items[action_pointer][result_key].rank
+                          }
+                        ]
+                      }
+
+      console.log(request_body);
+
+      let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result?session=" + session_id, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text'
+        },
+        body: request_body
+      });
+      
+      console.log(result_log_response)
+
+      if (result_log_response.ok){
+        console.log("Successfully submitted log to DRES server!");
+      }
+
+    }
   }
 
   async function getSyncedServerTime() {
@@ -1566,6 +1610,14 @@
           <div>
             <label for="labels_per_frame">Labels per Frame</label>
             <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
+          </div><br>
+          <div>
+            <label for="evaluation_id">Evaluation ID</label>
+            <input type="text" id="evaluation_id" name="evaluation_id" bind:value={evaluation_id}>
+          </div><br>
+          <div>
+            <label for="task_id">Task ID</label>
+            <input type="text" id="task_id" name="task_id" bind:value={task_id}>
           </div><br>
         </div>
       </div>
