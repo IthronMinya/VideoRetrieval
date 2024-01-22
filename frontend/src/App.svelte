@@ -54,7 +54,7 @@
 
   let random_target = null;
 
-  let datasets = ['V3C', 'mvk', 'Medical'];
+  let datasets = ['V3C', 'MVK', 'VBSLHE'];
 
   let models = ['clip-laion', 'clip-openai'];
 
@@ -118,6 +118,10 @@
 
   get_session_id_for_user();
 
+
+  function set_dataset(){
+    initialization();
+  }
   
   function set_task_id(){
     let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)]
@@ -1576,7 +1580,7 @@
         </Select>
       </div>
       <div class="top-menu-item top-negative-offset">
-        <Select bind:value={value_dataset} label="Select Dataset">
+        <Select on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
           {#each datasets as dataset}
             <Option value={dataset}>{dataset}</Option>
           {/each}
@@ -1673,14 +1677,6 @@
           <div>
             <label for="labels_per_frame">Labels per Frame</label>
             <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
-          </div><br>
-          <div>
-            <label for="evaluation_name">Evaluation Name</label>
-            <input type="text" id="evaluation_name" name="evaluation_name" bind:value={evaluation_name}>
-          </div><br>
-          <div>
-            <label for="task_id">Task ID</label>
-            <input type="text" id="task_id" name="task_id" bind:value={task_id}>
           </div><br>
         </div>
       </div>
