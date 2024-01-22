@@ -18,10 +18,12 @@
 
   import { generate } from "random-words";
 
-  let evaluation_id = "f26fed35-3874-4d65-aac6-7f2d71b1429a";
-  let task_id = "KIS-LONGRUNNING";
+  let evaluation_name = "";
+  let task_id = "";
   let user_id;
   let timer;
+
+  let task_ids_collection = [];
 
   let lion_text_query = "";
 
@@ -38,12 +40,12 @@
 
   let chart_labels = 15;
 
-  let test_image_av = false;
-
   let row_size;
   let prepared_display = null;
 
   $: {
+    evaluation_ids;
+    task_ids;
     //reloading_display(image_items);
     set_scroll($scroll_height);
     prepared_display;
@@ -106,11 +108,26 @@
 
   let unique_video_frames = false;
 
+  let evaluation_ids = [];
+
+  let evaluation_names = [];
+
+  let task_ids = [];
+
   initialization();
 
   get_session_id_for_user();
 
   
+  function set_task_id(){
+    let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)]
+    for(let i=0; i< t.length; i++){
+      task_ids.push(t[i].name);
+    }
+
+    task_ids = task_ids;
+
+  }
 
   function getKeyByValue(obj, value) {
       return Object.keys(obj)
@@ -202,7 +219,8 @@
 
     }*/
 
-    let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/f26fed35-3874-4d65-aac6-7f2d71b1429a?session=" + session_id;
+    let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)]
+    let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/" + eval_id + "?session=" + session_id;
 
     console.log(request_url);
     
@@ -218,7 +236,7 @@
 
     answers.push(answer);
 
-    let answerSet = {'answers': answers, "taskId": "KIS-LONGRUNNING", "taskName": "AVSTest"};
+    let answerSet = {'answers': answers, "taskId": task_id};
 
     let request_body = JSON.stringify({
       answerSets: [answerSet]
@@ -339,6 +357,37 @@
       console.log(user_id, session_id);
     }else{
       console.log(response);
+    }
+
+    let i = "https://vbs.videobrowsing.org:443/api/v2/client/evaluation/list?session="+session_id;
+
+    let evaluations_req = await fetch(i, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (evaluations_req.ok) {
+
+      let res = await evaluations_req.json();
+
+      console.log(res);
+
+      
+
+      for(let i=0; i < res.length; i++){
+        evaluation_ids.push(res[i].id);
+        evaluation_names.push(res[i].name);
+        task_ids_collection.push(res[i].taskTemplates)
+      }
+
+      console.log(evaluation_ids);
+      console.log(evaluation_names);
+      
+      evaluation_ids = evaluation_ids;
+      evaluation_names = evaluation_names;
+
     }
 
     
@@ -1513,6 +1562,20 @@
         </Select>
       </div>
       <div class="top-menu-item top-negative-offset">
+        <Select on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Evaluation ID">
+          {#each evaluation_names as e}
+            <Option value={e}>{e}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset">
+        <Select on:SMUISelect:change={task_id} bind:value={task_id} label="Task ID">
+          {#each task_ids as t}
+            <Option value={t}>{t}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset">
         <Select bind:value={value_dataset} label="Select Dataset">
           {#each datasets as dataset}
             <Option value={dataset}>{dataset}</Option>
@@ -1612,8 +1675,8 @@
             <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
           </div><br>
           <div>
-            <label for="evaluation_id">Evaluation ID</label>
-            <input type="text" id="evaluation_id" name="evaluation_id" bind:value={evaluation_id}>
+            <label for="evaluation_name">Evaluation Name</label>
+            <input type="text" id="evaluation_name" name="evaluation_name" bind:value={evaluation_name}>
           </div><br>
           <div>
             <label for="task_id">Task ID</label>
