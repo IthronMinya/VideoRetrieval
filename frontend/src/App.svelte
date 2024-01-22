@@ -42,7 +42,7 @@
 
   let row_size;
   let prepared_display = null;
-
+  let test_image_av;
   $: {
     evaluation_ids;
     task_ids;
@@ -104,7 +104,7 @@
 
   let session_id;
 
-  let text_display_size = 200;
+  let text_display_size = 1000;
 
   let unique_video_frames = false;
 
