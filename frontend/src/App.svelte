@@ -18,6 +18,8 @@
 
   import { generate } from "random-words";
 
+  import fs from 'fs';
+
   let evaluation_name = "";
   let task_id = "";
   let user_id;
@@ -72,7 +74,6 @@
 
   let action_log = [];
 
-  let action_log_without_back_and_forth = [];
   let action_log_pointer = -1;
 
   let bayes_display = 100;
@@ -138,90 +139,7 @@
             .filter(key => obj[key]['id'][0] === value[0] && obj[key]['id'][1] === value[1]);
   }
 
-  async function handle_submission(video, frame, text=''){
-
-    //let synchtime = await getSyncedServerTime();
-
-    /*let request_url;
-
-    if (text != ''){
-      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit?item=" + video + "&text=" + text + "&frame=" + frame + "&session=" + session_id;
-    }else{
-      request_url = "https://vbs.videobrowsing.org:443/api/v1/submit?item=" + video + "&frame=" + frame + "&session=" + session_id;
-    }
-    
-
-    let time = new Date();
-
-    let response = await fetch(request_url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'text'
-      },
-    });
-       
-    if (response.ok) { 
-
-      let res = await response.text()
-      console.log('Successfully submitted result to DRES server!');
-
-      let result_key = getKeyByValue(image_items[action_pointer], [video, frame]);
-
-      let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
-
-      const concatenatedValues = Object.values(action_log)
-      .filter(obj => !valuesToExclude.includes(obj.method))
-      .map(obj => obj.method)
-      .join(' ');
-      
-      let request_body = {
-                        "timestamp": time,
-                        "sortType": concatenatedValues,
-                        "resultSetAvailability": "Sample",
-                        "results": [
-                          {
-                            "item": video,
-                            "segment": null,
-                            "frame": frame,
-                            "score": image_items[action_pointer][result_key].score,
-                            "rank": image_items[action_pointer][result_key].rank
-                          }
-                        ]
-                      }
-
-      console.log(request_body)
-
-      let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result?session=" + session_id, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text'
-        },
-        body: request_body
-      });
-      
-      console.log(result_log_response)
-
-      if (result_log_response.ok){
-        console.log("Successfully submitted log to DRES server!");
-      }
-    }
-
-    let i = "https://vbs.videobrowsing.org:443/api/v2/client/evaluation/list?session="+session_id;
-
-    let test = await fetch(i, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (test.ok) {
-
-      let res = await test.json();
-
-      console.log(res);
-
-    }*/
+  async function handle_submission(results, text=''){
 
     let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)]
     let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/" + eval_id + "?session=" + session_id;
@@ -230,15 +148,39 @@
     
     let answers = [];
 
-    let answer = {
-              'text': text, //text - in case the task is not targeting a particular content object but plaintext
-              'mediaItemName': video, // item -  item which is to be submitted
-              'mediaItemCollectionName': null, // collection - does not usually need to be set
-              'start': 0, //start time in milliseconds
-              'end': 2 //end time in milliseconds, in case an explicit time interval is to be specified
-            };
 
-    answers.push(answer);
+    if (results == null){
+      let answer = {
+                'text': text, //text - in case the task is not targeting a particular content object but plaintext
+                'mediaItemName': null, // item -  item which is to be submitted
+                'mediaItemCollectionName': null, // collection - does not usually need to be set
+                'start': null, //start time in milliseconds
+                'end': null //end time in milliseconds, in case an explicit time interval is to be specified
+              };
+
+      answers.push(answer);
+
+    }else{
+      for(let i = 0; i < results.length; i++){
+
+        let result_key = getKeyByValue(image_items[action_pointer], [results[i][0], results[i][1]]);
+
+        let interval = image_items[action_pointer][result_key].time
+
+        let answer = {
+                'text': text, //text - in case the task is not targeting a particular content object but plaintext
+                'mediaItemName': results[i][0], // item -  item which is to be submitted
+                'mediaItemCollectionName': null, // collection - does not usually need to be set
+                'start': interval[0], //start time in milliseconds
+                'end': interval[1] //end time in milliseconds, in case an explicit time interval is to be specified
+              };
+
+        answers.push(answer);
+
+      }
+    }
+
+    
 
     let answerSet = {'answers': answers, "taskId": task_id};
 
@@ -246,7 +188,7 @@
       answerSets: [answerSet]
     });
 
-    let time = new Date();
+    let time = new Date().valueOf();
 
     let response = await fetch(request_url, {
       method: 'POST',
@@ -262,29 +204,68 @@
 
       console.log(res);
 
-      let result_key = getKeyByValue(image_items[action_pointer], [video, frame]);
-
       let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
 
       const concatenatedValues = Object.values(action_log)
       .filter(obj => !valuesToExclude.includes(obj.method))
-      .map(obj => obj.method)
-      .join(' ');
       
+      let events = []
+
+      for(let i = 0; i < concatenatedValues.length; i++){
+        let event = {
+                'timestamp': concatenatedValues[i]['timestamp'],
+                'type': concatenatedValues[i]['method'],
+                'category': concatenatedValues[i]['category'],
+                'value': concatenatedValues[i]['query']
+              };
+        
+        events.push(event);
+        
+      }
+
+      let result_res = [];
+
+      if (results == null){
+        let r = {
+                    "item": null,
+                    "segment": null,
+                    "frame": null,
+                    "score": null,
+                    "rank": null
+                };
+
+          result_res.push(r);
+      }else{
+        for(let i = 0; i < results.length; i++){
+
+          let result_key = getKeyByValue(image_items[action_pointer], [results[i][0], results[i][1]]);
+
+          let r = {
+                    "item": results[i][0],
+                    "segment": null,
+                    "frame": results[i][1],
+                    "score": image_items[action_pointer][result_key].score,
+                    "rank": image_items[action_pointer][result_key].rank
+                };
+
+          result_res.push(r);
+
+        }
+      }
+
       let request_body = {
                         "timestamp": time,
-                        "sortType": concatenatedValues,
+                        "sortType": "Scores",
                         "resultSetAvailability": "Sample",
-                        "results": [
-                          {
-                            "item": video,
-                            "segment": null,
-                            "frame": frame,
-                            "score": image_items[action_pointer][result_key].score,
-                            "rank": image_items[action_pointer][result_key].rank
-                          }
-                        ]
+                        "results": result_res,
+                        "events": events
                       }
+
+      const response3 = await fetch('../append_user_log?username=' + username + '&req=' + request_body);
+
+      if (response3.ok) {
+        console.log( await response3.text())
+      }                
 
       console.log(request_body);
 
@@ -327,7 +308,7 @@
       const responseTime = (clientTimestamp - serverTimestamp - nowTimeStamp + clientTimestamp - serverClientResponseDiffTime ) / 2;
 
       // Calculate the synced server time
-      const syncedServerTime = new Date(nowTimeStamp + (serverClientResponseDiffTime - responseTime));
+      const syncedServerTime = new Date(nowTimeStamp + (serverClientResponseDiffTime - responseTime)).valueOf();;
 
       return syncedServerTime;
     }else{
@@ -394,7 +375,22 @@
 
     }
 
-    
+    const response2 = await fetch('../create_user_log?username=' + username);
+
+    if (response2.ok) {
+      console.log( await response2.text())
+    }
+
+    /*const response3 = await fetch('../append_user_log?username=' + username + '&req=' + JSON.stringify({
+        timestamp: await getSyncedServerTime(),
+        test: "test",
+    }));
+
+    if (response3.ok) {
+      console.log( await response3.text())
+    }*/
+
+    //handle_submission(null, "test");
   }
 
   function set_scroll(scroll){
@@ -597,7 +593,7 @@
 
     action_log.push({'method': 'send_custom_result', 'result_items': send_results});
 
-    handle_submission(null, null, send_results);
+    handle_submission(null, send_results);
   }
 
   function send_results_single(event){
@@ -609,7 +605,7 @@
 
     action_log.push({'method': 'send_single_result', 'result_items': send_results});
 
-    handle_submission(send_results[0], send_results[1]);
+    handle_submission(send_results);
   }
 
   function send_results_multiple(){
@@ -619,7 +615,10 @@
 
     $selected_images.forEach((selection) => {
       send_results += `${selection}; `;
+      //handle_submission($selected_images);
     });
+
+    handle_submission($selected_images);
 
     send_results = send_results.slice(0, -2); // remove last space and semicolon
 
@@ -683,6 +682,8 @@
     try {
         const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/?dataset="+value_dataset);
 
+        console.log(response)
+
         if (response.ok) {
 
           random_target = await response.json();
@@ -718,7 +719,7 @@
 
     let selected_item = event.detail.image_id;
 
-    action_log.push({'method': 'show_video_frames', 'query': [selected_item[0], selected_item[1]]});
+    action_log.push({'method': 'show_video_frames', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'query': [selected_item[0], selected_item[1]]});
 
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
@@ -744,7 +745,7 @@
 
     let q = generate()
 
-    action_log.push({'method': 'initialization', 'query': q});
+    action_log.push({'method': 'initialization', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': q});
     
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
@@ -885,8 +886,7 @@
 
   async function get_scores_by_text() {
 
-    action_log_without_back_and_forth.push({'method': 'textquery', 'query': lion_text_query});
-    action_log.push({'method': 'textquery', 'query': lion_text_query});
+    action_log.push({'method': 'textquery', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': lion_text_query});
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
@@ -908,9 +908,7 @@
 
     let selected_item = event.detail.image_id;
 
-    action_log_without_back_and_forth.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]]});
-
-    action_log.push({'method': 'image_internal_query', 'query': [selected_item[0], selected_item[1]]});
+    action_log.push({'method': 'image_internal_query', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'query': [selected_item[0], selected_item[1]]});
 
     const request_body = JSON.stringify({
       video_id: selected_item[0],
@@ -934,8 +932,7 @@
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
     
-    action_log_without_back_and_forth.push({'method': 'image_upload_query', 'query': 'uploaded image'});
-    action_log.push({'method': 'image_upload_query', 'query': 'uploaded image'});
+    action_log.push({'method': 'image_upload_query', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'query': 'uploaded image'});
 
     const params = {
       k: max_display_size,
@@ -996,7 +993,7 @@
     return result;
   }
 
-  function bayesUpdate() {
+  async function bayesUpdate() {
     
     if ($selected_images.length == 0){
       console.log("Nothing was selected. Cannot perform the Bayes update without a positve example.");
@@ -1105,7 +1102,7 @@
 
     action_pointer += 1;
 
-    action_log.push({'method': 'bayes_update', 'selected_video_image_ids': $selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
+    action_log.push({'method': 'bayes_update', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'selected_video_image_ids': $selected_images, 'query':$selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
 
     action_log_pointer += 1;
     reloading_display();
@@ -1200,7 +1197,7 @@
     return topNLabels;
   }
 
-  function label_click(event){
+  async function label_click(event){
 
     const clickedId = event;
     const clickedLabel = file_labels[clickedId];
@@ -1260,7 +1257,7 @@
       
       image_items.push(temp_items);
       
-      action_log.push({'method': 'text_restore_filtering', 'label': clickedId, 'data': image_items[action_pointer]});
+      action_log.push({'method': 'text_restore_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'data': image_items[action_pointer]});
 
     }else{          
       
@@ -1304,7 +1301,7 @@
 
       image_items.push(temp_items);
       
-      action_log.push({'method': 'text_filtering', 'label': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
+      action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
     }
 
@@ -1398,7 +1395,7 @@
           }]
         },
         options: {
-          onClick: function (event, elements) {
+          onClick: async function (event, elements) {
             if (elements && elements.length > 0) {
               
               // Get the index of the clicked bar
@@ -1464,7 +1461,7 @@
                 
                 image_items.push(temp_items);
 
-                action_log.push({'method': 'text_restore_filtering', 'label': clickedId, 'data': image_items[action_pointer]});
+                action_log.push({'method': 'text_restore_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'data': image_items[action_pointer]});
 
               }else{          
                 
@@ -1509,7 +1506,7 @@
 
                 image_items.push(temp_items);
                 
-                action_log.push({'method': 'text_filtering', 'label': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
+                action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
               }
               
@@ -1606,7 +1603,7 @@
           <span class="resize-text">Send custom text</span>
         </Button> 
       </div>
-        <span class="top-menu-item" id="target_text">{target_in_display_text}</span>
+        <!--<span class="top-menu-item" id="target_text">{target_in_display_text}</span>-->
     </div>
 
     <div class="horizontal">
@@ -1621,7 +1618,7 @@
               <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
             </Fab>
           </div>
-          {#if send_results.length > 0}
+          <!--{#if send_results.length > 0}
             <span>Your send results: {send_results}</span>
           {/if}
           <div class="timer centering" style="margin-bottom:0.5em;">
@@ -1634,7 +1631,7 @@
             <div id="test-image-preview-container">
               <img id="testimage" alt="" />
             </div>
-          {/if}
+          {/if}-->
           <textarea  id="text_query_input" class="menu_item resize-text" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
           <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
             <span class="resize-text">Submit Text Query</span>
@@ -1667,12 +1664,13 @@
               <p class='active_label' on:click={() => label_click(label)}>{file_labels[label]}</p>
             {/each}
           {/key}
-          <Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
+          <!--<Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
             <span class="resize-text">Download Test Data</span>
-          </Button>
+          </Button>-->
+          <br><br>
           <div>
-            <input type="checkbox" id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames}/>
             <label for="unique_video_frames">Limit Frames per Video to 1</label>
+            <input type="checkbox" id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames}/>
           </div><br>
           <div>
             <label for="labels_per_frame">Labels per Frame</label>

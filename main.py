@@ -6,7 +6,7 @@ mimetypes.add_type('text/css', '.css')
 #import uvicorn
 #import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.responses import FileResponse
@@ -20,6 +20,8 @@ import requests
 #import torch
 
 import numpy as np
+import os
+import json
 
 app = FastAPI()
 
@@ -40,13 +42,44 @@ app.add_middleware(
 
 app.mount("/assets", StaticFiles(directory="public/assets"), name="static")
 
+
+@app.get("/rand")
+async def rand():
+   return random.randint(0, 100)
+
+@app.get("/create_user_log")
+async def rand(username: str):
+    filename = "user_data/" + username + "/eventlog_" + username + ".json"
+    if os.path.exists(filename):
+        return "log already exists. No change required."
+    else:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as f:
+            f.write("[]")
+        return "successfully created logfile."
+
+
+@app.get("/append_user_log")
+async def append_user_log(req: Request):
+    request_args = dict(req.query_params)
+    filename = "user_data/" + request_args['username'] + "/eventlog_" + request_args['username'] + ".json"
+
+    with open(filename, "r") as f:
+        listObj = json.load(f)
+    
+    listObj.append(json.loads(request_args['req']))
+
+    with open(filename, 'w') as json_file:
+        json.dump(listObj, json_file, 
+                            indent=4,  
+                            separators=(',',': '))
+        
+    return "successfully Appended event to" + request_args['username'] + "' log file."
+
+## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.
 @app.get("/", response_class=FileResponse)
 def main():
     return "public/index.html"
-
-@app.get("/rand")
-async def hello():
-   return random.randint(0, 100)
 
 @app.get("/send_results")
 async def send_result(image_id: int):
