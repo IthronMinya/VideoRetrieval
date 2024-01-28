@@ -141,7 +141,9 @@
 
   async function handle_submission(results, text=''){
 
-    let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)]
+    let image_data = image_items[action_pointer];
+    let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
+
     let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/" + eval_id + "?session=" + session_id;
 
     console.log(request_url);
@@ -162,17 +164,17 @@
 
     }else{
       for(let i = 0; i < results.length; i++){
+        
+        let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
 
-        let result_key = getKeyByValue(image_items[action_pointer], [results[i][0], results[i][1]]);
-
-        let interval = image_items[action_pointer][result_key].time
+        let interval = image_data[result_key].time
 
         let answer = {
-                'text': text, //text - in case the task is not targeting a particular content object but plaintext
+                'text': null, //text - in case the task is not targeting a particular content object but plaintext
                 'mediaItemName': results[i][0], // item -  item which is to be submitted
                 'mediaItemCollectionName': null, // collection - does not usually need to be set
-                'start': interval[0], //start time in milliseconds
-                'end': interval[1] //end time in milliseconds, in case an explicit time interval is to be specified
+                'start': Math.round(interval[2]), //start time in milliseconds
+                'end': Math.round(interval[3]) //end time in milliseconds, in case an explicit time interval is to be specified
               };
 
         answers.push(answer);
@@ -180,13 +182,13 @@
       }
     }
 
-    
-
     let answerSet = {'answers': answers, "taskId": task_id};
 
     let request_body = JSON.stringify({
       answerSets: [answerSet]
     });
+
+    console.log(request_body)
 
     let time = new Date().valueOf();
 
@@ -206,9 +208,16 @@
 
       let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
 
-      const concatenatedValues = Object.values(action_log)
-      .filter(obj => !valuesToExclude.includes(obj.method))
+      valuesToExclude = []
       
+      console.log(action_log)
+      let concatenatedValues = action_log.filter(item => !valuesToExclude.includes(item['method']));
+      
+      //const concatenatedValues = Object.values(action_log)
+      //.filter(obj => !valuesToExclude.includes(obj.method))
+      
+      console.log("test")
+      console.log(concatenatedValues)
       let events = []
 
       for(let i = 0; i < concatenatedValues.length; i++){
@@ -216,7 +225,7 @@
                 'timestamp': concatenatedValues[i]['timestamp'],
                 'type': concatenatedValues[i]['method'],
                 'category': concatenatedValues[i]['category'],
-                'value': concatenatedValues[i]['query']
+                'value': String(concatenatedValues[i]['query'])
               };
         
         events.push(event);
@@ -226,40 +235,47 @@
       let result_res = [];
 
       if (results == null){
-        let r = {
-                    "item": null,
-                    "segment": null,
-                    "frame": null,
-                    "score": null,
-                    "rank": null
-                };
 
-          result_res.push(r);
+        let answer = {
+          "text": text,
+          "mediaItemName": null,
+          "mediaItemCollectionName": null,
+          "start": null,
+          "end": null
+        };
+
+        result_res.push({'answer': answer, "rank": null});
+
       }else{
+
         for(let i = 0; i < results.length; i++){
 
-          let result_key = getKeyByValue(image_items[action_pointer], [results[i][0], results[i][1]]);
+          console.log(image_data)
 
-          let r = {
-                    "item": results[i][0],
-                    "segment": null,
-                    "frame": results[i][1],
-                    "score": image_items[action_pointer][result_key].score,
-                    "rank": image_items[action_pointer][result_key].rank
-                };
+          let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
 
-          result_res.push(r);
+          let answer = {
+            "text":  null,
+            "mediaItemName": results[i][0],
+            "mediaItemCollectionName": null,
+            "start": Math.round(image_data[result_key].time[2]),
+            "end": Math.round(image_data[result_key].time[3])
+          };
+
+          result_res.push({'answer': answer, "rank": image_data[result_key].rank});
 
         }
       }
 
       let request_body = {
-                        "timestamp": time,
-                        "sortType": "Scores",
-                        "resultSetAvailability": "Sample",
-                        "results": result_res,
-                        "events": events
-                      }
+        "timestamp": time,
+        "sortType": "Scores",
+        "resultSetAvailability": "Sample",
+        "results": result_res,
+        "events": events
+      }
+
+      request_body = JSON.stringify(request_body)
 
       const response3 = await fetch('../append_user_log?username=' + username + '&req=' + request_body);
 
@@ -269,10 +285,10 @@
 
       console.log(request_body);
 
-      let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result?session=" + session_id, {
+      let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result/" + eval_id + "?session=" + session_id, {
         method: 'POST',
         headers: {
-          'Content-Type': 'text'
+          'Content-Type': 'application/json'
         },
         body: request_body
       });
@@ -584,16 +600,17 @@
     }
   }
 
-  function send_results_custom(){
-    timer.stop();
-
+  async function send_results_custom(){
+    if(timer){
+      timer.stop();
+    }
     send_results = custom_result;
 
     $selected_images = [];
 
-    action_log.push({'method': 'send_custom_result', 'result_items': send_results});
+    await handle_submission(null, send_results);
 
-    handle_submission(null, send_results);
+    action_log.push({'method': 'send_custom_result', 'result_items': send_results});
 
     action_log = [];
     action_pointer = -1;
@@ -602,16 +619,19 @@
     initialization();
   }
 
-  function send_results_single(event){
-    timer.stop();
+  async function send_results_single(event){
+    if(timer){
+      timer.stop();
+    }
+    
 
     send_results = event.detail.image_id;
 
     $selected_images = [];
 
-    action_log.push({'method': 'send_single_result', 'result_items': send_results});
+    await handle_submission([send_results]);
 
-    handle_submission(send_results);
+    action_log.push({'method': 'send_single_result', 'result_items': send_results});
 
     action_log = [];
     action_pointer = -1;
@@ -620,8 +640,10 @@
     initialization();
   }
 
-  function send_results_multiple(){
-    timer.stop();
+  async function send_results_multiple(){
+    if(timer){
+      timer.stop();
+    }
 
     send_results = " ";
 
@@ -630,7 +652,7 @@
       //handle_submission($selected_images);
     });
 
-    handle_submission($selected_images);
+    await handle_submission($selected_images);
 
     send_results = send_results.slice(0, -2); // remove last space and semicolon
 
@@ -754,8 +776,11 @@
 
   async function initialization() {
 
+    
     // Read labels from the text file
-    file_labels = await readTextFile('./assets/nounlist.txt');
+    file_labels = await readTextFile('./assets/' + value_dataset + '-nounlist.txt');
+
+    console.log('./assets/' + value_dataset + '-nounlist.txt')
 
     
     // setting this to null temporarily will make a loading display to appear
@@ -1047,7 +1072,7 @@
       return image_items[action_pointer][key];
     });
 
-    max_rank = 0
+    let max_rank = 0
     for (let i = 0; i < selected_images.length; i++){
       selected_item_key = getKeyByValue(image_items[action_pointer], selected_images[i])
 
@@ -1056,6 +1081,10 @@
       if (r > max_rank){
         max_rank = r;
       }
+    }
+
+    if(max_rank == 0){
+      max_rank = 200;
     }
 
     let topDisplay = items.slice(0, Math.min(items.length, max_rank));
