@@ -594,6 +594,12 @@
     action_log.push({'method': 'send_custom_result', 'result_items': send_results});
 
     handle_submission(null, send_results);
+
+    action_log = [];
+    action_pointer = -1;
+    action_log_pointer = -1;
+    
+    initialization();
   }
 
   function send_results_single(event){
@@ -606,6 +612,12 @@
     action_log.push({'method': 'send_single_result', 'result_items': send_results});
 
     handle_submission(send_results);
+
+    action_log = [];
+    action_pointer = -1;
+    action_log_pointer = -1;
+    
+    initialization();
   }
 
   function send_results_multiple(){
@@ -625,6 +637,12 @@
     $selected_images = [];
 
     action_log.push({'method': 'send_multi_result', 'result_items': send_results});
+
+    action_log = [];
+    action_pointer = -1;
+    action_log_pointer = -1;
+    
+    initialization();
   }
 
   function download(content, fileName, contentType) {
