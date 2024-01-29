@@ -209,14 +209,14 @@
 
       valuesToExclude = []
       
-      console.log(action_log)
+      //console.log(action_log)
       let concatenatedValues = action_log.filter(item => !valuesToExclude.includes(item['method']));
       
       //const concatenatedValues = Object.values(action_log)
       //.filter(obj => !valuesToExclude.includes(obj.method))
       
-      console.log("test")
-      console.log(concatenatedValues)
+      //console.log("test")
+      //console.log(concatenatedValues)
       let events = []
 
       for(let i = 0; i < concatenatedValues.length; i++){
@@ -249,7 +249,7 @@
 
         for(let i = 0; i < results.length; i++){
 
-          console.log(image_data)
+          //console.log(image_data)
 
           let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
 
@@ -282,7 +282,7 @@
         console.log( await response3.text())
       }                
 
-      console.log(request_body);
+      //console.log(request_body);
 
       let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result/" + eval_id + "?session=" + session_id, {
         method: 'POST',
@@ -292,7 +292,7 @@
         body: request_body
       });
       
-      console.log(result_log_response)
+      //console.log(result_log_response)
 
       if (result_log_response.ok){
         console.log("Successfully submitted log to DRES server!");
@@ -628,7 +628,7 @@
     
     let action_log2 = structuredClone(action_log)
 
-    console.log(action_log2)
+    //console.log(action_log2)
     for(let i=0; i < action_log2.length; i++){
       if(action_log2[i].data){
         for(let j=0; j < action_log2[i].data.length; j++){
@@ -641,7 +641,7 @@
 
     let request_body = JSON.stringify({'username': username, 'log': action_log2})
 
-    console.log(request_body)
+    //console.log(request_body)
     let response5 = await fetch('../append_custom_user_log', {
       method: 'POST',
       headers: {
@@ -675,12 +675,12 @@
 
     action_log.push({'method': 'send_single_result', 'timestamp': time, 'result_items': send_results});
 
-    console.log("test2")
+    //console.log("test2")
     
 
     let action_log2 = structuredClone(action_log)
 
-    console.log(action_log2)
+    //console.log(action_log2)
     for(let i=0; i < action_log2.length; i++){
       if(action_log2[i].data){
         for(let j=0; j < action_log2[i].data.length; j++){
@@ -689,14 +689,14 @@
       }
     }
 
-    console.log("test2")
-    console.log(action_log2)
+    //console.log("test2")
+    //console.log(action_log2)
 
     //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
     let request_body = JSON.stringify({'username': username, 'log': action_log2})
 
-    console.log(request_body)
+    //console.log(request_body)
     let response5 = await fetch('../append_custom_user_log', {
       method: 'POST',
       headers: {
@@ -738,7 +738,7 @@
 
     let action_log2 = structuredClone(action_log)
 
-    console.log(action_log2)
+    //console.log(action_log2)
     for(let i=0; i < action_log2.length; i++){
       if(action_log2[i].data){
         for(let j=0; j < action_log2[i].data.length; j++){
@@ -751,7 +751,7 @@
 
     let request_body = JSON.stringify({'username': username, 'log': action_log2})
 
-    console.log(request_body)
+    //console.log(request_body)
     let response5 = await fetch('../append_custom_user_log', {
       method: 'POST',
       headers: {
@@ -1019,14 +1019,14 @@
           delete action_log2.data[j].features;
         }
 
-        console.log("test3")
-        console.log(action_log2)
+        //console.log("test3")
+        //console.log(action_log2)
 
         //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
         
         let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
-        console.log(request_body)
+        //console.log(request_body)
         let response5 = await fetch('../create_event_user_log', {
           method: 'POST',
           headers: {
@@ -1286,14 +1286,14 @@
       delete action_log2.data[j].features;
     }
 
-    console.log("test3")
-    console.log(action_log2)
+    //console.log("test3")
+    //console.log(action_log2)
 
     //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
     let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
-    console.log(request_body)
+    //console.log(request_body)
     let response5 = await fetch('../create_event_user_log', {
       method: 'POST',
       headers: {
@@ -1512,14 +1512,14 @@
       delete action_log2.data[j].features;
     }
 
-    console.log("test3")
-    console.log(action_log2)
+    //console.log("test3")
+    //console.log(action_log2)
 
     //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
     let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
-    console.log(request_body)
+    //console.log(request_body)
     let response5 = await fetch('../create_event_user_log', {
       method: 'POST',
       headers: {
@@ -1742,14 +1742,14 @@
                 delete action_log2.data[j].features;
               }
 
-              console.log("test3")
-              console.log(action_log2)
+              //console.log("test3")
+              //console.log(action_log2)
 
               //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
               let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
-              console.log(request_body)
+              //console.log(request_body)
               let response5 = await fetch('../create_event_user_log', {
                 method: 'POST',
                 headers: {
