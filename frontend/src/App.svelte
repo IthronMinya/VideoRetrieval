@@ -299,6 +299,8 @@
       }
 
     }
+
+    return time;
   }
 
   async function getSyncedServerTime() {
@@ -620,9 +622,9 @@
 
     $selected_images = [];
 
-    await handle_submission(null, send_results);
+    let time = await handle_submission(null, send_results);
 
-    action_log.push({'method': 'send_custom_result', 'result_items': send_results});
+    action_log.push({'method': 'send_custom_result', 'timestamp': time, 'result_items': send_results});
     
     let action_log2 = structuredClone(action_log)
 
@@ -669,9 +671,9 @@
 
     $selected_images = [];
 
-    await handle_submission([send_results]);
+    let time = await handle_submission([send_results]);
 
-    action_log.push({'method': 'send_single_result', 'result_items': send_results});
+    action_log.push({'method': 'send_single_result', 'timestamp': time, 'result_items': send_results});
 
     console.log("test2")
     
@@ -726,13 +728,13 @@
       //handle_submission($selected_images);
     });
 
-    await handle_submission($selected_images);
+    let time = await handle_submission($selected_images);
 
     send_results = send_results.slice(0, -2); // remove last space and semicolon
 
     $selected_images = [];
 
-    action_log.push({'method': 'send_multi_result', 'result_items': send_results});
+    action_log.push({'method': 'send_multi_result', 'timestamp': time, 'result_items': send_results});
 
     let action_log2 = structuredClone(action_log)
 
