@@ -1,1 +1,39 @@
-[]
+[
+    {
+        "timestamp": 1706519313229,
+        "sortType": "Scores",
+        "resultSetAvailability": "Sample",
+        "results": [
+            {
+                "answer": {
+                    "text": null,
+                    "mediaItemName": "12458",
+                    "mediaItemCollectionName": null,
+                    "start": 357315,
+                    "end": 357523
+                },
+                "rank": 0
+            }
+        ],
+        "events": [
+            {
+                "timestamp": 1706519159462,
+                "type": "initialization",
+                "category": "TEXT",
+                "value": "solve"
+            },
+            {
+                "timestamp": 1706519177427,
+                "type": "bayes_update",
+                "category": "IMAGE",
+                "value": "13384,37_2"
+            },
+            {
+                "timestamp": 1706519303602,
+                "type": "textquery",
+                "category": "TEXT",
+                "value": "test\n"
+            }
+        ]
+    }
+]

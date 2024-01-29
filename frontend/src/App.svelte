@@ -1013,8 +1013,34 @@
       if (action_log.length - 1 >= 0){
         // insert the data to the action we performed before calling the requesthandler
         action_log[action_log.length - 1]['data'] = image_items[action_pointer];
+
+        let action_log2 = structuredClone(action_log[action_log.length - 1])
+        for(let j=0; j < action_log2.data.length; j++){
+          delete action_log2.data[j].features;
+        }
+
+        console.log("test3")
+        console.log(action_log2)
+
+        //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+        
+        let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+
+        console.log(request_body)
+        let response5 = await fetch('../create_event_user_log', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: request_body
+        });
+
+        if (response5.ok) {
+          console.log( await response5.text())
+        }
+        
       }
-      
+            
       // reset the selection
       $selected_images = [];
       
@@ -1255,6 +1281,31 @@
 
     action_log.push({'method': 'bayes_update', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'selected_video_image_ids': $selected_images, 'query':$selected_images, 'display': topDisplay, 'data': image_items[action_pointer]});
 
+    let action_log2 = structuredClone(action_log[action_log.length - 1])
+    for(let j=0; j < action_log2.data.length; j++){
+      delete action_log2.data[j].features;
+    }
+
+    console.log("test3")
+    console.log(action_log2)
+
+    //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+
+    let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+
+    console.log(request_body)
+    let response5 = await fetch('../create_event_user_log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response5.ok) {
+      console.log( await response5.text())
+    }
+    
     action_log_pointer += 1;
     reloading_display();
 
@@ -1454,6 +1505,31 @@
       
       action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
+    }
+
+    let action_log2 = structuredClone(action_log[action_log.length - 1])
+    for(let j=0; j < action_log2.data.length; j++){
+      delete action_log2.data[j].features;
+    }
+
+    console.log("test3")
+    console.log(action_log2)
+
+    //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+
+    let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+
+    console.log(request_body)
+    let response5 = await fetch('../create_event_user_log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response5.ok) {
+      console.log( await response5.text())
     }
 
     // trigger reload of labels under chart
@@ -1659,6 +1735,31 @@
                 
                 action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
+              }
+
+              let action_log2 = structuredClone(action_log[action_log.length - 1])
+              for(let j=0; j < action_log2.data.length; j++){
+                delete action_log2.data[j].features;
+              }
+
+              console.log("test3")
+              console.log(action_log2)
+
+              //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+
+              let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+
+              console.log(request_body)
+              let response5 = await fetch('../create_event_user_log', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: request_body
+              });
+
+              if (response5.ok) {
+                console.log( await response5.text())
               }
               
               action_pointer += 1;

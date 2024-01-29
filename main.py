@@ -90,6 +90,33 @@ async def append_user_log(req: Request):
         
     return "successfully Appended event to" + request_args['username'] + "' log file."
 
+
+@app.post("/create_event_user_log")
+async def create_event_user_log(req: Request):
+    params = await req.json()
+
+    #print(params['timestamp'])
+    filename = "user_data/" + params['username'] + "/" + str(params['timestamp']) + "_" + params['username'] + ".json"
+
+    if os.path.exists(filename):
+        return "log already exists. No change required."
+    else:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as f:
+            f.write("[]")
+            
+    with open(filename, "r") as f:
+        listObj = json.load(f)
+    
+    listObj.append(params['log'])
+
+    with open(filename, 'w') as json_file:
+        json.dump(listObj, json_file, 
+                            indent=4,  
+                            separators=(',',': '))
+        
+    return "successfully Appended customs to" + params['username'] + "' log file."
+
 @app.post("/append_custom_user_log")
 async def append_custom_user_log(req: Request):
     params = await req.json()
