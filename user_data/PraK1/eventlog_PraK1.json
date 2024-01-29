@@ -35,5 +35,30 @@
                 "value": "test\n"
             }
         ]
+    },
+    {
+        "timestamp": 1706523077602,
+        "sortType": "Scores",
+        "resultSetAvailability": "Sample",
+        "results": [
+            {
+                "answer": {
+                    "text": null,
+                    "mediaItemName": "04310",
+                    "mediaItemCollectionName": null,
+                    "start": 524941,
+                    "end": 525149
+                },
+                "rank": 1
+            }
+        ],
+        "events": [
+            {
+                "timestamp": 1706523064529,
+                "type": "initialization",
+                "category": "TEXT",
+                "value": "shorter"
+            }
+        ]
     }
 ]
