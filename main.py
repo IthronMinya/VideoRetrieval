@@ -50,6 +50,7 @@ async def rand():
 @app.get("/create_user_log")
 async def rand(username: str):
     filename = "user_data/" + username + "/eventlog_" + username + ".json"
+    
     if os.path.exists(filename):
         return "log already exists. No change required."
     else:
@@ -57,6 +58,19 @@ async def rand(username: str):
         with open(filename, "w") as f:
             f.write("[]")
         return "successfully created logfile."
+    
+
+@app.get("/create_custom_log")
+async def create_custom_log(username: str):
+    filename = "user_data/" + username + "/customlog_" + username + ".json"
+    
+    if os.path.exists(filename):
+        return "log already exists. No change required."
+    else:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as f:
+            f.write("[]")
+        return "successfully created custom logfile."
 
 
 @app.get("/append_user_log")
@@ -75,6 +89,24 @@ async def append_user_log(req: Request):
                             separators=(',',': '))
         
     return "successfully Appended event to" + request_args['username'] + "' log file."
+
+@app.post("/append_custom_user_log")
+async def append_custom_user_log(req: Request):
+    params = await req.json()
+
+    filename = "user_data/" + params['username'] + "/customlog_" + params['username'] + ".json"
+
+    with open(filename, "r") as f:
+        listObj = json.load(f)
+    
+    listObj.append(params['log'])
+
+    with open(filename, 'w') as json_file:
+        json.dump(listObj, json_file, 
+                            indent=4,  
+                            separators=(',',': '))
+        
+    return "successfully Appended customs to" + params['username'] + "' log file."
 
 ## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.
 @app.get("/", response_class=FileResponse)

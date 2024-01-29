@@ -150,15 +150,14 @@
     
     let answers = [];
 
-
     if (results == null){
       let answer = {
-                'text': text, //text - in case the task is not targeting a particular content object but plaintext
-                'mediaItemName': null, // item -  item which is to be submitted
-                'mediaItemCollectionName': null, // collection - does not usually need to be set
-                'start': null, //start time in milliseconds
-                'end': null //end time in milliseconds, in case an explicit time interval is to be specified
-              };
+        'text': text, //text - in case the task is not targeting a particular content object but plaintext
+        'mediaItemName': null, // item -  item which is to be submitted
+        'mediaItemCollectionName': null, // collection - does not usually need to be set
+        'start': null, //start time in milliseconds
+        'end': null //end time in milliseconds, in case an explicit time interval is to be specified
+      };
 
       answers.push(answer);
 
@@ -334,6 +333,13 @@
   }
   async function get_session_id_for_user(){
 
+    evaluation_names = [];
+    task_ids_collection = [];
+    task_ids = [];
+
+    evaluation_name = "";
+    task_id = "";
+
     let request_url = "https://vbs.videobrowsing.org:443/api/v2/login";
 
     let request_body = JSON.stringify({
@@ -395,6 +401,12 @@
 
     if (response2.ok) {
       console.log( await response2.text())
+    }
+
+    const response4 = await fetch('../create_custom_log?username=' + username);
+
+    if (response4.ok) {
+      console.log( await response4.text())
     }
 
     /*const response3 = await fetch('../append_user_log?username=' + username + '&req=' + JSON.stringify({
@@ -611,6 +623,34 @@
     await handle_submission(null, send_results);
 
     action_log.push({'method': 'send_custom_result', 'result_items': send_results});
+    
+    let action_log2 = structuredClone(action_log)
+
+    console.log(action_log2)
+    for(let i=0; i < action_log2.length; i++){
+      if(action_log2[i].data){
+        for(let j=0; j < action_log2[i].data.length; j++){
+          delete action_log2[i].data[j].features;
+        }
+      }
+    }
+
+    //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+
+    let request_body = JSON.stringify({'username': username, 'log': action_log2})
+
+    console.log(request_body)
+    let response5 = await fetch('../append_custom_user_log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response5.ok) {
+      console.log( await response5.text())
+    }  
 
     action_log = [];
     action_pointer = -1;
@@ -632,6 +672,40 @@
     await handle_submission([send_results]);
 
     action_log.push({'method': 'send_single_result', 'result_items': send_results});
+
+    console.log("test2")
+    
+
+    let action_log2 = structuredClone(action_log)
+
+    console.log(action_log2)
+    for(let i=0; i < action_log2.length; i++){
+      if(action_log2[i].data){
+        for(let j=0; j < action_log2[i].data.length; j++){
+          delete action_log2[i].data[j].features;
+        }
+      }
+    }
+
+    console.log("test2")
+    console.log(action_log2)
+
+    //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+
+    let request_body = JSON.stringify({'username': username, 'log': action_log2})
+
+    console.log(request_body)
+    let response5 = await fetch('../append_custom_user_log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response5.ok) {
+      console.log( await response5.text())
+    }  
 
     action_log = [];
     action_pointer = -1;
@@ -659,6 +733,34 @@
     $selected_images = [];
 
     action_log.push({'method': 'send_multi_result', 'result_items': send_results});
+
+    let action_log2 = structuredClone(action_log)
+
+    console.log(action_log2)
+    for(let i=0; i < action_log2.length; i++){
+      if(action_log2[i].data){
+        for(let j=0; j < action_log2[i].data.length; j++){
+          delete action_log2[i].data[j].features;
+        }
+      }
+    }
+
+    //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
+
+    let request_body = JSON.stringify({'username': username, 'log': action_log2})
+
+    console.log(request_body)
+    let response5 = await fetch('../append_custom_user_log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: request_body
+    });
+
+    if (response5.ok) {
+      console.log( await response5.text())
+    }  
 
     action_log = [];
     action_pointer = -1;
