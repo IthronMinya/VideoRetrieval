@@ -127,7 +127,9 @@
   function set_task_id(){
     let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)]
     for(let i=0; i< t.length; i++){
-      task_ids.push(t[i].name);
+      //if (t[i].status == 'ACTIVE'){
+        task_ids.push(t[i].name);
+      //}
     }
 
     task_ids = task_ids;
@@ -654,11 +656,11 @@
       console.log( await response5.text())
     }  
 
-    action_log = [];
-    action_pointer = -1;
-    action_log_pointer = -1;
+    //action_log = [];
+    //action_pointer = -1;
+    //action_log_pointer = -1;
     
-    initialization();
+    //initialization();
   }
 
   async function send_results_single(event){
@@ -709,11 +711,11 @@
       console.log( await response5.text())
     }  
 
-    action_log = [];
-    action_pointer = -1;
-    action_log_pointer = -1;
+    //action_log = [];
+    //action_pointer = -1;
+    //action_log_pointer = -1;
     
-    initialization();
+    //initialization();
   }
 
   async function send_results_multiple(){
@@ -764,11 +766,11 @@
       console.log( await response5.text())
     }  
 
-    action_log = [];
-    action_pointer = -1;
-    action_log_pointer = -1;
+    //action_log = [];
+    //action_pointer = -1;
+    //action_log_pointer = -1;
     
-    initialization();
+    //initialization();
   }
 
   function download(content, fileName, contentType) {
