@@ -1026,7 +1026,7 @@
 
         //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
         
-        let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+        /*let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
         //console.log(request_body)
         let response5 = await fetch('../create_event_user_log', {
@@ -1039,7 +1039,7 @@
 
         if (response5.ok) {
           console.log( await response5.text())
-        }
+        }*/
         
       }
             
@@ -1293,7 +1293,7 @@
 
     //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
-    let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+    /*let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
     //console.log(request_body)
     let response5 = await fetch('../create_event_user_log', {
@@ -1306,7 +1306,7 @@
 
     if (response5.ok) {
       console.log( await response5.text())
-    }
+    }*/
     
     action_log_pointer += 1;
     reloading_display();
@@ -1519,7 +1519,7 @@
 
     //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
-    let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+    /*let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
     //console.log(request_body)
     let response5 = await fetch('../create_event_user_log', {
@@ -1532,7 +1532,7 @@
 
     if (response5.ok) {
       console.log( await response5.text())
-    }
+    }*/
 
     // trigger reload of labels under chart
     filtered_lables = filtered_lables;
@@ -1749,7 +1749,7 @@
 
               //const response5 = await fetch('../append_custom_user_log?username=' + username + '&req=' + JSON.stringify(action_log));
 
-              let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
+              /*let request_body = JSON.stringify({'username': username, 'log': action_log2, 'timestamp': action_log2.timestamp})
 
               //console.log(request_body)
               let response5 = await fetch('../create_event_user_log', {
@@ -1762,7 +1762,7 @@
 
               if (response5.ok) {
                 console.log( await response5.text())
-              }
+              }*/
               
               action_pointer += 1;
               action_log_pointer += 1;
