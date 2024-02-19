@@ -1,6 +1,7 @@
 - Requirements: 
     - [Python 3.10+](https://www.python.org/downloads/)
     - [NodeJS](https://nodejs.org/en)
+    - [Docker](https://www.docker.com/)
 
 
 1. Create Python virtual enviroment and install requirements.txt
@@ -24,12 +25,29 @@ cd ../
 cd ./frontend
 npm run prepare
 npm run build
+```
+
+
+Main Entry for webserver is the python main.py going into frontend/index.html and all components are created in frontend/src/App.svelte for the frontend
+
+
+4. Main development route to work on the server / Backend is in the main directory, so not in /frontend using the uvicorn server. If you do changes in the frontend you need to rebuild with step 3. Then you can restart here.
+```
 cd ../
 uvicorn main:app --reload
 ```
-4. When developing in Svelte, you can use dev server
+
+
+5. When developing in Svelte on the frontend, please use the dev server! Here the changes in the frontend are updated automatically. Be aware that here no backend functionality is available.
 ```cmd
 npm run dev
 ```
 
-Main Entry is the python main.py into frontend/index.html and all components are created in frontend/src/App.svelte
+6. Deployment: Building the project as a docker container (no development in it.) In the main directory execute:
+```cmd
+docker compose up --build
+```
+
+Then you can access the whole project at localhost:8000 or via the docker applicaton.
+
+
