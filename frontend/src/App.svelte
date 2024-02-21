@@ -270,8 +270,7 @@
         }
       }
 
-      if(logging){
-        let request_body = {
+      let request_body = {
           "timestamp": time,
           "sortType": "Scores",
           "resultSetAvailability": "Sample",
@@ -279,8 +278,9 @@
           "events": events
         }
 
-        request_body = JSON.stringify(request_body)
+      request_body = JSON.stringify(request_body)
 
+      if(logging){
         const response3 = await fetch('../append_user_log?username=' + username + '&req=' + request_body);
 
         if (response3.ok) {
@@ -288,7 +288,7 @@
         } 
       }
 
-      let result_log_response = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result/" + eval_id + "?session=" + session_id, {
+      let request = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result/" + eval_id + "?session=" + session_id, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -298,7 +298,7 @@
       
       //console.log(result_log_response)
 
-      if (result_log_response.ok){
+      if (request.ok){
         console.log("Successfully submitted log to DRES server!");
       }
 
