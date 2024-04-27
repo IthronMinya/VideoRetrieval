@@ -3,23 +3,13 @@ mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/json', '.mjs')
 mimetypes.add_type('text/css', '.css')
 
-#import uvicorn
-#import sys
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-import random
 
-import requests
-
-#import open_clip
-#import torch
-
-import numpy as np
 import os
 import json
 
@@ -42,10 +32,6 @@ app.add_middleware(
 
 app.mount("/assets", StaticFiles(directory="public/assets"), name="static")
 
-
-@app.get("/rand")
-async def rand():
-   return random.randint(0, 100)
 
 @app.get("/create_user_log")
 async def rand(username: str):
@@ -139,14 +125,3 @@ async def append_custom_user_log(req: Request):
 @app.get("/", response_class=FileResponse)
 def main():
     return "public/index.html"
-
-@app.get("/send_results")
-async def send_result(image_id: int):
-
-    my_obj = {'team': "VBS", 'item': image_id}
-
-    print(image_id)
-
-    x = requests.get(url="https://siret.ms.mff.cuni.cz/lokoc/VBSEval/EndPoint.php", params=my_obj, verify=False)
-
-    print(x.text)

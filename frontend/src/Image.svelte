@@ -1,12 +1,14 @@
 <script>
     import { selected_images, in_video_view } from './stores.js';
     import { fade } from 'svelte/transition';
+    import { lion_text_query } from './stores.js';
     import VideoPlayer from 'svelte-video-player';
     import { createEventDispatcher } from 'svelte'
     const dispatch = createEventDispatcher()
 
     export let img;
     export let row_size;
+    export let labels;
 
     const poster = 'https://www.server.com/poster.jpg';
     const source = 'https://www.server.com/video.mp4';
@@ -124,9 +126,23 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		width: 45%;
-		height: 45%;
+		width: 60%;
+		height: 60%;
         z-index: 4;
+    }
+
+    .label {
+        background-color: white;
+        color: black; 
+        border: 1px solid black;
+        padding: 5px;
+        margin: 5px;
+        display: inline-block;
+        transition: background-color 0.3s ease;
+    }
+
+    .label:hover {
+        background-color: gray;
     }
 
 </style>
@@ -162,9 +178,9 @@
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
     <button style='--row_size:{row_size};' class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video</button>
+    <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video Frames</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <!--<button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Nearby Frames</button>-->
+    <!-- <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button> -->
 {/if}
 
 </div>
@@ -188,6 +204,11 @@
             <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
             alt="id: {img.id} score: {img.score}"
             on:click={imgClick} in:fade/>
+            <div class="image-labels">
+                {#each labels || [] as label}
+                    <button class="label" on:click={() => $lion_text_query += ($lion_text_query == '' ? '' : ', ') + label}>{label}</button>
+                {/each}
+            </div>
         </div>
     </div>
 {/if}

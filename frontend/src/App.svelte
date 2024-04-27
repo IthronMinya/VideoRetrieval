@@ -1,7 +1,7 @@
 <script>
 // @ts-nocheck
 
-  import { selected_images, scroll_height, in_video_view } from './stores.js';
+  import { selected_images, scroll_height, in_video_view, lion_text_query } from './stores.js';
   import ImageList from './ImageList.svelte';
 
   import Timer from './Timer.svelte';
@@ -26,8 +26,6 @@
   let timer;
 
   let task_ids_collection = [];
-
-  let lion_text_query = "";
 
   let start;
 	let end;
@@ -105,7 +103,7 @@
 
   let session_id;
 
-  let text_display_size = 200;
+  let text_display_size = 500;
 
   let unique_video_frames = false;
 
@@ -116,6 +114,8 @@
   let task_ids = [];
 
   let logging = false;
+
+  let image_video_on_line = false;
 
   initialization();
 
@@ -453,42 +453,20 @@
     }, 50);
   }
 
-  async function reloading_display(video_image_id=0){
+  function updateButtonState(buttonId, condition) {
+    const button = document.getElementById(buttonId);
+    button.style.backgroundColor = condition ? "lightgrey" : "grey";
+    button.style.cursor = condition ? "default" : "pointer";
+  }
 
+  async function reloading_display(video_image_id = 0){
     start = 0;
-    const previous_btn = document.getElementById("previous");
-
-    if(action_log_pointer <= 0){
-      previous_btn.style.backgroundColor = "lightgrey";
-      previous_btn.style.cursor = "default";
-    }else{
-      previous_btn.style.backgroundColor = "grey";
-      previous_btn.style.cursor = "pointer";
-    }
-  
-    const next_btn = document.getElementById("next");
-
-    if(action_log.length - 1 <= action_log_pointer){
-      next_btn.style.backgroundColor = "lightgrey";
-      next_btn.style.cursor = "default";
-    }else{
-      next_btn.style.backgroundColor = "grey";
-      next_btn.style.cursor = "pointer";
-    }
+    updateButtonState("previous", action_log_pointer <= 0);
+    updateButtonState("next", action_log.length - 1 <= action_log_pointer);
     
-    if(image_items[action_pointer] != null){
-
-      if(action_log[action_log_pointer]['method'] == 'show_video_frames'){
-        $in_video_view = true;
-      }else{
-        $in_video_view = false;
-      }
-
-      if(action_log[action_log_pointer]['method'] == 'textquery'){
-        lion_text_query = action_log[action_log_pointer]['query'];
-      }else{
-        lion_text_query = '';
-      }
+    if(image_items[action_pointer] != null) {
+      $in_video_view = action_log[action_log_pointer]['method'] === 'show_video_frames';
+      $lion_text_query = action_log[action_log_pointer]['method'] === 'textquery' ? action_log[action_log_pointer]['query'] : '';
 
       row_size = 4;
       
@@ -496,58 +474,53 @@
 
       let rows = [];
       let row = -1;
-
+      let row_ids = {};
       let s = 0;
 
       target_in_display = false;
-
       image_from_target_video_in_display = false;
 
       let temp_selection = [];
-
       let scroll_index;
 
       for (let i = 0; i < image_items[action_pointer].length; i++) {
+        const currentItem = image_items[action_pointer][i];
+        const currentItemId = currentItem['id'];
+        const lastMethod = action_log[action_log.length - 1]['method'];
 
-        if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0){
-            
-          if (image_items[action_pointer][i]['id'][0] == video_image_id[0] && image_items[action_pointer][i]['id'][1] == video_image_id[1]){
-            scroll_index = rows.length;
+        if (lastMethod == "show_video_frames" && video_image_id != 0 && currentItemId[0] == video_image_id[0] && currentItemId[1] == video_image_id[1]) {
+          scroll_index = rows.length;
+        }
+
+        if (random_target != null) {
+          if (arrayEquals(currentItemId, random_target[0]['id'])){
+            target_in_display = true;
+            image_from_target_video_in_display = true;
+          } else if (currentItemId[0] == random_target[0]['id'][0]){
+            image_from_target_video_in_display = true;
           }
         }
 
-        if (random_target != null && arrayEquals(image_items[action_pointer][i]['id'], random_target[0]['id'])){
-          target_in_display = true;
-          image_from_target_video_in_display = true;
-        }else if (random_target != null && image_items[action_pointer][i]['id'][0] == random_target[0]['id'][0]){
-          image_from_target_video_in_display = true;
+        if(currentItemId in $selected_images){
+          temp_selection.push(currentItemId);
         }
 
-        if(image_items[action_pointer][i]['id'] in $selected_images){
-          temp_selection.push(image_items[action_pointer][i]['id']);
-        }
-
-        if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
-          
-
-          if (s % row_size == 0){
-            row = row + 1;
-            rows[row] = [];
+        if (!currentItem.hasOwnProperty('disabled') || !currentItem['disabled']) {
+          if (lastMethod != "show_video_frames" && image_video_on_line) {
+            if (row_ids.hasOwnProperty(currentItemId[0])){
+              rows[row_ids[currentItemId[0]]].push(currentItem);
+            } else {
+              row_ids[currentItemId[0]] = ++row;
+              rows[row] = [currentItem];
+            }
+          } else {
+            if (s % row_size == 0){
+              rows[++row] = [];
+            }
+            rows[row].push(currentItem);
+            s += 1;
           }
-          rows[row].push(image_items[action_pointer][i]);
-          s += 1;
-        }else if(image_items[action_pointer][i].hasOwnProperty('disabled') && image_items[action_pointer][i]['disabled']){
-          // do nothing
-        }else{
-
-          if (s % row_size == 0){
-            row = row + 1;
-            rows[row] = [];
-          }
-          rows[row].push(image_items[action_pointer][i]);
-          s += 1;
         }
-
       }
 
       $selected_images = temp_selection;
@@ -563,21 +536,16 @@
       }
 
       prepared_display = rows;
-
       
       if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0 && scroll_index != undefined){
         scroll_to_index(scroll_index);
       }
 
-
       create_chart();
 
-    }else{
+    } else {
       prepared_display = null;
     }
-
-    console.log(prepared_display);
-
   }
 
   onMount(() => {
@@ -1009,12 +977,12 @@
 
   async function get_scores_by_text() {
 
-    action_log.push({'method': 'textquery', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': lion_text_query});
+    action_log.push({'method': 'textquery', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': $lion_text_query});
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
     const request_body = JSON.stringify({
-      query: lion_text_query,
+      query: $lion_text_query,
       k: text_display_size,
       dataset: value_dataset,
       add_features: 1,
@@ -1774,7 +1742,7 @@
               <img id="testimage" alt="" />
             </div>
           {/if}-->
-          <textarea  id="text_query_input" class="menu_item resize-text" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
+          <textarea  id="text_query_input" class="menu_item resize-text" bind:value={$lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
           <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
             <span class="resize-text">Submit Text Query</span>
           </Button>
@@ -1815,9 +1783,16 @@
             <input type="checkbox" id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames}/>
           </div><br>
           <div>
+            <label for="image_video_on_line">Images from video on one line</label>
+            <input type="checkbox" id="image_video_on_line" name="image_video_on_line" bind:checked={image_video_on_line} on:change={reloading_display}>
+          </div><br>
+          <div>
             <label for="labels_per_frame">Labels per Frame</label>
             <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
           </div><br>
+          {#if prepared_display !== null}
+          <p>Showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images: {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
+          {/if}
         </div>
       </div>
           <div id='container'>
@@ -1825,9 +1800,8 @@
               <p>...loading</p>
             {:else}           
               <VirtualList items={prepared_display} bind:this={virtual_list} bind:start bind:end let:item>
-                <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
+                <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size labels={file_labels}/>
               </VirtualList>
-              <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images: {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
             {/if}
           </div>
     </div>
@@ -1950,7 +1924,7 @@
 
 #container {
   min-height: 200px;
-  height: calc(100vh - 7.0em);
+  height: calc(100vh - 3.0em);
   width: 85%;
   float: left;
   background-color: rgb(202, 202, 202);
@@ -1987,6 +1961,17 @@
 
 .top-negative-offset3{
   margin-top: -0.2em;
+}
+
+.menu{
+  height: calc(100vh - 3.0em);
+  overflow-y: auto;
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none;  /* For Internet Explorer and Edge */
+}
+
+.menu::-webkit-scrollbar { /* For Chrome, Safari and Opera */
+  display: none;
 }
 
 </style>
