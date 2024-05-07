@@ -4,8 +4,6 @@
     import { selected_images, scroll_height, in_video_view, lion_text_query } from './stores.js';
     import ImageList from './ImageList.svelte';
   
-    import Timer from './Timer.svelte';
-  
     import VirtualList from './VirtualListNew.svelte';
     
     import Button from '@smui/button';
@@ -14,12 +12,11 @@
     
     import Fab, { Icon } from '@smui/fab';
   
-    import { onMount, onDestroy, tick} from 'svelte';
+    import { onMount} from 'svelte';
   
     import { generate } from "random-words";
   
-    import fs from 'fs';
-  
+      
     let evaluation_name = "";
     let task_id = "";
     let user_id;
@@ -30,23 +27,21 @@
     let start;
     let end;
     let image_items = [];
-    let alpha = 0.1;
   
     let custom_result = "";
   
-    let max_display_size = 200;
+    let max_display_size = 500;
   
     let max_labels = 10;
   
     let chart_labels = 15;
   
-    let row_size;
+    let row_size = 4;
     let prepared_display = null;
     let test_image_av;
     $: {
       evaluation_ids;
       task_ids;
-      //reloading_display(image_items);
       set_scroll($scroll_height);
       prepared_display;
       filtered_lables;
@@ -54,17 +49,13 @@
   
     let random_target = null;
   
-    let datasets = ['V3C', 'MVK', 'VBSLHE'];
-  
-    let models = ['clip-laion', 'clip-openai'];
+    let datasets = ['V3C', 'MVK', 'VBSLHE', 'LSC'];
   
     let users = ['PraK1', 'PraK2', 'PraK3', 'PraK4', 'PraK5'];
   
     let passwords = ['G5L>q:e{', 't+6^y%T[', 'K}84dH/`', 'Lq&9Mc6Z', 'gb~.8mMy'];
    
     let value_dataset = 'V3C';
-  
-    let value_model = 'clip-laion';
   
     let username = "PraK1";
   
@@ -73,8 +64,6 @@
     let action_log = [];
   
     let action_log_pointer = -1;
-  
-    let bayes_display = 100;
   
     let dragged_url = null;
   
@@ -103,8 +92,6 @@
   
     let session_id;
   
-    let text_display_size = 500;
-  
     let unique_video_frames = false;
   
     let evaluation_ids = [];
@@ -128,14 +115,12 @@
     
     function set_task_id(){
       let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)]
-      for(let i=0; i< t.length; i++){
-        //if (t[i].status == 'ACTIVE'){
-          task_ids.push(t[i].name);
-        //}
+
+      for (let i=0; i< t.length; i++) {
+        task_ids.push(t[i].name);
       }
-  
-      task_ids = task_ids;
-  
+
+      task_ids = task_ids; 
     }
   
     function getKeyByValue(obj, value) {
@@ -144,7 +129,7 @@
     }
   
     async function handle_submission(results, text=''){
-  
+      
       let image_data = image_items[action_pointer];
       let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
   
@@ -154,7 +139,7 @@
       
       let answers = [];
   
-      if (results == null){
+      if (results == null) {
         let answer = {
           'text': text, //text - in case the task is not targeting a particular content object but plaintext
           'mediaItemName': null, // item -  item which is to be submitted
@@ -165,8 +150,8 @@
   
         answers.push(answer);
   
-      }else{
-        for(let i = 0; i < results.length; i++){
+      } else {
+        for (let i = 0; i < results.length; i++) {
           
           let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
   
@@ -209,102 +194,24 @@
   
         console.log(res);
   
-        let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
-  
-        valuesToExclude = []
-        
-        //console.log(action_log)
-        let concatenatedValues = action_log.filter(item => !valuesToExclude.includes(item['method']));
-        
-        //const concatenatedValues = Object.values(action_log)
-        //.filter(obj => !valuesToExclude.includes(obj.method))
-        
-        //console.log("test")
-        //console.log(concatenatedValues)
-        let events = []
-  
-        for(let i = 0; i < concatenatedValues.length; i++){
-          let event = {
-                  'timestamp': concatenatedValues[i]['timestamp'],
-                  'type': concatenatedValues[i]['method'],
-                  'category': concatenatedValues[i]['category'],
-                  'value': String(concatenatedValues[i]['query'])
-                };
-          
-          events.push(event);
-          
-        }
-  
-        let result_res = [];
-  
-        if (results == null){
-  
-          let answer = {
-            "text": text,
-            "mediaItemName": null,
-            "mediaItemCollectionName": null,
-            "start": null,
-            "end": null
-          };
-  
-          result_res.push({'answer': answer, "rank": null});
-  
-        }else{
-  
-          for(let i = 0; i < results.length; i++){
-  
-            //console.log(image_data)
-  
-            let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
-  
-            let answer = {
-              "text":  null,
-              "mediaItemName": results[i][0],
-              "mediaItemCollectionName": null,
-              "start": Math.round(image_data[result_key].time[2]),
-              "end": Math.round(image_data[result_key].time[3])
-            };
-  
-            result_res.push({'answer': answer, "rank": image_data[result_key].rank});
-  
-          }
-        }
-  
-        let request_body = {
-            "timestamp": time,
-            "sortType": "Scores",
-            "resultSetAvailability": "Sample",
-            "results": result_res,
-            "events": events
-          }
-  
-        request_body = JSON.stringify(request_body)
-  
-        if(logging){
+        if (logging) {     // TODO: change logging
+          let request_body = {
+              "timestamp": time,
+              "answers": answerSet,
+            }
+    
+          request_body = JSON.stringify(request_body)
+
           const response3 = await fetch('../append_user_log?username=' + username + '&req=' + request_body);
   
           if (response3.ok) {
             console.log( await response3.text())
           } 
-        }
-  
-        let request = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result/" + eval_id + "?session=" + session_id, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: request_body
-        });
-        
-        //console.log(result_log_response)
-  
-        if (request.ok){
-          console.log("Successfully submitted log to DRES server!");
-        }
-  
+        }  
       }
-  
+
       return time;
+
     }
   
     async function getSyncedServerTime() {
@@ -363,7 +270,7 @@
         session_id = res['sessionId'];
   
         console.log(user_id, session_id);
-      }else{
+      } else {
         console.log(response);
       }
   
@@ -381,7 +288,7 @@
   
         console.log(res);
   
-        for(let i=0; i < res.length; i++){
+        for (let i=0; i < res.length; i++) {
           evaluation_ids.push(res[i].id);
           evaluation_names.push(res[i].name);
           task_ids_collection.push(res[i].taskTemplates)
@@ -395,7 +302,7 @@
   
       }
   
-      if(logging){
+      if (logging) {
         const response_create_log = await fetch('../create_user_log?username=' + username);
   
         if (response_create_log.ok) {
@@ -449,8 +356,6 @@
       if(image_items[action_pointer] != null) {
         $in_video_view = action_log[action_log_pointer]['method'] === 'show_video_frames';
         $lion_text_query = action_log[action_log_pointer]['method'] === 'textquery' ? action_log[action_log_pointer]['query'] : '';
-  
-        row_size = 4;
         
         console.log("reloading display");
   
@@ -803,7 +708,7 @@
   
       const request_body = JSON.stringify({
         query: q,
-        k: text_display_size,
+        k: max_display_size,
         dataset: value_dataset,
         add_features: 1,
         speed_up: 1,
@@ -948,7 +853,7 @@
   
       const request_body = JSON.stringify({
         query: $lion_text_query,
-        k: text_display_size,
+        k: max_display_size,
         dataset: value_dataset,
         add_features: 1,
         speed_up: 1,
@@ -1006,59 +911,14 @@
       
     }
   
-    function dotProduct(vector1, vector2) {
-      if (vector1.length !== vector2.length) {
-          throw new Error("Vectors must have the same length for dot product computation.");
-      }
-  
-      let result = 0;
-      for (let i = 0; i < vector1.length; i++) {
-          result += vector1[i] * vector2[i];
-      }
-  
-      return result;
-    }
-  
-    function normalizeVector(vector) {
-      const norm = Math.sqrt(vector.reduce((sum, value) => sum + value ** 2, 0));
-  
-      // Check for division by zero or zero vector
-      if (norm === 0 || isNaN(norm)) {
-          return vector.map(value => 0); // Return a vector of zeros
-      }
-  
-      return vector.map(value => value / norm);
-    }
-  
-    function normalizeMatrix(matrix) {
-        return matrix.map(row => normalizeVector(row));
-    }
-  
-    function matrixDotProduct(matrix, vector) {
-  
-      if (matrix[0].length !== vector.length) {
-          throw new Error("Matrix column count must match the vector length for matrix-vector multiplication.");
-      }
-  
-      const result = [];
-      for (let i = 0; i < matrix.length; i++) {
-          const row = matrix[i];
-          result.push(dotProduct(row, vector));
-      }
-  
-      return result;
-    }
-  
     async function bayesUpdate() {
-      // TODO
-      
       if ($selected_images.length == 0) {
         console.log("Nothing was selected. Cannot perform the Bayes update without a positve example.");
         return null;
       }
   
       const url = 'http://localhost:8000/bayes';
-      let request_body = JSON.stringify({'selected_images': $selected_images, 'alpha': alpha, username: username});
+      let request_body = JSON.stringify({'selected_images': $selected_images, username: username});
   
       let response = await fetch(url, {
         method: 'POST',
@@ -1537,13 +1397,6 @@
           <Select on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
             {#each datasets as dataset}
               <Option value={dataset}>{dataset}</Option>
-            {/each}
-          </Select>
-        </div>
-        <div class="top-menu-item top-negative-offset">
-          <Select bind:value={value_model} label="Select Model">
-            {#each models as model}
-              <Option value={model}>{model}</Option>
             {/each}
           </Select>
         </div>

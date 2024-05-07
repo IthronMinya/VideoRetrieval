@@ -176,10 +176,10 @@ async def send_request_to_service(req: Request):
         data.sort(key=lambda x: int(x.get('uri', '').split('_')[part].split('.')[0]))
       
     if username not in image_items:
-        image_items[username] = data
+        image_items[username] = [data]
         action_pointer[username] = 0
     else:
-        image_items[username].extend(data)
+        image_items[username].append(data)
         action_pointer[username] = action_pointer[username] + 1
     
     new_data = [{k: v for k, v in item.items() if k != 'features' and k != 'score'} for item in data]
@@ -191,11 +191,17 @@ async def send_request_to_service(req: Request):
 async def bayes(req: Request):
     request_args = await req.json()
     selected_images = request_args['selected_images'] if 'selected_images' in request_args else None
-    alpha = request_args['alpha'] if 'alpha' in request_args else None
+    alpha = 0.01
     username = request_args['username'] if 'username' in request_args else None
     
-    if selected_images is None or alpha is None or username is None:
+    print(action_pointer[username], len(image_items[username]))
+    
+    if selected_images is None or username is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
+    
+    if username not in image_items:
+        logging.error(f"User {username} hasn't data from last query.")
+        return "No images to compare. Please initialize them with a query!"
     
     if 'score' not in image_items[username][action_pointer[username]][0]:
         return "No Score to compare images with. Please initialize them with a query!"
@@ -234,6 +240,7 @@ async def bayes(req: Request):
         item['rank'] = i
 
     image_items[username].append(items)
+    action_pointer[username] = action_pointer[username] + 1
     
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in items]
     
