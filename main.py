@@ -39,6 +39,7 @@ logging.basicConfig(level=logging.INFO)
 
 image_items = {}
 action_pointer = {}
+max_display = 500
 
 
 def normalizeVector(vector):
@@ -81,7 +82,9 @@ async def append_user_log(req: Request):
     filename = os.path.join("user_data", username, f"eventlog_{username}.json")
     
     if not os.path.exists(filename):
-        raise HTTPException(status_code=404, detail="User log file not found.")
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as f:
+                f.write("[]")
 
     try:
         with open(filename, "r") as f:
@@ -179,22 +182,24 @@ async def send_request_to_service(req: Request):
         image_items[username] = [data]
         action_pointer[username] = 0
     else:
-        image_items[username].append(data)
-        action_pointer[username] = action_pointer[username] + 1
+        if len(image_items[username]) > 10:
+            image_items[username] = image_items[username][1:]
+            image_items[username].append(data)
+        else:
+            image_items[username].append(data)
+            action_pointer[username] = action_pointer[username] + 1
     
-    new_data = [{k: v for k, v in item.items() if k != 'features' and k != 'score'} for item in data]
+    new_data = [{k: v for k, v in item.items() if k != 'features' and k != 'score'} for item in data[:max_display]]
 
     return new_data
 
 
-@app.post("/bayes") #TODO: used matrix multiplication instead of loop
+@app.post("/bayes")
 async def bayes(req: Request):
     request_args = await req.json()
     selected_images = request_args['selected_images'] if 'selected_images' in request_args else None
     alpha = 0.01
     username = request_args['username'] if 'username' in request_args else None
-    
-    print(action_pointer[username], len(image_items[username]))
     
     if selected_images is None or username is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
@@ -210,7 +215,7 @@ async def bayes(req: Request):
     imageFeatureVectors = normalizeMatrix([item['features'] for item in image_items[username][action_pointer[username]]])
 
     items = image_items[username][action_pointer[username]].copy()
-    max_rank = 200 # TODO: rewrite value for this variable
+    max_rank = max([item['rank'] for item in items if item['id'] in selected_images]) + 5
 
     topDisplay = items[:min(len(items), max_rank)]
 
@@ -220,16 +225,17 @@ async def bayes(req: Request):
     positiveExamples = normalizeMatrix(positiveExamples)
     negativeExamples = normalizeMatrix(negativeExamples)
 
-    for i, item in enumerate(items): # TODO: used matrix multiplication instead of loop
-        featureVector = imageFeatureVectors[i]
+    # Calculate products
+    prod_positive = positiveExamples @ imageFeatureVectors.T
+    prod_negative = negativeExamples @ imageFeatureVectors.T
 
-        prod_positive = np.dot(positiveExamples, featureVector)
-        prod_negative = np.dot(negativeExamples, featureVector)
-        
-        PF = np.sum(np.exp(- (1 - prod_positive) / alpha))
-        NF = np.sum(np.exp(- (1 - prod_negative) / alpha))
+    # Calculate PF and NF
+    PF = np.sum(np.exp(- (1 - prod_positive) / alpha), axis=0)
+    NF = np.sum(np.exp(- (1 - prod_negative) / alpha), axis=0)
 
-        DeepCopyImageItems[i]['score'] *= PF / NF
+    # Update scores
+    for i, item in enumerate(DeepCopyImageItems):
+        item['score'] *= PF[i] / NF[i]
 
     items = DeepCopyImageItems.copy()
     
@@ -242,9 +248,47 @@ async def bayes(req: Request):
     image_items[username].append(items)
     action_pointer[username] = action_pointer[username] + 1
     
-    new_data = [{k: v for k, v in item.items() if k != 'features'} for item in items]
+    new_data = [{k: v for k, v in item.items() if k != 'features'} for item in items[:max_display]]
     
     return new_data
+
+
+@app.post("/back")
+async def back(req: Request):
+    request_args = await req.json()
+    username = request_args['username'] if 'username' in request_args else None
+    
+    if username not in image_items:
+        logging.error(f"User {username} hasn't data from last query.")
+        return "No images to compare. Please initialize them with a query!"
+    
+    if action_pointer[username] == 0:
+        logging.error(f"User {username} is already at the first query.")
+        return "No previous query to go back to."
+    
+    action_pointer[username] = action_pointer[username] - 1
+    new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
+    
+    return new_data, action_pointer[username]
+
+
+@app.post("/forward")
+async def forward(req: Request):
+    request_args = await req.json()
+    username = request_args['username'] if 'username' in request_args else None
+    
+    if username not in image_items:
+        logging.error(f"User {username} hasn't data from last query.")
+        return "No images to compare. Please initialize them with a query!"
+    
+    if action_pointer[username] == len(image_items[username]) - 1:
+        logging.error(f"User {username} is already at the last query.")
+        return "No next query to go forward to."
+    
+    action_pointer[username] = action_pointer[username] + 1
+    new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
+    
+    return new_data, action_pointer[username]
 
 
 ## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.

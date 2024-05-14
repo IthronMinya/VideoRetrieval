@@ -30,11 +30,11 @@
   
     let custom_result = "";
   
-    let max_display_size = 500;
+    let max_display_size = 2000;
   
     let max_labels = 10;
   
-    let chart_labels = 15;
+    let chart_labels = 10;
   
     let row_size = 4;
     let prepared_display = null;
@@ -71,12 +71,6 @@
   
     let file = null;
   
-    let allLabels = [];
-  
-    let allOccurrences = [];
-  
-    let allIds = [];
-  
     let filtered_lables = [];
   
     let file_labels = [];
@@ -93,16 +87,14 @@
     let session_id;
   
     let unique_video_frames = false;
+    let image_video_on_line = false;
   
     let evaluation_ids = [];
-  
     let evaluation_names = [];
-  
     let task_ids = [];
   
     let logging = false;
-  
-    let image_video_on_line = false;
+    
   
     initialization();
   
@@ -133,7 +125,7 @@
       let image_data = image_items[action_pointer];
       let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
   
-      let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/" + eval_id + "?session=" + session_id;
+      let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/submit/" + eval_id + "?session=" + session_id;
   
       console.log(request_url);
       
@@ -218,7 +210,7 @@
       // Get current timestamp in milliseconds
       const clientTimestamp = new Date().getTime();
   
-      const response = await fetch('https://vbs.videobrowsing.org:443/api/v2/status/time');
+      const response = await fetch('http://hmon.ms.mff.cuni.cz:8443/api/v2/status/time');
   
       if (!response.ok) {
         return null;
@@ -249,7 +241,7 @@
       evaluation_name = "";
       task_id = "";
   
-      let request_url = "https://vbs.videobrowsing.org:443/api/v2/login";
+      let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/login";
   
       let request_body = JSON.stringify({
           username: username,
@@ -274,7 +266,7 @@
         console.log(response);
       }
   
-      let evaluations_url = "https://vbs.videobrowsing.org:443/api/v2/client/evaluation/list?session="+session_id;
+      let evaluations_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/client/evaluation/list?session="+session_id;
   
       let evaluations_req = await fetch(evaluations_url, {
         method: 'GET',
@@ -746,12 +738,13 @@
       }
   
       action_pointer += 1;
+      filtered_lables = [];
   
       let response;
   
       try {
-        const url = 'http://localhost:8000/send_request_to_service';
-        request_body = JSON.stringify({'url': request_url, 'body': request_body, 'image_upload': image_upload, 'init': init, 'sorted': is_sorted, 'dataset': value_dataset, username: username});
+        const url = `${window.location.origin}/send_request_to_service`;
+        request_body = JSON.stringify({'url': request_url, 'body': request_body, 'image_upload': image_upload, 'init': init, 'sorted': is_sorted, 'dataset': value_dataset, 'username': username});
   
         if (!image_upload) {
           response = await fetch(url, {
@@ -917,7 +910,8 @@
         return null;
       }
   
-      const url = 'http://localhost:8000/bayes';
+      const url = `${window.location.origin}/bayes`;
+      console.log(url);
       let request_body = JSON.stringify({'selected_images': $selected_images, username: username});
   
       let response = await fetch(url, {
@@ -953,11 +947,12 @@
       // no action when we are at the initialization or there is no next action yet.
       if (a == -1 && action_log_pointer <= 0) {
         return null;
-      } else if (a == 1 && action_log.length - 1 <= action_log_pointer) {
+      } else if (a == 1 && action_log_pointer >= 9) {
         return null;
       }
   
       if (a == -1) {
+
         // current state before taking action
         let display_state = action_log[action_log_pointer];
   
@@ -1181,9 +1176,9 @@
   
       const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, chart_labels);
   
-      allLabels = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.label);
-      allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
-      allIds = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.id);
+      let allLabels = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.label);
+      let allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
+      let allIds = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.id);
   
       let border_colors = allIds.map(id => filtered_lables.includes(id) ? '#FF0000' : 'rgba(0, 0, 0, 0.0)');
   
