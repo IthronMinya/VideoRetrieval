@@ -1,1517 +1,1247 @@
 <script>
   // @ts-nocheck
-  
-    import { selected_images, scroll_height, in_video_view, lion_text_query } from './stores.js';
-    import ImageList from './ImageList.svelte';
-  
-    import VirtualList from './VirtualListNew.svelte';
-    
-    import Button from '@smui/button';
-  
-    import Select, { Option } from '@smui/select';
-    
-    import Fab, { Icon } from '@smui/fab';
-  
-    import { onMount} from 'svelte';
-  
-    import { generate } from "random-words";
-  
-      
-    let evaluation_name = "";
-    let task_id = "";
-    let user_id;
-    let timer;
-  
-    let task_ids_collection = [];
-  
-    let start;
-    let end;
-    let image_items = [];
-  
-    let custom_result = "";
-  
-    let max_display_size = 2000;
-  
-    let max_labels = 10;
-  
-    let chart_labels = 10;
-  
-    let row_size = 4;
-    let prepared_display = null;
-    let test_image_av;
-    $: {
-      evaluation_ids;
-      task_ids;
-      set_scroll($scroll_height);
-      prepared_display;
-      filtered_lables;
-    }
-  
-    let random_target = null;
-  
-    let datasets = ['V3C', 'MVK', 'VBSLHE', 'LSC'];
-  
-    let users = ['PraK1', 'PraK2', 'PraK3', 'PraK4', 'PraK5'];
-  
-    let passwords = ['G5L>q:e{', 't+6^y%T[', 'K}84dH/`', 'Lq&9Mc6Z', 'gb~.8mMy'];
-   
-    let value_dataset = 'V3C';
-  
-    let username = "PraK1";
-  
-    let send_results = "";
-  
-    let action_log = [];
-  
-    let action_log_pointer = -1;
-  
-    let dragged_url = null;
-  
-    let action_pointer = -1;
-  
-    let file = null;
-  
-    let filtered_lables = [];
-  
-    let file_labels = [];
-  
-    let labelColorMap = {};
-  
-    let target_in_display_text = "Target is not in current Display!";
-    let target_in_display = false;
-  
-    let image_from_target_video_in_display = false;
-    
-    let virtual_list;
-  
-    let session_id;
-  
-    let unique_video_frames = false;
-    let image_video_on_line = false;
-  
-    let evaluation_ids = [];
-    let evaluation_names = [];
-    let task_ids = [];
-  
-    let logging = false;
-    
-  
+
+  import { selected_images, scroll_height, in_video_view, lion_text_query } from "./stores.js";
+  import ImageList from "./ImageList.svelte";
+
+  import VirtualList from "./VirtualListNew.svelte";
+
+  import Button from "@smui/button";
+
+  import Select, { Option } from "@smui/select";
+
+  import Fab, { Icon } from "@smui/fab";
+
+  import { onMount } from "svelte";
+
+  import { generate } from "random-words";
+
+  let evaluation_name = "";
+  let task_id = "";
+  let user_id;
+  let timer;
+
+  let task_ids_collection = [];
+
+  let start;
+  let end;
+  let image_items = [];
+
+  let custom_result = "";
+
+  let max_display_size = 2000;
+
+  let max_labels = 10;
+  let chart_labels = 10;
+
+  let row_size = 4;
+  let prepared_display = null;
+  $: {
+    evaluation_ids;
+    task_ids;
+    set_scroll($scroll_height);
+    prepared_display;
+    filtered_lables;
+  }
+
+  let datasets = ["V3C", "MVK", "VBSLHE", "LSC"];
+
+  let users = ["PraK1", "PraK2", "PraK3", "PraK4", "PraK5"];
+
+  let passwords = ["G5L>q:e{", "t+6^y%T[", "K}84dH/`", "Lq&9Mc6Z", "gb~.8mMy"];
+
+  let value_dataset = "V3C";
+
+  let username = "PraK1";
+
+  let send_results = "";
+
+  let dragged_url = null;
+
+  let action_pointer = -1;
+
+  let file = null;
+
+  let filtered_lables = [];
+
+  let file_labels = [];
+
+  let labelColorMap = {};
+
+  let virtual_list;
+
+  let session_id;
+
+  let unique_video_frames = false;
+  let image_video_on_line = false;
+
+  let evaluation_ids = [];
+  let evaluation_names = [];
+  let task_ids = [];
+
+  let logging = true;
+
+  initialization();
+
+  get_session_id_for_user();
+
+  function set_dataset() {
     initialization();
-  
-    get_session_id_for_user();
-  
-  
-    function set_dataset(){
-      initialization();
-    }
-    
-    function set_task_id(){
-      let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)]
+  }
 
-      for (let i=0; i< t.length; i++) {
-        task_ids.push(t[i].name);
-      }
+  function set_task_id() {
+    let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)];
 
-      task_ids = task_ids; 
+    for (let i = 0; i < t.length; i++) {
+      task_ids.push(t[i].name);
     }
-  
-    function getKeyByValue(obj, value) {
-        return Object.keys(obj)
-              .filter(key => obj[key]['id'][0] === value[0] && obj[key]['id'][1] === value[1]);
-    }
-  
-    async function handle_submission(results, text=''){
-      
-      let image_data = image_items[action_pointer];
-      let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
-  
-      let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/submit/" + eval_id + "?session=" + session_id;
-  
-      console.log(request_url);
-      
-      let answers = [];
-  
-      if (results == null) {
-        let answer = {
-          'text': text, //text - in case the task is not targeting a particular content object but plaintext
-          'mediaItemName': null, // item -  item which is to be submitted
-          'mediaItemCollectionName': null, // collection - does not usually need to be set
-          'start': null, //start time in milliseconds
-          'end': null //end time in milliseconds, in case an explicit time interval is to be specified
-        };
-  
-        answers.push(answer);
-  
-      } else {
-        for (let i = 0; i < results.length; i++) {
-          
-          let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
-  
-          let interval = image_data[result_key].time
-  
-          let answer = {
-                  'text': null, //text - in case the task is not targeting a particular content object but plaintext
-                  'mediaItemName': results[i][0], // item -  item which is to be submitted
-                  'mediaItemCollectionName': null, // collection - does not usually need to be set
-                  'start': Math.round(interval[2]), //start time in milliseconds
-                  'end': Math.round(interval[3]) //end time in milliseconds, in case an explicit time interval is to be specified
-                };
-  
-          answers.push(answer);
-  
-        }
-      }
-  
-      let answerSet = {'answers': answers, "taskId": task_id};
-  
-      let request_body = JSON.stringify({
-        answerSets: [answerSet]
-      });
-  
-      console.log(request_body)
-  
-      let time = new Date().valueOf();
-  
-      let response = await fetch(request_url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: request_body
-      });
-  
-      if (response.ok) {
-  
-        let res = await response.json();
-  
-        console.log(res);
-  
-        if (logging) {     // TODO: change logging
-          let request_body = {
-              "timestamp": time,
-              "answers": answerSet,
-            }
-    
-          request_body = JSON.stringify(request_body)
 
-          const response3 = await fetch('../append_user_log?username=' + username + '&req=' + request_body);
-  
-          if (response3.ok) {
-            console.log( await response3.text())
-          } 
-        }  
-      }
+    task_ids = task_ids;
+  }
 
-      return time;
+  function getKeyByValue(obj, value) {
+    return Object.keys(obj).filter(
+      (key) => obj[key]["id"][0] === value[0] && obj[key]["id"][1] === value[1],
+    );
+  }
 
-    }
-  
-    async function getSyncedServerTime() {
-      // Get current timestamp in milliseconds
-      const clientTimestamp = new Date().getTime();
-  
-      const response = await fetch('http://hmon.ms.mff.cuni.cz:8443/api/v2/status/time');
-  
-      if (!response.ok) {
-        return null;
-      }
-  
-      let res = await response.json();
-  
-      const serverTimestamp = res['timeStamp'];
-  
-      // Get current timestamp in milliseconds
-      const nowTimeStamp = new Date().getTime();
-  
-      // Calculate server-client difference time on response and response time
-      const serverClientResponseDiffTime = nowTimeStamp - serverTimestamp;
-      const responseTime = (clientTimestamp - serverTimestamp - nowTimeStamp + clientTimestamp - serverClientResponseDiffTime ) / 2;
-  
-      // Calculate the synced server time
-      const syncedServerTime = new Date(nowTimeStamp + (serverClientResponseDiffTime - responseTime)).valueOf();;
-  
-      return syncedServerTime;
-    }
-  
-    async function get_session_id_for_user(){
-      evaluation_names = [];
-      task_ids_collection = [];
-      task_ids = [];
-  
-      evaluation_name = "";
-      task_id = "";
-  
-      let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/login";
-  
-      let request_body = JSON.stringify({
-          username: username,
-          password: passwords[users.indexOf(username)],
-      });
-      
-      let response = await fetch(request_url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: request_body
-      });
-  
-      if (response.ok) {
-        let res = await response.json();
-        user_id = res['id']
-        session_id = res['sessionId'];
-  
-        console.log(user_id, session_id);
-      } else {
-        console.log(response);
-      }
-  
-      let evaluations_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/client/evaluation/list?session="+session_id;
-  
-      let evaluations_req = await fetch(evaluations_url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-  
-      if (evaluations_req.ok) {
-        let res = await evaluations_req.json();
-  
-        console.log(res);
-  
-        for (let i=0; i < res.length; i++) {
-          evaluation_ids.push(res[i].id);
-          evaluation_names.push(res[i].name);
-          task_ids_collection.push(res[i].taskTemplates)
-        }
-  
-        console.log(evaluation_ids);
-        console.log(evaluation_names);
-        
-        evaluation_ids = evaluation_ids;
-        evaluation_names = evaluation_names;
-  
-      }
-  
-      if (logging) {
-        const response_create_log = await fetch('../create_user_log?username=' + username);
-  
-        if (response_create_log.ok) {
-          console.log( await response_create_log.text())
-        }
-      }
-    }
-  
-    function set_scroll(scroll){
-      if (action_log[action_log_pointer] != null){
-        action_log[action_log_pointer]['scroll'] = $scroll_height;
-      }
-    }
-   
-    function arrayEquals(a, b) {
-      return Array.isArray(a) &&
-          Array.isArray(b) &&
-          a.length === b.length &&
-          a.every((val, index) => val === b[index]);
-    }
-  
-    function scrollToHeight(height) {
-      setTimeout(() => {
-        if(virtual_list){
-          virtual_list.scrollToScrollHeight(height, { behavior: 'auto' });
-          virtual_list.handle_scroll();
-        }
-      }, 50);
-    }
-  
-    function scroll_to_index(index) {
-      setTimeout(() => {
-        if(virtual_list){
-          virtual_list.scrollToIndex(index, { behavior: 'auto' });
-          virtual_list.handle_scroll();
-        }
-      }, 50);
-    }
-  
-    function updateButtonState(buttonId, condition) {
-      const button = document.getElementById(buttonId);
-      button.style.backgroundColor = condition ? "lightgrey" : "grey";
-      button.style.cursor = condition ? "default" : "pointer";
-    }
-  
-    async function reloading_display(video_image_id = 0){
-      start = 0;
-      updateButtonState("previous", action_log_pointer <= 0);
-      updateButtonState("next", action_log.length - 1 <= action_log_pointer);
-      
-      if(image_items[action_pointer] != null) {
-        $in_video_view = action_log[action_log_pointer]['method'] === 'show_video_frames';
-        $lion_text_query = action_log[action_log_pointer]['method'] === 'textquery' ? action_log[action_log_pointer]['query'] : '';
-        
-        console.log("reloading display");
-  
-        let rows = [];
-        let row = -1;
-        let row_ids = {};
-        let s = 0;
-  
-        target_in_display = false;
-        image_from_target_video_in_display = false;
-  
-        let temp_selection = [];
-        let scroll_index;
-  
-        for (let i = 0; i < image_items[action_pointer].length; i++) {
-          const currentItem = image_items[action_pointer][i];
-          const currentItemId = currentItem['id'];
-          const lastMethod = action_log[action_log.length - 1]['method'];
-  
-          if (lastMethod == "show_video_frames" && video_image_id != 0 && currentItemId[0] == video_image_id[0] && currentItemId[1] == video_image_id[1]) {
-            scroll_index = rows.length;
-          }
-  
-          if (random_target != null) {
-            if (arrayEquals(currentItemId, random_target[0]['id'])){
-              target_in_display = true;
-              image_from_target_video_in_display = true;
-            } else if (currentItemId[0] == random_target[0]['id'][0]){
-              image_from_target_video_in_display = true;
-            }
-          }
-  
-          if(currentItemId in $selected_images){
-            temp_selection.push(currentItemId);
-          }
-  
-          if (!currentItem.hasOwnProperty('disabled') || !currentItem['disabled']) {
-            if (lastMethod != "show_video_frames" && image_video_on_line) {
-              if (row_ids.hasOwnProperty(currentItemId[0])){
-                rows[row_ids[currentItemId[0]]].push(currentItem);
-              } else {
-                row_ids[currentItemId[0]] = ++row;
-                rows[row] = [currentItem];
-              }
-            } else {
-              if (s % row_size == 0){
-                rows[++row] = [];
-              }
-              rows[row].push(currentItem);
-              s += 1;
-            }
-          }
-        }
-  
-        $selected_images = temp_selection;
-  
-        if (target_in_display && random_target != null ){
-          target_in_display_text = "Target in current Display!"
-        }else if(image_from_target_video_in_display && random_target != null){
-          target_in_display_text = "Image from target video in current Display, but not the target!"
-        }else if(random_target != null){
-          target_in_display_text = "No image from target video in current Display!";
-        }else{
-          target_in_display_text = "Currently no Target."
-        }
-  
-        prepared_display = rows;
-        
-        if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0 && scroll_index != undefined){
-          scroll_to_index(scroll_index);
-        }
-  
-        create_chart();
-  
-      } else {
-        prepared_display = null;
-      }
-    }
-  
-    onMount(() => {
-      window.addEventListener('resize', reloading_display);    
-      return () => {
-        window.removeEventListener('resize', reloading_display);
+  async function handle_submission(results, text = "") {
+    let image_data = image_items;
+    let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
+
+    let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/submit/" + eval_id + "?session=" + session_id;
+
+    console.log(request_url);
+
+    let answers = [];
+
+    if (results == null) {
+      let answer = {
+        text: text, //text - in case the task is not targeting a particular content object but plaintext
+        mediaItemName: null, // item -  item which is to be submitted
+        mediaItemCollectionName: null, // collection - does not usually need to be set
+        start: null, //start time in milliseconds
+        end: null, //end time in milliseconds, in case an explicit time interval is to be specified
       };
-    });
-  
-    function noopHandler(evt) {
-        evt.preventDefault();
-    }
-    
-    function drop(evt) {
-      evt.preventDefault();
-      file = evt.dataTransfer.files[0];
-  
-      if (file && file.type.startsWith('image/')) {
-        const reader = new FileReader();
-  
-        reader.onload = () => {
-          dragged_url = reader.result;
+
+      answer = { answers: [answer], taskId: task_id };
+
+      answers.push(answer);
+    } else {
+      for (let i = 0; i < results.length; i++) {
+        let result_key = getKeyByValue(image_data, [
+          results[i][0],
+          results[i][1],
+        ]);
+
+        let interval = image_data[result_key].time;
+
+        let answer = {
+          text: null, //text - in case the task is not targeting a particular content object but plaintext
+          mediaItemName: results[i][0], // item -  item which is to be submitted
+          mediaItemCollectionName: null, // collection - does not usually need to be set
+          start: Math.round(interval[2]), //start time in milliseconds
+          end: Math.round(interval[3]), //end time in milliseconds, in case an explicit time interval is to be specified
         };
-  
-        reader.readAsDataURL(file);
-  
-        get_scores_by_image_upload();
+
+        answer = { answers: [answer], taskId: task_id };
+
+        answers.push(answer);
       }
     }
-  
-    async function send_results_custom(){
-      if (timer) {
-        timer.stop();
-      }
-  
-      send_results = custom_result;
-      $selected_images = [];
-  
-      let time = await handle_submission(null, send_results);
-  
-      action_log.push({'method': 'send_custom_result', 'timestamp': time, 'result_items': send_results});
-      
-      let action_log2 = structuredClone(action_log)
-  
-      for(let i=0; i < action_log2.length; i++){
-        if(action_log2[i].data){
-          for(let j=0; j < action_log2[i].data.length; j++){
-            delete action_log2[i].data[j].features;
-          }
+
+    let request_body = JSON.stringify({
+      answerSets: answers,
+    });
+
+    console.log(request_body);
+
+    let time = new Date().valueOf();
+
+    let response = await fetch(request_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: request_body,
+    });
+
+    if (response.ok) {
+      let res = await response.json();
+
+      console.log(res);
+
+      if (logging) {
+        let request_body = {
+          timestamp: time,
+          answers: answerSet,
+        };
+
+        request_body = JSON.stringify(request_body);
+
+        const response3 = await fetch(
+          "../append_user_log?username=" + username + "&req=" + request_body,
+        );
+
+        if (response3.ok) {
+          console.log(await response3.text());
         }
       }
-  
-      if(logging){
-        let request_body = JSON.stringify({'username': username, 'log': action_log2})
-  
-        let response5 = await fetch('../append_user_log', { // TODO: change to append_user_log
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: request_body
-        });
-  
-        if (response5.ok) {
-          console.log( await response5.text())
-        } 
+    }
+
+    return time;
+  }
+
+  async function get_session_id_for_user() {
+    evaluation_names = [];
+    task_ids_collection = [];
+    task_ids = [];
+
+    evaluation_name = "";
+    task_id = "";
+
+    let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/login";
+
+    let request_body = JSON.stringify({
+      username: username,
+      password: passwords[users.indexOf(username)],
+    });
+
+    let response = await fetch(request_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: request_body,
+    });
+
+    if (response.ok) {
+      let res = await response.json();
+      user_id = res["id"];
+      session_id = res["sessionId"];
+
+      console.log(user_id, session_id);
+    } else {
+      console.log(response);
+    }
+
+    let evaluations_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/client/evaluation/list?session=" + session_id;
+
+    let evaluations_req = await fetch(evaluations_url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (evaluations_req.ok) {
+      let res = await evaluations_req.json();
+
+      console.log(res);
+
+      for (let i = 0; i < res.length; i++) {
+        evaluation_ids.push(res[i].id);
+        evaluation_names.push(res[i].name);
+        task_ids_collection.push(res[i].taskTemplates);
+      }
+
+      console.log(evaluation_ids);
+      console.log(evaluation_names);
+
+      evaluation_ids = evaluation_ids;
+      evaluation_names = evaluation_names;
+    }
+
+    if (logging) {
+      const response_create_log = await fetch(
+        "../create_user_log?username=" + username,
+      );
+
+      if (response_create_log.ok) {
+        console.log(await response_create_log.text());
       }
     }
-  
-    async function send_results_single(event){
-      if(timer){
-        timer.stop();
+  }
+
+  function set_scroll(scroll) {
+    if (image_items != null) {
+      image_items["scroll"] = scroll;
+    }
+  }
+
+  function scrollToHeight(height) {
+    setTimeout(() => {
+      if (virtual_list) {
+        virtual_list.scrollToScrollHeight(height, { behavior: "auto" });
+        virtual_list.handle_scroll();
       }
-      
-      send_results = event.detail.image_id;
-  
-      $selected_images = [];
-  
-      let time = await handle_submission([send_results]);
-  
-      action_log.push({'method': 'send_single_result', 'timestamp': time, 'result_items': send_results});
-  
-      let action_log2 = structuredClone(action_log)
-  
-      for(let i=0; i < action_log2.length; i++){
-        if(action_log2[i].data){
-          for(let j=0; j < action_log2[i].data.length; j++){
-            delete action_log2[i].data[j].features;
-          }
+    }, 50);
+  }
+
+  function scroll_to_index(index) {
+    setTimeout(() => {
+      if (virtual_list) {
+        virtual_list.scrollToIndex(index, { behavior: "auto" });
+        virtual_list.handle_scroll();
+      }
+    }, 50);
+  }
+
+  function updateButtonState(buttonId, condition) {
+    const button = document.getElementById(buttonId);
+    button.style.backgroundColor = condition ? "lightgrey" : "grey";
+    button.style.cursor = condition ? "default" : "pointer";
+  }
+
+  async function reloading_display(video_image_id = 0) {
+    start = 0;
+    updateButtonState("previous", action_pointer <= 0);
+    updateButtonState("next", 9 <= action_pointer);
+
+    if (image_items != null) {
+      $in_video_view = image_items["method"] === "show_video_frames";
+      $lion_text_query = image_items["method"] === "textquery" ? image_items["query"] : "";
+
+      console.log("reloading display");
+
+      let rows = [];
+      let row = -1;
+      let row_ids = {};
+      let s = 0;
+
+      let temp_selection = [];
+      let scroll_index;
+      const currentMethod = image_items["method"];
+
+      for (let i = 0; i < image_items.length; i++) {
+        const currentItem = image_items[i];
+        const currentItemId = currentItem["id"];
+
+        if (currentMethod == "show_video_frames" && video_image_id != 0 && currentItemId[0] == video_image_id[0] && currentItemId[1] == video_image_id[1]) {
+          scroll_index = rows.length;
         }
-      }
-  
-      if(logging){
-        let request_body = JSON.stringify({'username': username, 'log': action_log2})
-        
-        let response5 = await fetch('../append_user_log', { //TODO: change to append_user_log
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: request_body
-        });
-  
-        if (response5.ok) {
-          console.log( await response5.text())
-        }  
-      }
-    }
-  
-    async function send_results_multiple(){
-      if(timer){
-        timer.stop();
-      }
-  
-      send_results = " ";
-  
-      $selected_images.forEach((selection) => {
-        send_results += `${selection}; `;
-        //handle_submission($selected_images);
-      });
-  
-      let time = await handle_submission($selected_images);
-  
-      send_results = send_results.slice(0, -2); // remove last space and semicolon
-  
-      $selected_images = [];
-  
-      action_log.push({'method': 'send_multi_result', 'timestamp': time, 'result_items': send_results});
-  
-      let action_log2 = structuredClone(action_log)
-  
-      for(let i=0; i < action_log2.length; i++){
-        if(action_log2[i].data){
-          for(let j=0; j < action_log2[i].data.length; j++){
-            delete action_log2[i].data[j].features;
-          }
+
+        if (currentItemId in $selected_images) {
+          temp_selection.push(currentItemId);
         }
-      }
-  
-  
-      let request_body = JSON.stringify({'username': username, 'log': action_log2})
-  
-      if(logging){
-        let response5 = await fetch('../append_user_log', { //TODO: change to append_user_log
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: request_body
-        });
-  
-        if (response5.ok) {
-          console.log( await response5.text())
-        } 
-      }
-    }
-  
-    function download(content, fileName, contentType) {
-        var a = document.createElement("a");
-        var file = new Blob([content], {type: contentType});
-        a.href = URL.createObjectURL(file);
-        a.download = fileName;
-        a.click();
-    }
-  
-    function download_results(){
-      let full_data;
-  
-      if (random_target != null){
-        const target = {'target': random_target[0]['id']};
-        full_data = [target].concat(action_log);
-      }else{
-        full_data = action_log
-      }
-  
-      console.log(full_data);
-  
-      var action_log_json = JSON.stringify(full_data);
-  
-      download(action_log_json, 'action_log.txt', 'text/plain');
-  
-    }
-  
-    async function get_test_image(){
-  
-      image_items = [];
-      action_log = [];
-  
-      action_pointer = -1;
-  
-      action_log_pointer = -1;
-  
-      initialization();
-      
-      $selected_images = [];
-  
-      timer.reset();
-      timer.start();
-  
-      test_image_av = true;
-  
-      const imgElement = document.getElementById('testimage');
-  
-      try {
-          const response = await fetch("http://acheron.ms.mff.cuni.cz:42032/getRandomFrame/?dataset="+value_dataset);
-  
-          console.log(response)
-  
-          if (response.ok) {
-  
-            random_target = await response.json();
-  
-            console.log(random_target)
-            
-            let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/images/" + String(random_target[0]["uri"]);
-  
-            try {
-              const response_image = await fetch(imageUrl);
-              if (response_image.ok) {
-  
-                // @ts-ignore
-                imgElement.src = URL.createObjectURL(await response_image.blob());
-              } else {
-                  console.error('Failed to fetch image.');
-              }
-            } catch (error) {
-                console.error('Error:', error);
+
+        if (!currentItem.hasOwnProperty("disabled") || !currentItem["disabled"]) {
+          if (currentMethod != "show_video_frames" && image_video_on_line) {
+            if (row_ids.hasOwnProperty(currentItemId[0])) {
+              rows[row_ids[currentItemId[0]]].push(currentItem);
+            } else {
+              row_ids[currentItemId[0]] = ++row;
+              rows[row] = [currentItem];
             }
           } else {
-              console.error('Failed to get random image data.');
-          }
-      } catch (error) {
-          console.error('Error:', error);
-      }
-    
-    }
-  
-    async function video_images(event) {
-       
-      const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
-  
-      let selected_item = event.detail.image_id;
-  
-      action_log.push({'method': 'show_video_frames', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'query': [selected_item[0], selected_item[1]]});
-  
-      const request_body = JSON.stringify({
-        item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
-        k: -1,
-        dataset: value_dataset,
-        add_features: 1,
-        speed_up: 1,
-        max_labels: max_labels
-      });
-  
-      request_handler(request_url, request_body, false, false, selected_item, true);
-      
-    }
-  
-    async function initialization() {
-      // Read labels from the text file
-      file_labels = await readTextFile('./assets/' + value_dataset + '-nounlist.txt');
-  
-      console.log('./assets/' + value_dataset + '-nounlist.txt')
-      
-      // setting this to null temporarily will make a loading display to appear
-      prepared_display = null;
-  
-      let q = generate()
-  
-      action_log.push({'method': 'initialization', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': q});
-      
-      const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
-  
-      const request_body = JSON.stringify({
-        query: q,
-        k: max_display_size,
-        dataset: value_dataset,
-        add_features: 1,
-        speed_up: 1,
-        max_labels: max_labels
-      });
-  
-      request_handler(request_url, request_body, true);
-            
-    }
-  
-    function handleKeypress(event){
-      var key=event.keyCode || event.which;
-      if (key==13){
-        event.preventDefault();
-        get_scores_by_text();
-      }
-    }
-  
-    async function request_handler(request_url, request_body, init=false, image_upload=false, video_image_id=0, is_sorted=false){
-      // action log got a new entry in function that called the request_handler. We increment here have less code
-      action_log_pointer += 1;
-  
-      // setting this to null temporarily will make a loading display to appear
-      prepared_display = null;
-  
-  
-      // unwind actions after backtracking
-      while(image_items.length - 1 > action_pointer){
-        image_items.pop();
-      }
-  
-      while(action_log.length -1 > action_log_pointer){
-        // remove the second to last elements because we newly added the last before the request_handler
-        action_log.splice(action_log.length - 2, 1);
-      }
-  
-      action_pointer += 1;
-      filtered_lables = [];
-  
-      let response;
-  
-      try {
-        const url = `${window.location.origin}/send_request_to_service`;
-        request_body = JSON.stringify({'url': request_url, 'body': request_body, 'image_upload': image_upload, 'init': init, 'sorted': is_sorted, 'dataset': value_dataset, 'username': username});
-  
-        if (!image_upload) {
-          response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: request_body
-          });
-        } else {
-          response = await fetch(url, {
-            method: 'POST',
-            body: request_body
-          });
-        }
-  
-        if (!response.ok) {
-          throw new Error('Request failed');
-        }
-  
-        let responseData = await response.json();
-  
-        if (unique_video_frames) {
-          let unique_videos = []
-  
-          for (const [key, value] of Object.entries(responseData)) {
-            if (unique_videos.includes(value.id[0])) {
-              delete responseData[key];
-            } else {
-              unique_videos.push(value.id[0]); 
+            if (s % row_size == 0) {
+              rows[++row] = [];
             }
-          }
-  
-          // Create a new object with consecutive keys
-          let array = [];
-          
-          console.log(responseData)
-  
-          for (const [key, value] of Object.entries(responseData)) {
-            array.push(value);
-            array[array.length - 1].rank = array.length - 1;
-          }
-  
-          responseData = array;
-        }
-        
-        console.log(responseData);
-  
-        if (filtered_lables.length > 0) {
-          for (const [key, value] of Object.entries(responseData)) {
-            responseData[key]['disabled'] = true;
-          }     
-  
-          for (const [key, value] of Object.entries(responseData)) {
-            for (let i=0; i < filtered_lables.length; i++){
-              if (responseData[key].label.includes(filtered_lables[i])) {
-                responseData[key]['disabled'] = false;
-              }           
-            }
-          }
-        } else {
-          for (const [key, value] of Object.entries(responseData)) {
-            responseData[key]['disabled'] = false;          
+            rows[row].push(currentItem);
+            s += 1;
           }
         }
-        
-        image_items[action_pointer] = responseData;
-  
-        if (action_log.length - 1 >= 0){
-          // insert the data to the action we performed before calling the requesthandler
-          action_log[action_log.length - 1]['data'] = image_items[action_pointer];
-  
-          let action_log2 = structuredClone(action_log[action_log.length - 1])
-          for(let j=0; j < action_log2.data.length; j++){
-            delete action_log2.data[j].features;
-          }        
-        }
-              
-        // reset the selection
-        $selected_images = [];
-        
-        if (video_image_id != 0) {
-          reloading_display(video_image_id);
-        } else {
-          reloading_display();
-        }
-  
-      } catch (error) {
-        console.error(error);
       }
-  
-    }
-  
-    async function get_scores_by_text() {
-  
-      action_log.push({'method': 'textquery', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': $lion_text_query});
-  
-      const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
-  
-      const request_body = JSON.stringify({
-        query: $lion_text_query,
-        k: max_display_size,
-        dataset: value_dataset,
-        add_features: 1,
-        speed_up: 1,
-        max_labels: max_labels
-      });
-  
-      await request_handler(request_url, request_body);
-    }
-  
-    async function get_scores_by_image(event) {
-  
-      const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/";
-  
-      let selected_item = event.detail.image_id;
-  
-      action_log.push({'method': 'image_internal_query', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'query': [selected_item[0], selected_item[1]]});
-  
-      const request_body = JSON.stringify({
-        video_id: selected_item[0],
-        frame_id: selected_item[1],
-        k: max_display_size,
-        dataset: value_dataset,
-        add_features: 1,
-        speed_up: 1,
-        max_labels: max_labels
-      });
-  
-      await request_handler(request_url, request_body);
-    }
-    
-    async function get_scores_by_image_upload() {
-  
-  
-      if (file === null){
-        return null;
+
+      $selected_images = temp_selection;
+
+      prepared_display = rows;
+
+      if (image_items["method"] == "show_video_frames" && video_image_id != 0 &&  scroll_index != undefined) {
+        scroll_to_index(scroll_index);
       }
-  
-      const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
-      
-      action_log.push({'method': 'image_upload_query', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'query': 'uploaded image'});
-  
-      const params = {
-        k: max_display_size,
-        add_features: 1,
-        dataset: value_dataset,
-        speed_up: 1,
-        max_labels: max_labels
+
+      create_chart();
+
+    } else {
+      prepared_display = null;
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("resize", reloading_display);
+    return () => {
+      window.removeEventListener("resize", reloading_display);
+    };
+  });
+
+  function noopHandler(evt) {
+    evt.preventDefault();
+  }
+
+  function drop(evt) {
+    evt.preventDefault();
+    file = evt.dataTransfer.files[0];
+
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        dragged_url = reader.result;
       };
-  
-      const request_body = new FormData();
-      request_body.append('image', file);
-      request_body.append('query_params', JSON.stringify(params));
-  
-      await request_handler(request_url, request_body, false, true);
-      
+
+      reader.readAsDataURL(file);
+
+      get_scores_by_image_upload();
     }
-  
-    async function bayesUpdate() {
-      if ($selected_images.length == 0) {
-        console.log("Nothing was selected. Cannot perform the Bayes update without a positve example.");
-        return null;
-      }
-  
-      const url = `${window.location.origin}/bayes`;
-      console.log(url);
-      let request_body = JSON.stringify({'selected_images': $selected_images, username: username});
-  
-      let response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: request_body
+  }
+
+  async function send_results_custom() {
+    if (timer) {
+      timer.stop();
+    }
+
+    send_results = custom_result;
+    $selected_images = [];
+
+    let time = await handle_submission(null, send_results);
+  }
+
+  async function send_results_single(event) {
+    if (timer) {
+      timer.stop();
+    }
+
+    send_results = event.detail.image_id;
+
+    $selected_images = [];
+
+    let time = await handle_submission([send_results]);
+  }
+
+  async function send_results_multiple() {
+    if (timer) {
+      timer.stop();
+    }
+
+    send_results = " ";
+
+    $selected_images.forEach((selection) => {
+      send_results += `${selection}; `;
+    });
+
+    let time = await handle_submission($selected_images);
+
+    send_results = send_results.slice(0, -2); // remove last space and semicolon
+
+    $selected_images = [];
+  }
+
+  async function video_images(event) {
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
+
+    let selected_item = event.detail.image_id;
+
+    const request_body = JSON.stringify({
+      item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
+      k: -1,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels,
+    });
+
+    request_handler(request_url, request_body, false, "show_video_frames", false, [selected_item[0], selected_item[1]], selected_item, true);
+  }
+
+  async function initialization() {
+    // Read labels from the text file
+    file_labels = await readTextFile("./assets/" + value_dataset + "-nounlist.txt");
+
+    console.log("./assets/" + value_dataset + "-nounlist.txt");
+
+    // setting this to null temporarily will make a loading display to appear
+    prepared_display = null;
+
+    let q = generate();
+
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
+
+    const request_body = JSON.stringify({
+      query: q,
+      k: max_display_size,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels,
+    });
+
+    request_handler(request_url, request_body, true);
+  }
+
+  function handleKeypress(event) {
+    var key = event.keyCode || event.which;
+    if (key == 13) {
+      event.preventDefault();
+      get_scores_by_text();
+    }
+  }
+
+  async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false) {
+    // setting this to null temporarily will make a loading display to appear
+    prepared_display = null;
+
+    action_pointer += 1;
+    filtered_lables = [];
+
+    let response;
+
+    try {
+      const url = `${window.location.origin}/send_request_to_service`;
+      request_body = JSON.stringify({
+        url: request_url,
+        body: request_body,
+        image_upload: image_upload,
+        init: init,
+        sorted: is_sorted,
+        dataset: value_dataset,
+        username: username,
       });
-  
-      let responseData = await response.json();
-  
-      image_items[action_pointer] = responseData;
-  
-      if (action_log.length - 1 >= 0){
-        // insert the data to the action we performed before calling the requesthandler
-        action_log[action_log.length - 1]['data'] = image_items[action_pointer];
-  
-        let action_log2 = structuredClone(action_log[action_log.length - 1])
-        for(let j=0; j < action_log2.data.length; j++){
-          delete action_log2.data[j].features;
-        }        
+
+      if (!image_upload) {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: request_body,
+        });
+      } else {
+        response = await fetch(url, {
+          method: "POST",
+          body: request_body,
+        });
       }
-            
+
+      if (!response.ok) {
+        throw new Error("Request failed");
+      }
+
+      let responseData = await response.json();
+
+      if (unique_video_frames) {
+        let unique_videos = [];
+
+        for (const [key, value] of Object.entries(responseData)) {
+          if (unique_videos.includes(value.id[0])) {
+            delete responseData[key];
+          } else {
+            unique_videos.push(value.id[0]);
+          }
+        }
+
+        // Create a new object with consecutive keys
+        let array = [];
+
+        console.log(responseData);
+
+        for (const [key, value] of Object.entries(responseData)) {
+          array.push(value);
+          array[array.length - 1].rank = array.length - 1;
+        }
+
+        responseData = array;
+      }
+
+      console.log(responseData);
+
+      responseData.forEach(item => {
+        item.disabled = filtered_lables.length > 0 ? !filtered_lables.some(lab => item.label.includes(lab)) : false;
+      });
+
+      image_items = responseData;
+
+      if (method != "") {
+        image_items["method"] = method;
+      }
+      if (query != "") {
+        image_items["query"] = query;
+      }
+
       // reset the selection
       $selected_images = [];
-      
-      reloading_display();
-      scrollToHeight(0);
-    }
-  
-    function traverse_states(a){
-      // no action when we are at the initialization or there is no next action yet.
-      if (a == -1 && action_log_pointer <= 0) {
-        return null;
-      } else if (a == 1 && action_log_pointer >= 9) {
-        return null;
-      }
-  
-      if (a == -1) {
 
-        // current state before taking action
-        let display_state = action_log[action_log_pointer];
-  
-        if (display_state['method'] == "text_filtering") {
-          filtered_lables.splice(filtered_lables.indexOf(display_state['label']), 1);
-        } else if (display_state['method'] == "text_restore_filtering") {
-          if (!filtered_lables.includes(display_state['label'])) {
-            filtered_lables.push(display_state['label']);
+      if (video_image_id != 0) {
+        reloading_display(video_image_id);
+      } else {
+        reloading_display();
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function get_scores_by_text() {
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
+
+    const request_body = JSON.stringify({
+      query: $lion_text_query,
+      k: max_display_size,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels,
+    });
+
+    await request_handler(request_url, request_body, false, "textquery", false, $lion_text_query);
+  }
+
+  async function get_scores_by_image(event) {
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/";
+
+    let selected_item = event.detail.image_id;
+
+    const request_body = JSON.stringify({
+      video_id: selected_item[0],
+      frame_id: selected_item[1],
+      k: max_display_size,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels,
+    });
+
+    await request_handler(request_url, request_body, false, "image_query", false, [selected_item[0], selected_item[1]]);
+  }
+
+  async function get_scores_by_image_upload() {
+    if (file === null) {
+      return null;
+    }
+
+    const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
+
+    const params = {
+      k: max_display_size,
+      add_features: 1,
+      dataset: value_dataset,
+      speed_up: 1,
+      max_labels: max_labels,
+    };
+
+    const request_body = new FormData();
+    request_body.append("image", file);
+    request_body.append("query_params", JSON.stringify(params));
+
+    await request_handler(request_url, request_body, false, "image_upload_query", true);
+  }
+
+  async function bayesUpdate() {
+    if ($selected_images.length == 0) {
+      console.log(
+        "Nothing was selected. Cannot perform the Bayes update without a positve example.",
+      );
+      return null;
+    }
+
+    const url = `${window.location.origin}/bayes`;
+
+    let response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        selected_images: $selected_images,
+        username: username,
+      }),
+    });
+
+    let responseData = await response.json();
+
+    image_items = responseData;
+
+    // reset the selection
+    $selected_images = [];
+
+    reloading_display();
+    scrollToHeight(0);
+  }
+
+  async function traverse_states(direction) {
+    // no action when we are at the initialization or there is no next action yet.
+    if ( (direction == -1 && action_pointer <= 0) || (direction == 1 && action_pointer >= 9) ) {
+      return null;
+    }
+
+    let url = `${window.location.origin}/${direction === -1 ? 'back' : 'forward'}`;
+
+    let response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: username,
+      }),
+    });
+
+    let responseData = await response.json();
+
+    image_items = responseData[0];
+    action_pointer = responseData[1];
+
+    reloading_display();
+
+    // will be previous if action is -1 and next if action is + 1
+    scrollToHeight(0);
+  }
+
+  async function readTextFile(filePath) {
+    try {
+      const response = await fetch(filePath);
+      const data = await response.text();
+      return data.split("\n").map((label) => label.trim());
+    } catch (error) {
+      console.error("Error reading text file:", error);
+      return [];
+    }
+  }
+
+  async function findTopNNumbersWithLabels(dictionary, n) {
+    const allNumbers = Object.values(dictionary).flatMap((obj) => obj.label);
+    const numberOccurrences = {};
+
+    // Count occurrences and associate with labels
+    allNumbers.forEach((number) => {
+      const label = file_labels[number];
+      numberOccurrences[label] = (numberOccurrences[label] || 0) + 1;
+    });
+
+    // Sort the array based on occurrences and then label
+    const sortedLabels = Object.keys(numberOccurrences).sort((a, b) => {
+      const frequencyComparison = numberOccurrences[b] - numberOccurrences[a];
+      if (frequencyComparison !== 0) {
+        return frequencyComparison;
+      }
+      return a.localeCompare(b);
+    });
+
+    // Take the top N labels with occurrences
+    const topNLabels = sortedLabels.slice(0, n).map((label) => ({
+      label,
+      occurrences: numberOccurrences[label],
+      id: file_labels.indexOf(label),
+    }));
+
+    return topNLabels;
+  }
+
+  async function label_click(event) {
+    const clickedId = event;
+    const clickedLabel = file_labels[clickedId];
+
+    console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
+
+    if (filtered_lables.includes(clickedId)) {
+      // restore disabled items again
+      filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
+
+      let temp_items = window.structuredClone(image_items); // deepcopy
+
+      if (filtered_lables.length > 0) {
+        for (const [key, value] of Object.entries(temp_items)) {
+          temp_items[key]["disabled"] = true;
+        }
+
+        let one_not_included = false;
+        for (const [key, value] of Object.entries(temp_items)) {
+          one_not_included = false;
+
+          for (let i = 0; i < filtered_lables.length; i++) {
+            if (!temp_items[key].label.includes(filtered_lables[i])) {
+              one_not_included = true;
+            }
+          }
+          if (!one_not_included) {
+            temp_items[key]["disabled"] = false;
           }
         }
       } else {
-        // state after taking action
-        let after_state = action_log[action_log_pointer + a];
-  
-        if (after_state['method'] == "text_filtering") {
-          if (!filtered_lables.includes(after_state['label'])) {
-            filtered_lables.push(after_state['label']);
-          }
-        } else if (after_state['method'] == "text_restore_filtering") {
-          filtered_lables.splice(filtered_lables.indexOf(after_state['label']), 1);
-        }
-      }
-  
-      // trigger reload of labels under chart
-      filtered_lables = filtered_lables;
-  
-      // will be decreased if action is -1 and increased if action is + 1
-      action_log_pointer = action_log_pointer + a;
-      action_pointer = action_pointer + a;
-  
-      reloading_display();
-  
-      // will be previous if action is -1 and next if action is + 1
-      scrollToHeight(action_log[action_log_pointer]['scroll']);
-  
-    }
-  
-    async function readTextFile(filePath) {
-      try {
-        const response = await fetch(filePath);
-        const data = await response.text();
-        return data.split('\n').map(label => label.trim());
-      } catch (error) {
-        console.error('Error reading text file:', error);
-        return [];
-      }
-    }
-  
-    async function findTopNNumbersWithLabels(dictionary, n) {
-      const allNumbers = Object.values(dictionary).flatMap(obj => obj.label);
-      const numberOccurrences = {};
-  
-      // Count occurrences and associate with labels
-      allNumbers.forEach(number => {
-        const label = file_labels[number];
-        numberOccurrences[label] = (numberOccurrences[label] || 0) + 1;
-      });
-  
-      // Sort the array based on occurrences and then label
-      const sortedLabels = Object.keys(numberOccurrences).sort((a, b) => {
-        const frequencyComparison = numberOccurrences[b] - numberOccurrences[a];
-        if (frequencyComparison !== 0) {
-          return frequencyComparison;
-        }
-        return a.localeCompare(b);
-      });
-  
-      // Take the top N labels with occurrences
-      const topNLabels = sortedLabels.slice(0, n).map(label => ({
-        label,
-        occurrences: numberOccurrences[label],
-        id: file_labels.indexOf(label),
-      }));
-  
-      return topNLabels;
-    }
-  
-    async function label_click(event){
-      const clickedId = event;
-      const clickedLabel = file_labels[clickedId];
-  
-      console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
-      
-      if (filtered_lables.includes(clickedId)){
-        // restore disabled items again
-        filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
-  
-        let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-        
-        if (filtered_lables.length > 0){
-          for (const [key, value] of Object.entries(temp_items)) {
-            temp_items[key]['disabled'] = true;
-          }
-  
-          let one_not_included = false;
-          for (const [key, value] of Object.entries(temp_items)) {
-            one_not_included = false;
-  
-            for (let i=0; i < filtered_lables.length; i++) {
-              if (!temp_items[key].label.includes(filtered_lables[i])) {
-                one_not_included = true;
-              } 
-            }
-            if (!one_not_included) {
-              temp_items[key]['disabled'] = false;
-            }
-          }
-          
-        } else {
-          for (const [key, value] of Object.entries(temp_items)) {
-            temp_items[key]['disabled'] = false;
-          }
-        }
-        
-        let new_rank = 0;
-        for (let i = 0; i < temp_items.length; i++) {
-          if (temp_items[i]['disabled'] == false) {
-            temp_items[i].rank = new_rank;
-            new_rank++;
-          }
-        }
-        
-        // unwind actions after backtracking
-        while(image_items.length -1 > action_pointer){
-          image_items.pop();
-        }
-  
-        while(action_log.length -1 > action_log_pointer){
-          // remove the second to last elements because we newly added the last before the request_handler
-          action_log.splice(action_log.length - 2, 1);
-        }
-        
-        image_items.push(temp_items);
-        
-        action_log.push({'method': 'text_restore_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'data': image_items[action_pointer]});
-  
-      } else {          
-        filtered_lables.push(clickedId);
-        
-        let num_filtered = 0;
-  
-        // Filter out elements in the image_items dictionary that don't contain the clicked label
-        let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-  
         for (const [key, value] of Object.entries(temp_items)) {
-          temp_items[key]['disabled'] = false;
+          temp_items[key]["disabled"] = false;
         }
-  
-        for (const [key, value] of Object.entries(temp_items)) {
-          for(let i=0; i < filtered_lables.length; i++){
-            if (!temp_items[key].label.includes(filtered_lables[i])) {
-              temp_items[key]['disabled'] = true;
-            }
+      }
+
+      let new_rank = 0;
+      for (let i = 0; i < temp_items.length; i++) {
+        if (temp_items[i]["disabled"] == false) {
+          temp_items[i].rank = new_rank;
+          new_rank++;
+        }
+      }
+
+      image_items = temp_items;
+
+    } else {
+      filtered_lables.push(clickedId);
+
+      let num_filtered = 0;
+
+      // Filter out elements in the image_items dictionary that don't contain the clicked label
+      let temp_items = window.structuredClone(image_items); // deepcopy
+
+      for (const [key, value] of Object.entries(temp_items)) {
+        temp_items[key]["disabled"] = false;
+      }
+
+      for (const [key, value] of Object.entries(temp_items)) {
+        for (let i = 0; i < filtered_lables.length; i++) {
+          if (!temp_items[key].label.includes(filtered_lables[i])) {
+            temp_items[key]["disabled"] = true;
           }
         }
-  
-        let new_rank = 0;
-        for (let i = 0; i < temp_items.length; i++){
-          if (temp_items[i]['disabled'] == false){
-            temp_items[i].rank = new_rank;
-            new_rank++;
-          }
-        }
-        
-        // unwind actions after backtracking
-        while(image_items.length -1 > action_pointer){
-          image_items.pop();
-        }
-  
-        while(action_log.length -1 > action_log_pointer){
-          // remove the second to last elements because we newly added the last before the request_handler
-          action_log.splice(action_log.length - 2, 1);
-        }
-  
-        image_items.push(temp_items);
-        
-        action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
-  
       }
-  
-      let action_log2 = structuredClone(action_log[action_log.length - 1])
-      for(let j=0; j < action_log2.data.length; j++){
-        delete action_log2.data[j].features;
+
+      let new_rank = 0;
+      for (let i = 0; i < temp_items.length; i++) {
+        if (temp_items[i]["disabled"] == false) {
+          temp_items[i].rank = new_rank;
+          new_rank++;
+        }
       }
-  
-      // trigger reload of labels under chart
-      filtered_lables = filtered_lables;
-      
-      action_pointer += 1;
-      action_log_pointer += 1;
-  
-      reloading_display();
+
+      image_items = temp_items;
     }
-  
-    function generateColor(label) {
-      // Check if the label already has a color assigned
-      if (!labelColorMap[label]) {
-        // Generate a random color for the label
-        var r = Math.floor(Math.random() * 256);
-        var g = Math.floor(Math.random() * 256);
-        var b = Math.floor(Math.random() * 256);
-  
-        // Mix with white to create a pastel effect
-        var mixColor = 255; // White color
-        r = Math.floor((r + mixColor) / 2);
-        g = Math.floor((g + mixColor) / 2);
-        b = Math.floor((b + mixColor) / 2);
-  
-        labelColorMap[label] = 'rgba(' + r + ',' + g + ',' + b + ', 1.0)';
-      }
-  
-      return labelColorMap[label];
+
+    // trigger reload of labels under chart
+    filtered_lables = filtered_lables;
+
+    reloading_display();
+  }
+
+  function generateColor(label) {
+    // Check if the label already has a color assigned
+    if (!labelColorMap[label]) {
+      // Generate a random color for the label
+      var r = Math.floor(Math.random() * 256);
+      var g = Math.floor(Math.random() * 256);
+      var b = Math.floor(Math.random() * 256);
+
+      // Mix with white to create a pastel effect
+      var mixColor = 255; // White color
+      r = Math.floor((r + mixColor) / 2);
+      g = Math.floor((g + mixColor) / 2);
+      b = Math.floor((b + mixColor) / 2);
+
+      labelColorMap[label] = "rgba(" + r + "," + g + "," + b + ", 1.0)";
     }
-  
-    async function create_chart(){
-      if (image_items[action_pointer][0] == null || image_items[action_pointer][0]['label'] == null) {
-          return;
-      }
-  
-      let temp_items = image_items[action_pointer].filter(item => !(item.hasOwnProperty('disabled') && item['disabled']));
-  
-      const topNumbersWithOccurrences = await findTopNNumbersWithLabels(temp_items, chart_labels);
-  
-      let allLabels = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.label);
-      let allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.occurrences);
-      let allIds = Object.values(topNumbersWithOccurrences).flatMap(obj => obj.id);
-  
-      let border_colors = allIds.map(id => filtered_lables.includes(id) ? '#FF0000' : 'rgba(0, 0, 0, 0.0)');
-  
-      const canvas = document.getElementById('myChart');
-  
-      // clear previous canvas
-      let new_canvas = document.createElement("canvas");
-      new_canvas.setAttribute("id", "myChart");
-      new_canvas.setAttribute("class", "menu_item");
-      new_canvas.setAttribute("style", "margin-left: 2em; margin-right: 2em;  height: 25em");
-      canvas.replaceWith(new_canvas)
-  
-      const ctx = document.getElementById('myChart').getContext('2d'); // 2d context
-  
-      let myHorizontalBarChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: allLabels,
-          datasets: [{
-            label: 'Display Clusters',
+
+    return labelColorMap[label];
+  }
+
+  async function create_chart() {
+    if ( image_items[0] == null || image_items[0]["label"] == null ) {
+      return;
+    }
+
+    let temp_items = image_items.filter(
+      (item) => !(item.hasOwnProperty("disabled") && item["disabled"]),
+    );
+
+    const topNumbersWithOccurrences = await findTopNNumbersWithLabels(
+      temp_items,
+      chart_labels,
+    );
+
+    let allLabels = Object.values(topNumbersWithOccurrences).flatMap(
+      (obj) => obj.label
+    );
+    let allOccurrences = Object.values(topNumbersWithOccurrences).flatMap(
+      (obj) => obj.occurrences
+    );
+    let allIds = Object.values(topNumbersWithOccurrences).flatMap(
+      (obj) => obj.id
+    );
+
+    let border_colors = allIds.map((id) => filtered_lables.includes(id) ? "#FF0000" : "rgba(0, 0, 0, 0.0)");
+
+    const canvas = document.getElementById("myChart");
+
+    // clear previous canvas
+    let new_canvas = document.createElement("canvas");
+    new_canvas.setAttribute("id", "myChart");
+    new_canvas.setAttribute("class", "menu_item");
+    new_canvas.setAttribute("style", "margin-left: 2em; margin-right: 2em;  height: 17em");
+    canvas.replaceWith(new_canvas);
+
+    const ctx = document.getElementById("myChart").getContext("2d"); // 2d context
+
+    let myHorizontalBarChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: allLabels,
+        datasets: [
+          {
+            label: "Display Clusters",
             borderColor: border_colors,
             borderWidth: 2,
             data: allOccurrences,
-          }]
-        },
-        options: {
-          onClick: async function (event, elements) {
-            if (elements && elements.length > 0) {
-              
-              // Get the index of the clicked bar
-              const clickedIndex = elements[0].index;
-  
-              const clickedLabel = allLabels[clickedIndex];
-              const clickedOccurrence = allOccurrences[clickedIndex];
-              const clickedId = allIds[clickedIndex];
-  
-              console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
-              
-              if (filtered_lables.includes(clickedId)) {
-                // restore disabled items again
-                filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
-                filtered_lables = filtered_lables;
-  
-                let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-                
-                if (filtered_lables.length > 0) {
-                  for (const [key, value] of Object.entries(temp_items)) {
-                    temp_items[key]['disabled'] = true;
-                  }
-                  
-                  let one_not_included = false;
-  
-                  for (const [key, value] of Object.entries(temp_items)) {
-                    one_not_included = false;
-  
-                    for(let i=0; i < filtered_lables.length; i++){
-                      if (!temp_items[key].label.includes(filtered_lables[i])) {
-                        one_not_included = true;
-                      } 
-                    }
-                    if(!one_not_included){
-                      temp_items[key]['disabled'] = false;
-                    }
-                  }
-  
-                } else {
-                  for (const [key, value] of Object.entries(temp_items)) {
-                    temp_items[key]['disabled'] = false;
-                  }
-                }
-  
-                let new_rank = 0;
-                for (let i = 0; i < temp_items.length; i++){
-                  if (temp_items[i]['disabled'] == false){
-                    temp_items[i].rank = new_rank;
-                    new_rank++;
-                  }
-                }
-                
-                // unwind actions after backtracking
-                while(image_items.length -1 > action_pointer){
-                  image_items.pop();
-                }
-  
-                while(action_log.length -1 > action_log_pointer){
-                  // remove the second to last elements because we newly added the last before the request_handler
-                  action_log.splice(action_log.length - 2, 1);
-                }
-                
-                image_items.push(temp_items);
-  
-                action_log.push({'method': 'text_restore_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'data': image_items[action_pointer]});
-  
-              }else{          
-                
-                filtered_lables.push(clickedId);
-                filtered_lables = filtered_lables;
-                
-                let num_filtered = 0;
-  
-                // Filter out elements in the image_items dictionary that don't contain the clicked label
-  
-                let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-  
+          },
+        ],
+      },
+      options: {
+        onClick: async function (event, elements) {
+          if (elements && elements.length > 0) {
+            // Get the index of the clicked bar
+            const clickedIndex = elements[0].index;
+
+            const clickedLabel = allLabels[clickedIndex];
+            const clickedId = allIds[clickedIndex];
+
+            console.log(
+              `Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`
+            );
+
+            if (filtered_lables.includes(clickedId)) {
+              // restore disabled items again
+              filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
+              filtered_lables = filtered_lables;
+
+              let temp_items = window.structuredClone(image_items); // deepcopy
+
+              if (filtered_lables.length > 0) {
                 for (const [key, value] of Object.entries(temp_items)) {
-                  temp_items[key]['disabled'] = false;
+                  temp_items[key]["disabled"] = true;
                 }
-  
+
+                let one_not_included = false;
+
                 for (const [key, value] of Object.entries(temp_items)) {
-                  for(let i=0; i < filtered_lables.length; i++){
+                  one_not_included = false;
+
+                  for (let i = 0; i < filtered_lables.length; i++) {
                     if (!temp_items[key].label.includes(filtered_lables[i])) {
-                      temp_items[key]['disabled'] = true;
+                      one_not_included = true;
                     }
                   }
-                }
-  
-                let new_rank = 0;
-                for (let i = 0; i < temp_items.length; i++){
-                  if (temp_items[i]['disabled'] == false){
-                    temp_items[i].rank = new_rank;
-                    new_rank++;
+                  if (!one_not_included) {
+                    temp_items[key]["disabled"] = false;
                   }
                 }
-                
-                // unwind actions after backtracking
-                while(image_items.length -1 > action_pointer){
-                  image_items.pop();
-                }
-  
-                while(action_log.length -1 > action_log_pointer){
-                  // remove the second to last elements because we newly added the last before the request_handler
-                  action_log.splice(action_log.length - 2, 1);
-                }
-  
-                image_items.push(temp_items);
-                
-                action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
-  
-              }
-  
-              let action_log2 = structuredClone(action_log[action_log.length - 1])
-              for(let j=0; j < action_log2.data.length; j++){
-                delete action_log2.data[j].features;
-              }
-  
-              action_pointer += 1;
-              action_log_pointer += 1;
-  
-              reloading_display();
-  
-            }
-          },
-          indexAxis: 'y',
-          scales: {
-            x: {
-              beginAtZero: true
-            },
-            y: {
-              position: 'left',
-              reverse: false,
-              callback: function(value) {if (value % 1 === 0) {return value;}}
-            }
-          },
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              callbacks: {
-                label: function (context) {
-                  return context.dataset.data[context.dataIndex];
+              } else {
+                for (const [key, value] of Object.entries(temp_items)) {
+                  temp_items[key]["disabled"] = false;
                 }
               }
+
+              let new_rank = 0;
+              for (let i = 0; i < temp_items.length; i++) {
+                if (temp_items[i]["disabled"] == false) {
+                  temp_items[i].rank = new_rank;
+                  new_rank++;
+                }
+              }
+
+              image_items = temp_items;
+            } else {
+              filtered_lables.push(clickedId);
+              filtered_lables = filtered_lables;
+
+              let num_filtered = 0;
+
+              // Filter out elements in the image_items dictionary that don't contain the clicked label
+
+              let temp_items = window.structuredClone(image_items); // deepcopy
+
+              for (const [key, value] of Object.entries(temp_items)) {
+                temp_items[key]["disabled"] = false;
+              }
+
+              for (const [key, value] of Object.entries(temp_items)) {
+                for (let i = 0; i < filtered_lables.length; i++) {
+                  if (!temp_items[key].label.includes(filtered_lables[i])) {
+                    temp_items[key]["disabled"] = true;
+                  }
+                }
+              }
+
+              let new_rank = 0;
+              for (let i = 0; i < temp_items.length; i++) {
+                if (temp_items[i]["disabled"] == false) {
+                  temp_items[i].rank = new_rank;
+                  new_rank++;
+                }
+              }
+
+              image_items = temp_items;
             }
+
+            reloading_display();
           }
         },
-      });
-  
-      // Dynamically assign colors based on labels
-      myHorizontalBarChart.data.datasets[0].backgroundColor = myHorizontalBarChart.data.labels.map(generateColor);
-      myHorizontalBarChart.update(); // Update the chart
-    }
-  
-  </script>
-  
-  <main>
-    <div class='viewbox'>
-      <div class='top-menu'>
-        <div class="top-menu-item top-negative-offset">
-          <Select on:SMUISelect:change={get_session_id_for_user} bind:value={username} label="Select User">
-            {#each users as user}
-              <Option value={user}>{user}</Option>
-            {/each}
-          </Select>
-        </div>
-        <div class="top-menu-item top-negative-offset">
-          <Select on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Evaluation ID">
-            {#each evaluation_names as e}
-              <Option value={e}>{e}</Option>
-            {/each}
-          </Select>
-        </div>
-        <div class="top-menu-item top-negative-offset">
-          <Select on:SMUISelect:change={task_id} bind:value={task_id} label="Task ID">
-            {#each task_ids as t}
-              <Option value={t}>{t}</Option>
-            {/each}
-          </Select>
-        </div>
-        <div class="top-menu-item top-negative-offset">
-          <Select on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
-            {#each datasets as dataset}
-              <Option value={dataset}>{dataset}</Option>
-            {/each}
-          </Select>
-        </div>
-        <div class="top-menu-item top-negative-offset3">
-          <Button color="primary" on:click={send_results_multiple} variant="raised">
-            <span class="resize-text">Send Selected Images</span>
-          </Button>
-        </div>
-        <div class="top-input">
-          <input class="top-menu-item resize-text top-offset" bind:value={custom_result} placeholder="Your custom result message"/>
-        </div>
-        <div class ="top-menu-item top-negative-offset3" >
-          <Button color="primary" on:click={send_results_custom} variant="raised">
-            <span class="resize-text">Send custom text</span>
-          </Button> 
-        </div>
-          <!--<span class="top-menu-item" id="target_text">{target_in_display_text}</span>-->
+        indexAxis: "y",
+        scales: {
+          x: {
+            beginAtZero: true,
+          },
+          y: {
+            position: "left",
+            reverse: false,
+            callback: function (value) {
+              if (value % 1 === 0) {
+                return value;
+              }
+            },
+          },
+        },
+        plugins: {
+          legend: {
+            display: false,
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return context.dataset.data[context.dataIndex];
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Dynamically assign colors based on labels
+    myHorizontalBarChart.data.datasets[0].backgroundColor = myHorizontalBarChart.data.labels.map(generateColor);
+    myHorizontalBarChart.update(); // Update the chart
+  }
+</script>
+
+<main>
+  <div class="viewbox">
+    <div class="top-menu">
+      <div class="top-menu-item top-negative-offset">
+        <Select
+          on:SMUISelect:change={get_session_id_for_user}
+          bind:value={username}
+          label="Select User"
+        >
+          {#each users as user}
+            <Option value={user}>{user}</Option>
+          {/each}
+        </Select>
       </div>
-  
-      <div class="horizontal">
-        <div class='menu'>
-          <br>
-          <div class='buttons'>
-            <div class="centering" style="margin-bottom:0.5em;">
-              <Fab id="previous" on:click={() => traverse_states(-1)} extended ripple={false}>
-                <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon>
-              </Fab>
-              <Fab id="next" on:click={() => traverse_states(1)} extended ripple={false}>
-                <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
-              </Fab>
-            </div>
-            <!--{#if send_results.length > 0}
+      <div class="top-menu-item top-negative-offset">
+        <Select
+          on:SMUISelect:change={set_task_id}
+          bind:value={evaluation_name}
+          label="Evaluation ID"
+        >
+          {#each evaluation_names as e}
+            <Option value={e}>{e}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset">
+        <Select
+          on:SMUISelect:change={task_id}
+          bind:value={task_id}
+          label="Task ID"
+        >
+          {#each task_ids as t}
+            <Option value={t}>{t}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset">
+        <Select
+          on:SMUISelect:change={set_dataset}
+          bind:value={value_dataset}
+          label="Select Dataset"
+        >
+          {#each datasets as dataset}
+            <Option value={dataset}>{dataset}</Option>
+          {/each}
+        </Select>
+      </div>
+      <div class="top-menu-item top-negative-offset3">
+        <Button
+          color="primary"
+          on:click={send_results_multiple}
+          variant="raised"
+        >
+          <span class="resize-text">Send Selected Images</span>
+        </Button>
+      </div>
+      <div class="top-input">
+        <input
+          class="top-menu-item resize-text top-offset"
+          bind:value={custom_result}
+          placeholder="Your custom result message"
+        />
+      </div>
+      <div class="top-menu-item top-negative-offset3">
+        <Button color="primary" on:click={send_results_custom} variant="raised">
+          <span class="resize-text">Send custom text</span>
+        </Button>
+      </div>
+    </div>
+
+    <div class="horizontal">
+      <div class="menu">
+        <br />
+        <div class="buttons">
+          <div class="centering" style="margin-bottom:0.5em;">
+            <Fab
+              id="previous"
+              on:click={() => traverse_states(-1)}
+              extended
+              ripple={false}
+            >
+              <Icon style="font-size:20px;" class="material-icons"
+                >arrow_back</Icon
+              >
+            </Fab>
+            <Fab
+              id="next"
+              on:click={() => traverse_states(1)}
+              extended
+              ripple={false}
+            >
+              <Icon style="font-size:20px;" class="material-icons"
+                >arrow_forward</Icon
+              >
+            </Fab>
+          </div>
+          <!--{#if send_results.length > 0}
               <span>Your send results: {send_results}</span>
             {/if}
             <div class="timer centering" style="margin-bottom:0.5em;">
               <Timer bind:this={timer}/>
+            </div>-->
+          <textarea
+            id="text_query_input"
+            class="menu_item resize-text"
+            bind:value={$lion_text_query}
+            placeholder="Your text query"
+            on:keypress={handleKeypress}
+          />
+          <Button
+            class="menu_item menu_button"
+            color="secondary"
+            on:click={get_scores_by_text}
+            variant="raised"
+          >
+            <span class="resize-text">Submit Text Query</span>
+          </Button>
+          <div class="filedrop-container menu_item">
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div
+              class="file-drop-area menu_item"
+              on:dragenter={noopHandler}
+              on:dragexit={noopHandler}
+              on:dragover={noopHandler}
+              on:drop={drop}
+            >
+              <span class="fake-btn">Choose files</span>
+              <span class="file-msg">or drag and drop file here</span>
+              <input class="file-input" type="file" />
             </div>
-            <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
-              <span class="resize-text">Random Test Image</span>
-            </Button>
-            {#if true}
-              <div id="test-image-preview-container">
-                <img id="testimage" alt="" />
+            {#if dragged_url != null}
+              <div class="image-preview-container menu_item">
+                <img
+                  class="preview_image"
+                  alt="preview upload"
+                  src={dragged_url}
+                />
               </div>
-            {/if}-->
-            <textarea id="text_query_input" class="menu_item resize-text" bind:value={$lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
-            <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
-              <span class="resize-text">Submit Text Query</span>
-            </Button>
-            <div class="filedrop-container menu_item">
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div class="file-drop-area menu_item" on:dragenter={noopHandler} on:dragexit={noopHandler} on:dragover={noopHandler} on:drop={drop}>
-                <span class="fake-btn">Choose files</span>
-                <span class="file-msg">or drag and drop file here</span>
-                <input class="file-input" type="file">
-              </div>
-              {#if dragged_url != null}
-                <div class="image-preview-container menu_item">
-                  <img class="preview_image" alt="preview upload" src={dragged_url}/>
-                </div>
-              {/if}
-            </div>
-            <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
-              <span class="resize-text">Bayes Update</span>
-            </Button>
-            <canvas class="menu_item" id="myChart"></canvas>
-            <div id="customLegend" class="menu_item" ></div>
-            {#key filtered_lables}
-              {#if filtered_lables.length > 0}
-                <p >Active label filter</p>
-              {/if}
-              {#each filtered_lables as label}
-                <!-- svelte-ignore a11y-click-events-have-key-events -->
-                <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-                <p class='active_label' on:click={() => label_click(label)}>{file_labels[label]}</p>
-              {/each}
-            {/key}
-            <!--<Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
-              <span class="resize-text">Download Test Data</span>
-            </Button>-->
-            <br><br>
-            <div>
-              <label for="unique_video_frames">Limit Frames per Video to 1</label>
-              <input type="checkbox" id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames}/>
-            </div><br>
-            <div>
-              <label for="image_video_on_line">Images from video on one line</label>
-              <input type="checkbox" id="image_video_on_line" name="image_video_on_line" bind:checked={image_video_on_line} on:change={reloading_display}>
-            </div><br>
-            <div>
-              <label for="labels_per_frame">Labels per Frame</label>
-              <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
-            </div><br>
-            {#if prepared_display !== null}
-            <p>Showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images: {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
             {/if}
           </div>
-        </div>
-        <div id='container'>
-          {#if prepared_display === null}
-            <p>...loading</p>
-          {:else}           
-            <VirtualList items={prepared_display} bind:this={virtual_list} bind:start bind:end let:item>
-              <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size labels={file_labels}/>
-            </VirtualList>
+          <Button
+            class="menu_item menu_button"
+            color="secondary"
+            on:click={bayesUpdate}
+            variant="raised"
+          >
+            <span class="resize-text">Bayes Update</span>
+          </Button>
+          <canvas class="menu_item" id="myChart"></canvas>
+          <div id="customLegend" class="menu_item"></div>
+          {#key filtered_lables}
+            {#if filtered_lables.length > 0}
+              <p>Active label filter</p>
+            {/if}
+            {#each filtered_lables as label}
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+              <p class="active_label" on:click={() => label_click(label)}>
+                {file_labels[label]}
+              </p>
+            {/each}
+          {/key}
+          <br /><br />
+          <div>
+            <label for="unique_video_frames">Limit Frames per Video to 1</label>
+            <input
+              type="checkbox"
+              id="unique_video_frames"
+              name="unique_video_frames"
+              bind:checked={unique_video_frames}
+            />
+          </div>
+          <br />
+          <div>
+            <label for="image_video_on_line"
+              >Images from video on one line</label
+            >
+            <input
+              type="checkbox"
+              id="image_video_on_line"
+              name="image_video_on_line"
+              bind:checked={image_video_on_line}
+              on:change={reloading_display}
+            />
+          </div>
+          <br />
+          <div>
+            <label for="labels_per_frame">Labels per Frame</label>
+            <input
+              type="number"
+              id="labels_per_frame"
+              name="labels_per_frame"
+              min="1"
+              max="10"
+              bind:value={max_labels}
+            />
+          </div>
+          <br />
+          {#if prepared_display !== null}
+            <p>
+              Total Images: {prepared_display.reduce(
+                (count, current) => count + current.length,
+                0,
+              )}
+            </p>
           {/if}
         </div>
       </div>
+      <div id="container">
+        {#if prepared_display === null}
+          <p>...loading</p>
+        {:else}
+          <VirtualList
+            items={prepared_display}
+            bind:this={virtual_list}
+            bind:start
+            bind:end
+            let:item
+          >
+            <ImageList
+              on:send_result={send_results_single}
+              on:similarimage={get_scores_by_image}
+              on:video_images={video_images}
+              row={item}
+              bind:row_size
+              labels={file_labels}
+            />
+          </VirtualList>
+        {/if}
+      </div>
     </div>
-  </main>
-  
-  <style>
-  
-  /* #target_text{
-    margin-top: 0.2em;
-    color: red;
-    font-weight: bold;
-  } */
-  
-  .active_label{
+  </div>
+</main>
+
+<style>
+  .active_label {
     color: red;
     text-align: left;
     margin-left: 2em;
@@ -1520,29 +1250,29 @@
     background-color: lightgray;
     cursor: pointer;
   }
-  
-  #myChart{
+
+  #myChart {
     width: 80%;
     float: left;
     margin-left: 2em;
   }
-  
-  .centering{
+
+  .centering {
     display: flex;
     flex-direction: row;
     justify-content: center;
     width: 100%;
   }
-  
-  .horizontal{
+
+  .horizontal {
     display: flex;
     flex: 1;
   }
-  
-  .resize-text{
+
+  .resize-text {
     font-size: 0.75em;
   }
-  
+
   .file-drop-area {
     position: relative;
     display: flex;
@@ -1557,28 +1287,27 @@
       background-color: rgba(255, 255, 255, 0.05);
     }
   }
-  
-  .top-menu{
+
+  .top-menu {
     flex: 1;
     display: flex;
   }
-  
-  .top-menu-item{
+
+  .top-menu-item {
     display: flex;
     margin-left: 1em;
     margin-bottom: 0.25em;
   }
-  
-  .top-offset{
+
+  .top-offset {
     margin-top: 1.25em;
   }
-  
-  .top-input{
+
+  .top-input {
     height: 100%;
     margin-top: -0.6em;
   }
-  
-  
+
   .fake-btn {
     flex-shrink: 0;
     background-color: rgba(54, 53, 53, 0.04);
@@ -1592,14 +1321,14 @@
     white-space: nowrap;
     overflow: hidden;
   }
-  
+
   .file-msg {
     font-size: 0.75em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  
+
   .file-input {
     position: absolute;
     left: 0;
@@ -1612,63 +1341,56 @@
       outline: none;
     }
   }
-  
-  #text_query_input{
+
+  #text_query_input {
     height: 10em;
     margin-top: 2em;
   }
-  
+
   #container {
     min-height: 200px;
-    height: calc(100vh - 3.0em);
+    height: calc(100vh - 3em);
     width: 85%;
     float: left;
-    background-color: rgb(202, 202, 202);
+    background-color: rgb(255, 255, 255);
   }
-  
-  .filedrop-container{
+
+  .filedrop-container {
     display: block;
     margin-left: auto;
     margin-right: auto;
     width: 90%;
   }
-  
-  .image-preview-container{
+
+  .image-preview-container {
     width: 100%;
     height: 6em;
     display: block;
   }
-  
-  .preview_image{
+
+  .preview_image {
     height: 100%;
     width: 100%;
     object-fit: contain;
   }
-  
-  /* #testimage{
-    height: 100%;
-    width: 100%;
-    object-fit: contain;
-  } */
-  
-  .top-negative-offset{
+
+  .top-negative-offset {
     margin-top: -1.5em;
   }
-  
-  .top-negative-offset3{
+
+  .top-negative-offset3 {
     margin-top: -0.2em;
   }
-  
-  .menu{
-    height: calc(100vh - 3.0em);
+
+  .menu {
+    height: calc(100vh - 3em);
     overflow-y: auto;
     scrollbar-width: none; /* For Firefox */
-    -ms-overflow-style: none;  /* For Internet Explorer and Edge */
+    -ms-overflow-style: none; /* For Internet Explorer and Edge */
   }
-  
-  .menu::-webkit-scrollbar { /* For Chrome, Safari and Opera */
+
+  .menu::-webkit-scrollbar {
+    /* For Chrome, Safari and Opera */
     display: none;
   }
-  
-  </style>
-  
+</style>
