@@ -1,3 +1,4 @@
+import datetime
 import mimetypes
 mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/json', '.mjs')
@@ -15,6 +16,7 @@ import numpy as np
 import os
 import json
 import logging
+import asyncio
 
 app = FastAPI()
 
@@ -51,9 +53,54 @@ def normalizeMatrix(matrix):
     return np.array([normalizeVector(row) for row in matrix])
 
 
-@app.get("/create_user_log")
-async def rand(username: str):
+def append_log(username, request):
+    filename = os.path.join("user_data", username, f"eventlog_{username}.json")
+    
+    if not os.path.exists(filename):
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as f:
+                f.write("[]")
+
     try:
+        with open(filename, "r") as f:
+            listObj = json.load(f)
+        
+        listObj.append(request)
+
+        with open(filename, 'w') as json_file:
+            json.dump(listObj, json_file, indent=4, separators=(',',': '))
+    except Exception as e:
+        logging.error(f"An error occurred while appending to the log file: {str(e)}")
+        raise e
+    
+    
+def create_event_log(username, timestamp, log):    
+    filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
+
+    if os.path.exists(filename):
+        return
+    else:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w") as f:
+            f.write("[]")
+            
+    with open(filename, "r") as f:
+        listObj = json.load(f)
+    
+    listObj.append(log)
+
+    with open(filename, 'w') as json_file:
+        json.dump(listObj, json_file, indent=4, separators=(',',': '))
+
+
+@app.post("/create_user_log")
+async def create_user_log(req: Request):
+    try:
+        params = await req.json()
+        username = params['username'] if 'username' in params else None
+        if not username:
+            raise HTTPException(status_code=400, detail="Missing username parameter")
+        
         filename = os.path.join("user_data", username, f"eventlog_{username}.json")
         
         if os.path.exists(filename):
@@ -68,32 +115,19 @@ async def rand(username: str):
         return f"An error occurred: {str(e)}"
 
 
-@app.get("/append_user_log")
+@app.post("/append_user_log")
 async def append_user_log(req: Request):
     params = await req.json()
     username = params['username'] if 'username' in params else None
     if not username:
         raise HTTPException(status_code=400, detail="Missing username parameter")
     
-    request = params.get['req'] if 'req' in params else None
+    request = params.get['action'] if 'action' in params else None
     if not request:
-        raise HTTPException(status_code=400, detail="Missing request parameter")
-
-    filename = os.path.join("user_data", username, f"eventlog_{username}.json")
-    
-    if not os.path.exists(filename):
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "w") as f:
-                f.write("[]")
+        raise HTTPException(status_code=400, detail="Missing action parameter")
 
     try:
-        with open(filename, "r") as f:
-            listObj = json.load(f)
-        
-        listObj.append(json.loads(request))
-
-        with open(filename, 'w') as json_file:
-            json.dump(listObj, json_file, indent=4, separators=(',',': '))
+        append_log(username, request)
     except Exception as e:
         logging.error(f"An error occurred while appending to the log file: {str(e)}")
         return f"An error occurred: {str(e)}"
@@ -108,30 +142,13 @@ async def create_event_user_log(req: Request):
     if not username:
         raise HTTPException(status_code=400, detail="Missing username parameter")
     
-    timestamp = str(params['timestamp']) if 'timestamp' in params else None
-    if not timestamp:
-        raise HTTPException(status_code=400, detail="Missing timestamp parameter")
+    timestamp = params.get('timestamp') if 'timestamp' in params else datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     
     log = params.get('log')
     if not log:
         raise HTTPException(status_code=400, detail="Missing log parameter")
     
-    filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
-
-    if os.path.exists(filename):
-        return "Log already exists. No change required."
-    else:
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "w") as f:
-            f.write("[]")
-            
-    with open(filename, "r") as f:
-        listObj = json.load(f)
-    
-    listObj.append(log)
-
-    with open(filename, 'w') as json_file:
-        json.dump(listObj, json_file, indent=4, separators=(',',': '))
+    create_event_log(username, timestamp, log)
         
     return f"Successfully appended customs to {username}'s log file."
 
@@ -160,6 +177,7 @@ async def send_request_to_service(req: Request):
     sorted = params['sorted'] if 'sorted' in params else False
     dataset = params['dataset'] if 'dataset' in params else None
     username = params['username'] if 'username' in params else None
+    is_reset = params['reset'] if 'reset' in params else False
     
     if url is None or dataset is None or username is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
@@ -177,21 +195,30 @@ async def send_request_to_service(req: Request):
     if sorted:
         part = 1 if dataset == 'V3C' else -1
         data.sort(key=lambda x: int(x.get('uri', '').split('_')[part].split('.')[0]))
-      
-    if username not in image_items:
+    
+    if username not in image_items or is_reset:
         image_items[username] = [data]
         action_pointer[username] = 0
     else:
-        if len(image_items[username]) > 10:
+        if len(image_items[username]) > action_pointer[username] + 1:
+            image_items[username] = image_items[username][:action_pointer[username] + 1]
+            action_pointer[username] += 1
+        elif len(image_items[username]) > 10:
             image_items[username] = image_items[username][1:]
-            image_items[username].append(data)
         else:
-            image_items[username].append(data)
-            action_pointer[username] = action_pointer[username] + 1
+            action_pointer[username] += 1
+
+        image_items[username].append(data)
     
     new_data = [{k: v for k, v in item.items() if k != 'features' and k != 'score'} for item in data[:max_display]]
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    query = url.split('/')[-2]
+    my_obj = json.loads(my_obj)
+    append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"})
+    create_event_log(username, timestamp, {'action': query, 'request': my_obj, 'data': new_data})
 
-    return new_data
+    return new_data, action_pointer[username]
 
 
 @app.post("/bayes")
@@ -245,10 +272,20 @@ async def bayes(req: Request):
     for i, item in enumerate(items):
         item['rank'] = i
 
+    if len(image_items[username]) > action_pointer[username] + 1:
+        image_items[username] = image_items[username][:action_pointer[username] + 1]
+        action_pointer[username] += 1
+    elif len(image_items[username]) > 10:
+        image_items[username] = image_items[username][1:]
+    else:
+        action_pointer[username] += 1
     image_items[username].append(items)
-    action_pointer[username] = action_pointer[username] + 1
     
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in items[:max_display]]
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"})
+    create_event_log(username, timestamp, {'action': 'bayes', 'data': new_data})
     
     return new_data
 
@@ -269,6 +306,8 @@ async def back(req: Request):
     action_pointer[username] = action_pointer[username] - 1
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
     
+    append_log(username, {'action': 'back'})
+    
     return new_data, action_pointer[username]
 
 
@@ -287,6 +326,8 @@ async def forward(req: Request):
     
     action_pointer[username] = action_pointer[username] + 1
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
+    
+    append_log(username, {'action': 'forward'})
     
     return new_data, action_pointer[username]
 
