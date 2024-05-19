@@ -53,7 +53,7 @@ def normalizeMatrix(matrix):
     return np.array([normalizeVector(row) for row in matrix])
 
 
-def append_log(username, request):
+async def append_log(username, request):
     filename = os.path.join("user_data", username, f"eventlog_{username}.json")
     
     if not os.path.exists(filename):
@@ -74,7 +74,7 @@ def append_log(username, request):
         raise e
     
     
-def create_event_log(username, timestamp, log):    
+async def create_event_log(username, timestamp, log):    
     filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
 
     if os.path.exists(filename):
@@ -127,7 +127,7 @@ async def append_user_log(req: Request):
         raise HTTPException(status_code=400, detail="Missing action parameter")
 
     try:
-        append_log(username, request)
+        asyncio.create_task(append_log(username, request))
     except Exception as e:
         logging.error(f"An error occurred while appending to the log file: {str(e)}")
         return f"An error occurred: {str(e)}"
@@ -148,7 +148,7 @@ async def create_event_user_log(req: Request):
     if not log:
         raise HTTPException(status_code=400, detail="Missing log parameter")
     
-    create_event_log(username, timestamp, log)
+    asyncio.create_task(create_event_log(username, timestamp, log))
         
     return f"Successfully appended customs to {username}'s log file."
 
@@ -215,8 +215,8 @@ async def send_request_to_service(req: Request):
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     query = url.split('/')[-2]
     my_obj = json.loads(my_obj)
-    append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"})
-    create_event_log(username, timestamp, {'action': query, 'request': my_obj, 'data': new_data})
+    asyncio.create_task(append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
+    asyncio.create_task(create_event_log(username, timestamp, {'action': query, 'request': my_obj, 'data': new_data}))
 
     return new_data, action_pointer[username]
 
@@ -284,8 +284,8 @@ async def bayes(req: Request):
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in items[:max_display]]
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
-    append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"})
-    create_event_log(username, timestamp, {'action': 'bayes', 'data': new_data})
+    asyncio.create_task(append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
+    asyncio.create_task(create_event_log(username, timestamp, {'action': 'bayes', 'data': new_data}))
     
     return new_data
 
@@ -306,7 +306,7 @@ async def back(req: Request):
     action_pointer[username] = action_pointer[username] - 1
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
     
-    append_log(username, {'action': 'back'})
+    asyncio.create_task(append_log(username, {'action': 'back'}))
     
     return new_data, action_pointer[username]
 
@@ -327,7 +327,7 @@ async def forward(req: Request):
     action_pointer[username] = action_pointer[username] + 1
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
     
-    append_log(username, {'action': 'forward'})
+    asyncio.create_task(append_log(username, {'action': 'forward'}))
     
     return new_data, action_pointer[username]
 
