@@ -29,7 +29,7 @@
 
   let custom_result = "";
 
-  let max_display_size = 2000;
+  let max_display_size = 1000;
 
   let max_labels = 10;
   let chart_labels = 10;
@@ -70,14 +70,13 @@
 
   let virtual_list;
 
-  let session_id;
-
   let unique_video_frames = false;
   let image_video_on_line = false;
 
   let evaluation_ids = [];
   let evaluation_names = [];
   let task_ids = [];
+  let session_id;
 
   let logging = true;
 
@@ -106,12 +105,14 @@
   }
 
   async function handle_submission(results, text = "") {
+    if (evaluation_ids.length == 0) {
+      return;
+    }
+    
     let image_data = image_items;
     let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
 
     let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/submit/" + eval_id + "?session=" + session_id;
-
-    console.log(request_url);
 
     let answers = [];
 
@@ -156,8 +157,6 @@
 
     console.log(request_body);
 
-    let time = new Date().valueOf();
-
     let response = await fetch(request_url, {
       method: "POST",
       headers: {
@@ -172,24 +171,31 @@
       console.log(res);
 
       if (logging) {
+        let time = new Date().valueOf();
+
         let request_body = {
           timestamp: time,
-          answers: answerSet,
+          answers: answers,
+          action: "submit",
+          username: username,
         };
 
         request_body = JSON.stringify(request_body);
 
-        const response3 = await fetch(
-          "../append_user_log?username=" + username + "&req=" + request_body,
+        const response2 = await fetch(`${window.location.origin}/append_user_log`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: request_body,
+          }
         );
 
-        if (response3.ok) {
-          console.log(await response3.text());
+        if (response2.ok) {
+          console.log(await response2.text());
         }
       }
     }
-
-    return time;
   }
 
   async function get_session_id_for_user() {
@@ -253,11 +259,19 @@
     }
 
     if (logging) {
-      const response_create_log = await fetch(
-        "../create_user_log?username=" + username,
-      );
-
-      if (response_create_log.ok) {
+      let url_log = `${window.location.origin}/create_user_log`;
+      let body = JSON.stringify({
+        username: username,
+      });
+      const response_create_log = await fetch(url_log, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: body,
+        });
+      
+        if (response_create_log.ok) {
         console.log(await response_create_log.text());
       }
     }
@@ -298,6 +312,8 @@
     updateButtonState("previous", action_pointer <= 0);
     updateButtonState("next", 9 <= action_pointer);
 
+    let scroll_index;
+
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
       $lion_text_query = image_items["method"] === "textquery" ? image_items["query"] : "";
@@ -310,7 +326,6 @@
       let s = 0;
 
       let temp_selection = [];
-      let scroll_index;
       const currentMethod = image_items["method"];
 
       for (let i = 0; i < image_items.length; i++) {
@@ -318,7 +333,7 @@
         const currentItemId = currentItem["id"];
 
         if (currentMethod == "show_video_frames" && video_image_id != 0 && currentItemId[0] == video_image_id[0] && currentItemId[1] == video_image_id[1]) {
-          scroll_index = rows.length;
+          scroll_index = rows.length - 1;
         }
 
         if (currentItemId in $selected_images) {
@@ -326,7 +341,16 @@
         }
 
         if (!currentItem.hasOwnProperty("disabled") || !currentItem["disabled"]) {
-          if (currentMethod != "show_video_frames" && image_video_on_line) {
+          if (currentMethod != "show_video_frames" && unique_video_frames) {
+            if (!row_ids.hasOwnProperty(currentItemId[0])) {
+              row_ids[currentItemId[0]] = row;
+              if (s % row_size == 0) {
+                rows[++row] = [];
+              }
+              rows[row].push(currentItem);
+              s += 1;
+            }
+          } else if (currentMethod != "show_video_frames" && image_video_on_line) {
             if (row_ids.hasOwnProperty(currentItemId[0])) {
               rows[row_ids[currentItemId[0]]].push(currentItem);
             } else {
@@ -348,7 +372,7 @@
       prepared_display = rows;
 
       if (image_items["method"] == "show_video_frames" && video_image_id != 0 &&  scroll_index != undefined) {
-        scroll_to_index(scroll_index);
+        scroll_to_index(scroll_index > 0 ? scroll_index : 0);
       }
 
       create_chart();
@@ -394,7 +418,7 @@
     send_results = custom_result;
     $selected_images = [];
 
-    let time = await handle_submission(null, send_results);
+    await handle_submission(null, send_results);
   }
 
   async function send_results_single(event) {
@@ -403,10 +427,9 @@
     }
 
     send_results = event.detail.image_id;
-
     $selected_images = [];
 
-    let time = await handle_submission([send_results]);
+    await handle_submission([send_results]);
   }
 
   async function send_results_multiple() {
@@ -420,7 +443,7 @@
       send_results += `${selection}; `;
     });
 
-    let time = await handle_submission($selected_images);
+    await handle_submission($selected_images);
 
     send_results = send_results.slice(0, -2); // remove last space and semicolon
 
@@ -466,7 +489,7 @@
       max_labels: max_labels,
     });
 
-    request_handler(request_url, request_body, true);
+    request_handler(request_url, request_body, true, "", false, "", 0, false, true);
   }
 
   function handleKeypress(event) {
@@ -477,11 +500,10 @@
     }
   }
 
-  async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false) {
+  async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false, reset = false) {
     // setting this to null temporarily will make a loading display to appear
     prepared_display = null;
 
-    action_pointer += 1;
     filtered_lables = [];
 
     let response;
@@ -496,6 +518,7 @@
         sorted: is_sorted,
         dataset: value_dataset,
         username: username,
+        reset: reset,
       });
 
       if (!image_upload) {
@@ -518,30 +541,8 @@
       }
 
       let responseData = await response.json();
-
-      if (unique_video_frames) {
-        let unique_videos = [];
-
-        for (const [key, value] of Object.entries(responseData)) {
-          if (unique_videos.includes(value.id[0])) {
-            delete responseData[key];
-          } else {
-            unique_videos.push(value.id[0]);
-          }
-        }
-
-        // Create a new object with consecutive keys
-        let array = [];
-
-        console.log(responseData);
-
-        for (const [key, value] of Object.entries(responseData)) {
-          array.push(value);
-          array[array.length - 1].rank = array.length - 1;
-        }
-
-        responseData = array;
-      }
+      responseData = responseData[0];
+      action_pointer = responseData[1];
 
       console.log(responseData);
 
@@ -678,6 +679,10 @@
 
     let responseData = await response.json();
 
+    if (responseData.length != 2) {
+      return null;
+    }
+
     image_items = responseData[0];
     action_pointer = responseData[1];
 
@@ -741,11 +746,17 @@
 
       if (filtered_lables.length > 0) {
         for (const [key, value] of Object.entries(temp_items)) {
+          if (key == "scroll" || key == "method" || key == "query") {
+            continue;
+          }
           temp_items[key]["disabled"] = true;
         }
 
         let one_not_included = false;
         for (const [key, value] of Object.entries(temp_items)) {
+          if (key == "scroll" || key == "method" || key == "query") {
+            continue;
+          }
           one_not_included = false;
 
           for (let i = 0; i < filtered_lables.length; i++) {
@@ -759,14 +770,20 @@
         }
       } else {
         for (const [key, value] of Object.entries(temp_items)) {
+          if (key == "scroll" || key == "method" || key == "query") {
+            continue;
+          }
           temp_items[key]["disabled"] = false;
         }
       }
 
       let new_rank = 0;
-      for (let i = 0; i < temp_items.length; i++) {
-        if (temp_items[i]["disabled"] == false) {
-          temp_items[i].rank = new_rank;
+      for (const [key, value] of Object.entries(temp_items)) {
+        if (key == "scroll" || key == "method" || key == "query") {
+          continue;
+        }
+        if (temp_items[key]["disabled"] == false) {
+          temp_items[key].rank = new_rank;
           new_rank++;
         }
       }
@@ -776,16 +793,20 @@
     } else {
       filtered_lables.push(clickedId);
 
-      let num_filtered = 0;
-
       // Filter out elements in the image_items dictionary that don't contain the clicked label
       let temp_items = window.structuredClone(image_items); // deepcopy
 
       for (const [key, value] of Object.entries(temp_items)) {
+        if (key == "scroll" || key == "method" || key == "query") {
+          continue;
+        }
         temp_items[key]["disabled"] = false;
       }
 
       for (const [key, value] of Object.entries(temp_items)) {
+        if (key == "scroll" || key == "method" || key == "query") {
+          continue;
+        }
         for (let i = 0; i < filtered_lables.length; i++) {
           if (!temp_items[key].label.includes(filtered_lables[i])) {
             temp_items[key]["disabled"] = true;
@@ -794,9 +815,12 @@
       }
 
       let new_rank = 0;
-      for (let i = 0; i < temp_items.length; i++) {
-        if (temp_items[i]["disabled"] == false) {
-          temp_items[i].rank = new_rank;
+      for (const [key, value] of Object.entries(temp_items)) {
+        if (key == "scroll" || key == "method" || key == "query") {
+          continue;
+        }
+        if (temp_items[key]["disabled"] == false) {
+          temp_items[key].rank = new_rank;
           new_rank++;
         }
       }
@@ -902,12 +926,18 @@
 
               if (filtered_lables.length > 0) {
                 for (const [key, value] of Object.entries(temp_items)) {
+                  if (key == "scroll" || key == "method" || key == "query") {
+                    continue;
+                  }
                   temp_items[key]["disabled"] = true;
                 }
 
                 let one_not_included = false;
 
                 for (const [key, value] of Object.entries(temp_items)) {
+                  if (key == "scroll" || key == "method" || key == "query") {
+                    continue;
+                  }
                   one_not_included = false;
 
                   for (let i = 0; i < filtered_lables.length; i++) {
@@ -921,14 +951,20 @@
                 }
               } else {
                 for (const [key, value] of Object.entries(temp_items)) {
+                  if (key == "scroll" || key == "method" || key == "query") {
+                    continue;
+                  }
                   temp_items[key]["disabled"] = false;
                 }
               }
 
               let new_rank = 0;
-              for (let i = 0; i < temp_items.length; i++) {
-                if (temp_items[i]["disabled"] == false) {
-                  temp_items[i].rank = new_rank;
+              for (const [key, value] of Object.entries(temp_items)) {
+                if (key == "scroll" || key == "method" || key == "query") {
+                  continue;
+                }
+                if (temp_items[key]["disabled"] == false) {
+                  temp_items[key].rank = new_rank;
                   new_rank++;
                 }
               }
@@ -938,17 +974,20 @@
               filtered_lables.push(clickedId);
               filtered_lables = filtered_lables;
 
-              let num_filtered = 0;
-
               // Filter out elements in the image_items dictionary that don't contain the clicked label
-
               let temp_items = window.structuredClone(image_items); // deepcopy
 
               for (const [key, value] of Object.entries(temp_items)) {
+                if (key == "scroll" || key == "method" || key == "query") {
+                  continue;
+                }
                 temp_items[key]["disabled"] = false;
               }
 
               for (const [key, value] of Object.entries(temp_items)) {
+                if (key == "scroll" || key == "method" || key == "query") {
+                  continue;
+                }
                 for (let i = 0; i < filtered_lables.length; i++) {
                   if (!temp_items[key].label.includes(filtered_lables[i])) {
                     temp_items[key]["disabled"] = true;
@@ -957,9 +996,12 @@
               }
 
               let new_rank = 0;
-              for (let i = 0; i < temp_items.length; i++) {
-                if (temp_items[i]["disabled"] == false) {
-                  temp_items[i].rank = new_rank;
+              for (const [key, value] of Object.entries(temp_items)) {
+                if (key == "scroll" || key == "method" || key == "query") {
+                  continue;
+                }
+                if (temp_items[key]["disabled"] == false) {
+                  temp_items[key].rank = new_rank;
                   new_rank++;
                 }
               }
@@ -1168,7 +1210,7 @@
               </p>
             {/each}
           {/key}
-          <br /><br />
+          <br />
           <div>
             <label for="unique_video_frames">Limit Frames per Video to 1</label>
             <input
@@ -1176,6 +1218,7 @@
               id="unique_video_frames"
               name="unique_video_frames"
               bind:checked={unique_video_frames}
+              on:change={reloading_display}
             />
           </div>
           <br />
