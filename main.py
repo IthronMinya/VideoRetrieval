@@ -122,9 +122,12 @@ async def append_user_log(req: Request):
     if not username:
         raise HTTPException(status_code=400, detail="Missing username parameter")
     
-    request = params.get['action'] if 'action' in params else None
+    request = params['log'] if 'log' in params else None
     if not request:
-        raise HTTPException(status_code=400, detail="Missing action parameter")
+        raise HTTPException(status_code=400, detail="Missing log parameter")
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    request['timestamp'] = timestamp
 
     try:
         asyncio.create_task(append_log(username, request))
@@ -306,7 +309,8 @@ async def back(req: Request):
     action_pointer[username] = action_pointer[username] - 1
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
     
-    asyncio.create_task(append_log(username, {'action': 'back'}))
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    asyncio.create_task(append_log(username, {'action': 'back', 'timestamp': timestamp}))
     
     return new_data, action_pointer[username]
 
@@ -327,7 +331,8 @@ async def forward(req: Request):
     action_pointer[username] = action_pointer[username] + 1
     new_data = [{k: v for k, v in item.items() if k != 'features'} for item in image_items[username][action_pointer[username]][:max_display]]
     
-    asyncio.create_task(append_log(username, {'action': 'forward'}))
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    asyncio.create_task(append_log(username, {'action': 'forward', 'timestamp': timestamp}))
     
     return new_data, action_pointer[username]
 

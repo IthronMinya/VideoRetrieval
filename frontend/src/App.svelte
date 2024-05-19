@@ -100,12 +100,14 @@
 
   function getKeyByValue(obj, value) {
     return Object.keys(obj).filter(
-      (key) => obj[key]["id"][0] === value[0] && obj[key]["id"][1] === value[1],
+      (key) => obj[key]["id"] && obj[key]["id"][0] === value[0] && obj[key]["id"][1] === value[1]
     );
   }
 
   async function handle_submission(results, text = "") {
-    if (evaluation_ids.length == 0) {
+    // if evaluation_name is undefined, we cannot submit anything
+    if (evaluation_name === undefined || evaluation_name === "") {
+      console.log("No evaluation name selected.");
       return;
     }
     
@@ -130,10 +132,7 @@
       answers.push(answer);
     } else {
       for (let i = 0; i < results.length; i++) {
-        let result_key = getKeyByValue(image_data, [
-          results[i][0],
-          results[i][1],
-        ]);
+        let result_key = getKeyByValue(image_data, results[i]);
 
         let interval = image_data[result_key].time;
 
@@ -171,12 +170,11 @@
       console.log(res);
 
       if (logging) {
-        let time = new Date().valueOf();
-
         let request_body = {
-          timestamp: time,
-          answers: answers,
-          action: "submit",
+          log : {
+            answers: answers,
+            action: "submit"
+          },
           username: username,
         };
 
