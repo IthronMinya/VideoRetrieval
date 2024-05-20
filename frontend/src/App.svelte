@@ -180,7 +180,7 @@
 
         request_body = JSON.stringify(request_body);
 
-        const response2 = await fetch(`http://${window.location.hostname}:42032/append_user_log`, {
+        const response2 = await fetch(`${window.location.origin}/append_user_log`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -257,7 +257,8 @@
     }
 
     if (logging) {
-      let url_log = `http://${window.location.hostname}:42032/create_user_log`;
+      console.log(`${window.location.origin}`);
+      let url_log = `${window.location.origin}/create_user_log`;
       let body = JSON.stringify({
         username: username,
       });
@@ -507,7 +508,7 @@
     let response;
 
     try {
-      const url = `http://${window.location.hostname}:42032/send_request_to_service`;
+      const url = `${window.location.origin}/send_request_to_service`;
       request_body = JSON.stringify({
         url: request_url,
         body: request_body,
@@ -633,7 +634,7 @@
       return null;
     }
 
-    const url = `http://${window.location.hostname}:42032/bayes`;
+    const url = `${window.location.origin}/bayes`;
 
     let response = await fetch(url, {
       method: "POST",
@@ -663,7 +664,7 @@
       return null;
     }
 
-    let url = `http://${window.location.hostname}:42032/${direction === -1 ? 'back' : 'forward'}`;
+    let url = `${window.location.origin}/${direction === -1 ? 'back' : 'forward'}`;
 
     let response = await fetch(url, {
       method: "POST",
