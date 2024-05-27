@@ -29,6 +29,8 @@
 
   let custom_result = "";
 
+  let textContainsGreaterThan = false;
+
   let max_display_size = 1000;
 
   let max_labels = 10;
@@ -42,17 +44,21 @@
     set_scroll($scroll_height);
     prepared_display;
     filtered_lables;
+    textContainsGreaterThan = $lion_text_query.includes(">");
   }
 
   let datasets = ["V3C", "MVK", "VBSLHE", "LSC"];
 
-  let users = ["PraK1", "PraK2", "PraK3", "PraK4", "PraK5"];
+  let users = ["lscteam211", "lscteam212", "lscteam213", "PraK1", "PraK5"];
 
-  let passwords = ["G5L>q:e{", "t+6^y%T[", "K}84dH/`", "Lq&9Mc6Z", "gb~.8mMy"];
+  let passwords = ["93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "G5L>q:e{", "gb~.8mMy"];
 
   let value_dataset = "V3C";
 
   let username = "PraK1";
+
+  const dres_server = "http://hmon.ms.mff.cuni.cz:8443";
+  const service_server = "http://vbs-backend-data-layer-1:80";
 
   let send_results = "";
 
@@ -114,7 +120,7 @@
     let image_data = image_items;
     let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
 
-    let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/submit/" + eval_id + "?session=" + session_id;
+    let request_url = dres_server + "/api/v2/submit/" + eval_id + "?session=" + session_id;
 
     let answers = [];
 
@@ -204,7 +210,7 @@
     evaluation_name = "";
     task_id = "";
 
-    let request_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/login";
+    let request_url = dres_server + "/api/v2/login";
 
     let request_body = JSON.stringify({
       username: username,
@@ -229,7 +235,7 @@
       console.log(response);
     }
 
-    let evaluations_url = "http://hmon.ms.mff.cuni.cz:8443/api/v2/client/evaluation/list?session=" + session_id;
+    let evaluations_url = dres_server + "/api/v2/client/evaluation/list?session=" + session_id;
 
     let evaluations_req = await fetch(evaluations_url, {
       method: "GET",
@@ -450,7 +456,7 @@
   }
 
   async function video_images(event) {
-    const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
+    const request_url = service_server + "/getVideoFrames/";
 
     let selected_item = event.detail.image_id;
 
@@ -477,7 +483,7 @@
 
     let q = generate();
 
-    const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
+    const request_url = service_server + "/textQuery/";
 
     const request_body = JSON.stringify({
       query: q,
@@ -489,6 +495,8 @@
     });
 
     request_handler(request_url, request_body, true, "", false, "", 0, false, true);
+
+    // TODO: add filters
   }
 
   function handleKeypress(event) {
@@ -497,6 +505,7 @@
       event.preventDefault();
       get_scores_by_text();
     }
+    textContainsGreaterThan = $lion_text_query.includes(">");
   }
 
   async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false, reset = false) {
@@ -572,7 +581,7 @@
   }
 
   async function get_scores_by_text() {
-    const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
+    const request_url = service_server + (textContainsGreaterThan ? "/temporalQuery/" : "/textQuery/");
 
     const request_body = JSON.stringify({
       query: $lion_text_query,
@@ -583,11 +592,11 @@
       max_labels: max_labels,
     });
 
-    await request_handler(request_url, request_body, false, "textquery", false, $lion_text_query);
+    await request_handler(request_url, request_body, false, textContainsGreaterThan ? "temporalquery" : "textquery", false, $lion_text_query);
   }
 
   async function get_scores_by_image(event) {
-    const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQueryByID/";
+    const request_url = service_server + "/imageQueryByID/";
 
     let selected_item = event.detail.image_id;
 
@@ -609,7 +618,7 @@
       return null;
     }
 
-    const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
+    const request_url = service_server + "/imageQuery/";
 
     const params = {
       k: max_display_size,
@@ -1152,6 +1161,7 @@
           <textarea
             id="text_query_input"
             class="menu_item resize-text"
+            class:blue-text={textContainsGreaterThan}
             bind:value={$lion_text_query}
             placeholder="Your text query"
             on:keypress={handleKeypress}
@@ -1434,5 +1444,9 @@
   .menu::-webkit-scrollbar {
     /* For Chrome, Safari and Opera */
     display: none;
+  }
+
+  .blue-text {
+    color: blue;
   }
 </style>

@@ -20,12 +20,12 @@ import asyncio
 
 app = FastAPI()
 
-origins = [
-    "http://localhost",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://0.0.0.0:8000",
-]
+origins = [ "*" ]
+#     "http://localhost",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+#     "http://0.0.0.0:8000",
+# ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -185,10 +185,14 @@ async def send_request_to_service(req: Request):
     if url is None or dataset is None or username is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
 
-    if image_upload:
-        response = requests.post(url=url, headers={'Content-Type': 'application/json'}, data=my_obj, verify=False)
-    else:
-        response = requests.post(url=url, data=my_obj, verify=False)
+    try:
+        if image_upload:
+            response = requests.post(url=url, headers={'Content-Type': 'application/json'}, data=my_obj, verify=False)
+        else:
+            response = requests.post(url=url, data=my_obj, verify=False)
+    except Exception as e:
+        logging.error(f"An error occurred while sending the request to the service: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
     
     data = response.json()
     
@@ -335,6 +339,23 @@ async def forward(req: Request):
     asyncio.create_task(append_log(username, {'action': 'forward', 'timestamp': timestamp}))
     
     return new_data, action_pointer[username]
+
+
+@app.post("/get_filters")
+async def get_filters(req: Request):
+    request_args = await req.json()
+    dataset = request_args['dataset'] if 'dataset' in request_args else None
+    
+    if dataset is None:
+        raise HTTPException(status_code=400, detail="Missing required parameters.")
+    
+    try:
+        response = requests.get(f"http://vbs-backend-data-layer-1:80/get_filters/{dataset}")
+    except Exception as e:
+        logging.error(f"An error occurred while sending the request to the service: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
+    
+    return response.json()
 
 
 ## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.
