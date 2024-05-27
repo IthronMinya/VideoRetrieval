@@ -138,17 +138,22 @@
       answers.push(answer);
     } else {
       for (let i = 0; i < results.length; i++) {
-        let result_key = getKeyByValue(image_data, results[i]);
-
-        let interval = image_data[result_key].time;
-
         let answer = {
-          text: null, //text - in case the task is not targeting a particular content object but plaintext
-          mediaItemName: results[i][0], // item -  item which is to be submitted
-          mediaItemCollectionName: null, // collection - does not usually need to be set
-          start: Math.round(interval[2]), //start time in milliseconds
-          end: Math.round(interval[3]), //end time in milliseconds, in case an explicit time interval is to be specified
+          'text': null, //text - in case the task is not targeting a particular content object but plaintext
+          'mediaItemName': results[i][0], // item -  item which is to be submitted
+          'mediaItemCollectionName': null, // collection - does not usually need to be set
+          'start': null, //start time in milliseconds
+          'end': null //end time in milliseconds, in case an explicit time interval is to be specified
         };
+
+        if (value_dataset !== 'LSC') {
+          let result_key = getKeyByValue(image_data, results[i]);
+
+          let interval = image_data[result_key].time;
+
+          answer.start = Math.round(interval[2]); 
+          answer.end = Math.round(interval[3]);
+        }
 
         answer = { answers: [answer], taskId: task_id };
 

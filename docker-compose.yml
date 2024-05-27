@@ -7,6 +7,5 @@ services:
             - vbs-backend_default
 
 networks:
-    backend:
-        driver: bridge
+    vbs-backend_default:
         external: true
