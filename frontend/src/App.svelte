@@ -57,7 +57,7 @@
 
   let username = "PraK1";
 
-  const dres_server = "http://hmon.ms.mff.cuni.cz:8443";
+  const dres_server = "https://vbs.videobrowsing.org";
   const service_server = "http://vbs-backend-data-layer-1:80";
 
   let send_results = "";
@@ -153,6 +153,8 @@
 
           answer.start = Math.round(interval[2]); 
           answer.end = Math.round(interval[3]);
+        } else {
+          answer.mediaItemName = results[i][0] + "_" + results[i][1];
         }
 
         answer = { answers: [answer], taskId: task_id };
