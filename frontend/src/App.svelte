@@ -78,6 +78,7 @@
 
   let unique_video_frames = false;
   let image_video_on_line = false;
+  let image_hour_on_line = false;
 
   let evaluation_ids = [];
   let evaluation_names = [];
@@ -370,6 +371,14 @@
               row_ids[currentItemId[0]] = ++row;
               rows[row] = [currentItem];
             }
+          } else if (currentMethod != "show_video_frames" && image_hour_on_line) {
+            let hour = currentItemId[1].slice(0, 2);
+            if (row_ids.hasOwnProperty(hour)) {
+              rows[row_ids[hour]].push(currentItem);
+            } else {
+              row_ids[hour] = ++row;
+              rows[row] = [currentItem];
+            }
           } else {
             if (s % row_size == 0) {
               rows[++row] = [];
@@ -387,6 +396,8 @@
       if (image_items["method"] == "show_video_frames" && video_image_id != 0 &&  scroll_index != undefined) {
         scroll_to_index(scroll_index > 0 ? scroll_index : 0);
       }
+
+      console.log("Prepared display: ", prepared_display);
 
       create_chart();
 
@@ -1252,6 +1263,10 @@
             />
           </div>
           <br />
+          {#if value_dataset === 'LSC'}
+            <label for="image_hour_on_line">Images from same hour on one line</label>
+            <input type="checkbox" id="image_hour_on_line" name="image_hour_on_line" bind:checked={image_hour_on_line} on:change={reloading_display}>
+          {/if}
           <div>
             <label for="labels_per_frame">Labels per Frame</label>
             <input
