@@ -53,9 +53,9 @@
 
   let passwords = ["93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "G5L>q:e{", "gb~.8mMy"];
 
-  let value_dataset = "V3C";
+  let value_dataset = "LSC";
 
-  let username = "PraK1";
+  let username = "lscteam211";
 
   const dres_server = "https://vbs.videobrowsing.org";
   const service_server = "http://vbs-backend-data-layer-1:80";
@@ -210,6 +210,7 @@
   }
 
   async function get_session_id_for_user() {
+    evaluation_ids = [];
     evaluation_names = [];
     task_ids_collection = [];
     task_ids = [];
