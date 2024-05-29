@@ -479,14 +479,20 @@
 
     let selected_item = event.detail.image_id;
 
-    const request_body = JSON.stringify({
+    let request_body = {
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
-      k: 500,
+      k: -1,
       dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
       max_labels: max_labels,
-    });
+    };
+
+    if (value_dataset == 'LSC') {
+      request_body.k = 500;
+    }
+
+    request_body = JSON.stringify(request_body);
 
     request_handler(request_url, request_body, false, "show_video_frames", false, [selected_item[0], selected_item[1]], selected_item, true);
   }
