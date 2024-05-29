@@ -371,8 +371,8 @@
               row_ids[currentItemId[0]] = ++row;
               rows[row] = [currentItem];
             }
-          } else if (currentMethod != "show_video_frames" && image_hour_on_line) {
-            let hour = currentItemId[1].slice(0, 2);
+          } else if (image_hour_on_line) {
+            let hour = currentItem[0] + currentItemId[1].slice(0, 2);
             if (row_ids.hasOwnProperty(hour)) {
               rows[row_ids[hour]].push(currentItem);
             } else {
@@ -537,7 +537,7 @@
 
     try {
       const url = `${window.location.origin}/send_request_to_service`;
-      request_body = JSON.stringify({
+      request_body = {
         url: request_url,
         body: request_body,
         image_upload: image_upload,
@@ -546,7 +546,15 @@
         dataset: value_dataset,
         username: username,
         reset: reset,
-      });
+      };
+
+      if (value_dataset == 'LSC') {
+        let bodyObject = JSON.parse(request_body.body);
+        bodyObject.model = 'clip-vit-webli';
+        request_body.body = JSON.stringify(bodyObject);
+      }
+
+      request_body = JSON.stringify(request_body);
 
       if (!image_upload) {
         response = await fetch(url, {
@@ -1251,9 +1259,13 @@
           </div>
           <br />
           <div>
-            <label for="image_video_on_line"
-              >Images from video on one line</label
-            >
+            <label for="image_video_on_line">
+              {#if value_dataset === 'LSC'}
+                Images from same day on one line
+              {:else}
+                Images from video on one line
+              {/if}
+            </label>
             <input
               type="checkbox"
               id="image_video_on_line"
@@ -1264,8 +1276,15 @@
           </div>
           <br />
           {#if value_dataset === 'LSC'}
-            <label for="image_hour_on_line">Images from same hour on one line</label>
-            <input type="checkbox" id="image_hour_on_line" name="image_hour_on_line" bind:checked={image_hour_on_line} on:change={reloading_display}>
+            <label for="image_hour_on_line">
+              Images from same hour on one line
+            </label>
+            <input 
+              type="checkbox" 
+              id="image_hour_on_line" 
+              name="image_hour_on_line" 
+              bind:checked={image_hour_on_line} 
+              on:change={reloading_display}>
           {/if}
           <div>
             <label for="labels_per_frame">Labels per Frame</label>

@@ -200,7 +200,7 @@ async def send_request_to_service(req: Request):
     
     # TODO on server side
     if sorted:
-        part = 1 if dataset == 'V3C' else -1
+        part = 1 if dataset in ['V3C', 'LSC'] else -1
         data.sort(key=lambda x: int(x.get('uri', '').split('_')[part].split('.')[0]))
     
     if username not in image_items or is_reset:
