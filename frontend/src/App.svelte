@@ -481,7 +481,7 @@
 
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
-      k: -1,
+      k: 500,
       dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
