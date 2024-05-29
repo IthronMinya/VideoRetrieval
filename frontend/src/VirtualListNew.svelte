@@ -70,50 +70,54 @@
 
 	}
 
-	export async function handle_scroll() {
-		const { scrollTop } = viewport;
+	let scrollTimeout;
 
-		if (scrollTop != undefined){
-			$scroll_height = scrollTop;
-		}
-	
-		const old_start = start;
+	export function handle_scroll() {
+		clearTimeout(scrollTimeout);
 
-		for (let v = 0; v < rows.length; v += 1) {
-			height_map[start + v] = itemHeight || rows[v].offsetHeight;
-		}
+		scrollTimeout = setTimeout(() => {
+			const { scrollTop } = viewport;
 
-		let i = 0;
-		let y = 0;
+			if (scrollTop != undefined){
+				$scroll_height = scrollTop;
+			}
+		
+			const old_start = start;
 
-		while (i < items.length) {
-			const row_height = height_map[i] || average_height;
-			if (y + row_height > scrollTop) {
-				start = i;
-				top = y;
-
-				break;
+			for (let v = 0; v < rows.length; v += 1) {
+				height_map[start + v] = itemHeight || rows[v].offsetHeight;
 			}
 
-			y += row_height;
-			i += 1;
-		}
+			let i = 0;
+			let y = 0;
 
-		while (i < items.length) {
-			y += height_map[i] || average_height;
-			i += 1;
+			while (i < items.length) {
+				const row_height = height_map[i] || average_height;
+				if (y + row_height > scrollTop) {
+					start = i;
+					top = y;
 
-			if (y > scrollTop + viewport_height) break;
-		}
+					break;
+				}
+				y += row_height;
+				i += 1;
+			}
 
-		end = i;
+			while (i < items.length) {
+				y += height_map[i] || average_height;
+				i += 1;
 
-		const remaining = items.length - end;
-		average_height = y / end;
+				if (y > scrollTop + viewport_height) break;
+			}
 
-		while (i < items.length) height_map[i++] = average_height;
-		bottom = remaining * average_height;
+			end = i;
 
+			const remaining = items.length - end;
+			average_height = y / end;
+
+			while (i < items.length) height_map[i++] = average_height;
+			bottom = remaining * average_height;
+		}, 50);
 		// TODO if we overestimated the space these
 		// rows would occupy we may need to add some
 		// more. maybe we can just call handle_scroll again?
