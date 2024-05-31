@@ -199,8 +199,11 @@ async def send_request_to_service(req: Request):
     new_data = []
     
     if sorted:
-        part = 1 if dataset in ['V3C', 'LSC'] else -1
-        data.sort(key=lambda x: int(x.get('uri', '').split('_')[part].split('.')[0]))
+        if dataset == 'LSC':
+            data.sort(key=lambda x: (int(x.get('uri', '').split('/')[-1].split('_')[0]), int(x.get('uri', '').split('_')[1])))
+        else:
+            part = 1 if dataset in ['V3C'] else -1
+            data.sort(key=lambda x: int(x.get('uri', '').split('/')[-1].split('.')[0].split('_')[part]))
     
     if username not in image_items or is_reset:
         image_items[username] = [data]

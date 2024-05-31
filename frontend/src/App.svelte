@@ -58,7 +58,7 @@
   let username = "lscteam211";
 
   const dres_server = "https://vbs.videobrowsing.org";
-  const service_server = "http://vbs-backend-data-layer-1:80";
+  const service_server = "http://acheron.ms.mff.cuni.cz:42032"; //"http://vbs-backend-data-layer-1:80";
 
   let send_results = "";
 
@@ -79,6 +79,8 @@
   let unique_video_frames = false;
   let image_video_on_line = false;
   let image_hour_on_line = false;
+
+  let is_correct = false;
 
   let evaluation_ids = [];
   let evaluation_names = [];
@@ -112,6 +114,8 @@
   }
 
   async function handle_submission(results, text = "") {
+    is_correct = false;
+
     // if evaluation_name is undefined, we cannot submit anything
     if (evaluation_name === undefined || evaluation_name === "") {
       console.log("No evaluation name selected.");
@@ -182,6 +186,8 @@
       let res = await response.json();
 
       console.log(res);
+
+      is_correct = res["correct"] == "true"; //TODO: check if this is correct
 
       if (logging) {
         let request_body = {
@@ -272,7 +278,6 @@
     }
 
     if (logging) {
-      console.log(`${window.location.origin}`);
       let url_log = `${window.location.origin}/create_user_log`;
       let body = JSON.stringify({
         username: username,
@@ -322,6 +327,8 @@
   }
 
   async function reloading_display(video_image_id = 0) {
+    is_correct = false;
+
     start = 0;
     updateButtonState("previous", action_pointer <= 0);
     updateButtonState("next", 9 <= action_pointer);
@@ -372,7 +379,8 @@
               rows[row] = [currentItem];
             }
           } else if (image_hour_on_line) {
-            let hour = currentItem[0] + currentItemId[1].slice(0, 2);
+            let hour = currentItemId[0] + currentItemId[1].slice(0, 2);
+            console.log(hour);
             if (row_ids.hasOwnProperty(hour)) {
               rows[row_ids[hour]].push(currentItem);
             } else {
@@ -396,8 +404,6 @@
       if (image_items["method"] == "show_video_frames" && video_image_id != 0 &&  scroll_index != undefined) {
         scroll_to_index(scroll_index > 0 ? scroll_index : 0);
       }
-
-      console.log("Prepared display: ", prepared_display);
 
       create_chart();
 
@@ -1157,6 +1163,9 @@
           <span class="resize-text">Send custom text</span>
         </Button>
       </div>
+      {#if is_correct}
+        <span style="color: green;">&#43;</span>
+      {/if}
     </div>
 
     <div class="horizontal">
@@ -1198,6 +1207,7 @@
             bind:value={$lion_text_query}
             placeholder="Your text query"
             on:keypress={handleKeypress}
+            style="height: 80px;"
           />
           <Button
             class="menu_item menu_button"
