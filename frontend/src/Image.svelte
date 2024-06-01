@@ -145,6 +145,10 @@
         background-color: gray;
     }
 
+    .image-labels {
+        width: 10%;
+    }
+
 </style>
 
 

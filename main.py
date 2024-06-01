@@ -352,12 +352,14 @@ async def get_filters(req: Request):
         raise HTTPException(status_code=400, detail="Missing required parameters.")
     
     try:
-        response = requests.get(f"http://vbs-backend-data-layer-1:80/get_filters/{dataset}")
+        response = requests.get(f"http://vbs-backend-data-layer-1:80/getFilters", params={'dataset': dataset})
     except Exception as e:
         logging.error(f"An error occurred while sending the request to the service: {str(e)}")
         raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
     
-    return response.json()
+    filters = response.json()
+    
+    return filters['filters']
 
 
 ## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.

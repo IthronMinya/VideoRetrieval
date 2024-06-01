@@ -82,6 +82,8 @@
 
   let is_correct = false;
 
+  let filters_names = [];
+
   let evaluation_ids = [];
   let evaluation_names = [];
   let task_ids = [];
@@ -509,6 +511,23 @@
 
     console.log("./assets/" + value_dataset + "-nounlist.txt");
 
+    let url = `${window.location.origin}/get_filters`;
+    let response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dataset: value_dataset,
+      }),
+    });
+
+    if (response.ok) {
+      let res = await response.json();
+      filters_names = res;
+      console.log(filters_names);
+    }
+
     // setting this to null temporarily will make a loading display to appear
     prepared_display = null;
 
@@ -526,8 +545,6 @@
     });
 
     request_handler(request_url, request_body, true, "", false, "", 0, false, true);
-
-    // TODO: add filters
   }
 
   function handleKeypress(event) {
