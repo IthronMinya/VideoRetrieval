@@ -58,7 +58,7 @@
   let username = "lscteam211";
 
   const dres_server = "https://vbs.videobrowsing.org";
-  const service_server = "http://acheron.ms.mff.cuni.cz:42032"; //"http://vbs-backend-data-layer-1:80";
+  const service_server = "http://vbs-backend-data-layer-1:80"; //"http://acheron.ms.mff.cuni.cz:42032";
 
   let send_results = "";
 
@@ -82,7 +82,7 @@
 
   let is_correct = false;
 
-  let filters_names = [];
+  let filters = [];
 
   let evaluation_ids = [];
   let evaluation_names = [];
@@ -524,8 +524,9 @@
 
     if (response.ok) {
       let res = await response.json();
-      filters_names = res;
-      console.log(filters_names);
+      for (let i = 0; i < res.length; i++) {
+        filters.push({ name: res[i], value: '' });
+      }
     }
 
     // setting this to null temporarily will make a loading display to appear
@@ -1110,6 +1111,28 @@
     myHorizontalBarChart.data.datasets[0].backgroundColor = myHorizontalBarChart.data.labels.map(generateColor);
     myHorizontalBarChart.update(); // Update the chart
   }
+
+  async function applyFilters() {
+    let url = service_server + "/filter/";
+
+    let filters_to_apply = filters.filter((filter) => filter.value !== "");
+    filters_to_apply = filters_to_apply.reduce((acc, filter) => {
+      acc[filter.name] = filter.value;
+      return acc;
+    }, {});
+    
+    const request_body = JSON.stringify({
+      filters: filters_to_apply,
+      username: username,
+      k: max_display_size,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels,
+    });
+
+    request_handler(url, request_body, false, "", false, "", 0, false, true);
+  }
 </script>
 
 <main>
@@ -1265,6 +1288,15 @@
           >
             <span class="resize-text">Bayes Update</span>
           </Button>
+
+          {#each filters as filter (filter.name)}
+            <label>
+              {filter.name}
+              <input type="text" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
+            </label>
+          {/each}
+          <button on:click={applyFilters}>Apply Filters</button>
+
           <canvas class="menu_item" id="myChart"></canvas>
           <div id="customLegend" class="menu_item"></div>
           {#key filtered_lables}
