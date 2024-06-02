@@ -82,7 +82,7 @@
 
   let is_correct = false;
 
-  let filters = [];
+  let filters_names = [];
   let date_value = '';
   let place_value = '';
   let weekday_value = '';
@@ -515,6 +515,7 @@
 
     console.log("./assets/" + value_dataset + "-nounlist.txt");
 
+    filters_names = [];
     let url = `${window.location.origin}/get_filters`;
     let response = await fetch(url, {
       method: "POST",
@@ -529,7 +530,7 @@
     if (response.ok) {
       let res = await response.json();
       for (let i = 0; i < res.length; i++) {
-        filters.push({ name: res[i], value: '' });
+        filters_names.push({ name: res[i], value: '' });
       }
     }
 
@@ -1371,11 +1372,12 @@
             <label for="input_{filter.name}">{filter.name}</label>
             <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
           {/each} -->
-          {#if filters.length > 0}
-            <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
-            <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
-            <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
-            <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
+          {#if filters_names.length > 0}
+            <br />
+            <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." /><br />
+            <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." /><br />
+            <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." /><br />
+            <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." /><br />
             <Button
               class="menu_item menu_button"
               color="secondary"
