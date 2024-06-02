@@ -83,6 +83,10 @@
   let is_correct = false;
 
   let filters = [];
+  let date_value = '';
+  let place_value = '';
+  let weekday_value = '';
+  let hour_value = '';
 
   let evaluation_ids = [];
   let evaluation_names = [];
@@ -189,7 +193,7 @@
 
       console.log(res);
 
-      is_correct = res["correct"] == "true"; //TODO: check if this is correct
+      is_correct = res["submission"] == "CORRECT";
 
       if (logging) {
         let request_body = {
@@ -364,7 +368,7 @@
         }
 
         if (!currentItem.hasOwnProperty("disabled") || !currentItem["disabled"]) {
-          if (currentMethod != "show_video_frames" && unique_video_frames) {
+          if (currentMethod != "show_video_frames" && currentMethod != "temporalquery" && unique_video_frames) {
             if (!row_ids.hasOwnProperty(currentItemId[0])) {
               row_ids[currentItemId[0]] = row;
               if (s % row_size == 0) {
@@ -373,14 +377,14 @@
               rows[row].push(currentItem);
               s += 1;
             }
-          } else if (currentMethod != "show_video_frames" && image_video_on_line) {
+          } else if (currentMethod != "show_video_frames" && currentMethod != "temporalquery" && image_video_on_line) {
             if (row_ids.hasOwnProperty(currentItemId[0])) {
               rows[row_ids[currentItemId[0]]].push(currentItem);
             } else {
               row_ids[currentItemId[0]] = ++row;
               rows[row] = [currentItem];
             }
-          } else if (image_hour_on_line) {
+          } else if (image_hour_on_line && currentMethod != "temporalquery") {
             let hour = currentItemId[0] + currentItemId[1].slice(0, 2);
             console.log(hour);
             if (row_ids.hasOwnProperty(hour)) {
@@ -640,6 +644,24 @@
   async function get_scores_by_text() {
     const request_url = service_server + (textContainsGreaterThan ? "/temporalQuery/" : "/textQuery/");
 
+    const filters = {};
+
+    if (date_value !== '') {
+      filters.id = date_value;
+    }
+
+    if (place_value !== '') {
+      filters.semantic_name = place_value;
+    }
+
+    if (weekday_value !== '') {
+      filters.weekday = weekday_value;
+    }
+
+    if (hour_value !== '') {
+      filters.hour = hour_value;
+    }
+
     const request_body = JSON.stringify({
       query: $lion_text_query,
       k: max_display_size,
@@ -647,6 +669,7 @@
       add_features: 1,
       speed_up: 1,
       max_labels: max_labels,
+      filters: filters,
     });
 
     await request_handler(request_url, request_body, false, textContainsGreaterThan ? "temporalquery" : "textquery", false, $lion_text_query);
@@ -657,6 +680,24 @@
 
     let selected_item = event.detail.image_id;
 
+    const filters = {};
+
+    if (date_value !== '') {
+      filters.id = date_value;
+    }
+
+    if (place_value !== '') {
+      filters.semantic_name = place_value;
+    }
+
+    if (weekday_value !== '') {
+      filters.weekday = weekday_value;
+    }
+
+    if (hour_value !== '') {
+      filters.hour = hour_value;
+    }
+
     const request_body = JSON.stringify({
       video_id: selected_item[0],
       frame_id: selected_item[1],
@@ -665,6 +706,7 @@
       add_features: 1,
       speed_up: 1,
       max_labels: max_labels,
+      filters: filters,
     });
 
     await request_handler(request_url, request_body, false, "image_query", false, [selected_item[0], selected_item[1]]);
@@ -677,12 +719,31 @@
 
     const request_url = service_server + "/imageQuery/";
 
+    const filters = {};
+
+    if (date_value !== '') {
+      filters.id = date_value;
+    }
+
+    if (place_value !== '') {
+      filters.semantic_name = place_value;
+    }
+
+    if (weekday_value !== '') {
+      filters.weekday = weekday_value;
+    }
+
+    if (hour_value !== '') {
+      filters.hour = hour_value;
+    }
+
     const params = {
       k: max_display_size,
       add_features: 1,
       dataset: value_dataset,
       speed_up: 1,
       max_labels: max_labels,
+      filters: filters,
     };
 
     const request_body = new FormData();
@@ -1115,15 +1176,32 @@
   async function applyFilters() {
     let url = service_server + "/filter/";
 
-    let filters_to_apply = filters.filter((filter) => filter.value !== "");
-    filters_to_apply = filters_to_apply.reduce((acc, filter) => {
-      acc[filter.name] = filter.value;
-      return acc;
-    }, {});
+    let filters_to_apply = {};
+
+    if (date_value !== '') {
+      filters_to_apply.id = date_value;
+    }
+
+    if (place_value !== '') {
+      filters_to_apply.semantic_name = place_value;
+    }
+
+    if (weekday_value !== '') {
+      filters_to_apply.weekday = weekday_value;
+    }
+
+    if (hour_value !== '') {
+      filters_to_apply.hour = hour_value;
+    }
+
+    // let filters_to_apply = filters.filter((filter) => filter.value !== "");
+    // filters_to_apply = filters_to_apply.reduce((acc, filter) => {
+    //   acc[filter.name] = filter.value;
+    //   return acc;
+    // }, {});
     
     const request_body = JSON.stringify({
       filters: filters_to_apply,
-      username: username,
       k: max_display_size,
       dataset: value_dataset,
       add_features: 1,
@@ -1131,7 +1209,7 @@
       max_labels: max_labels,
     });
 
-    request_handler(url, request_body, false, "", false, "", 0, false, true);
+    request_handler(url, request_body, false, "filter", false, filters_to_apply);
   }
 </script>
 
@@ -1289,13 +1367,24 @@
             <span class="resize-text">Bayes Update</span>
           </Button>
 
-          {#each filters as filter (filter.name)}
-            <label>
-              {filter.name}
-              <input type="text" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
-            </label>
-          {/each}
-          <button on:click={applyFilters}>Apply Filters</button>
+          <!-- {#each filters as filter}
+            <label for="input_{filter.name}">{filter.name}</label>
+            <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
+          {/each} -->
+          {#if filters.length > 0}
+            <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
+            <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
+            <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
+            <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
+            <Button
+              class="menu_item menu_button"
+              color="secondary"
+              on:click={applyFilters}
+              variant="raised"
+            >
+              <span class="resize-text">Apply Filters</span>
+            </Button>
+          {/if}
 
           <canvas class="menu_item" id="myChart"></canvas>
           <div id="customLegend" class="menu_item"></div>
