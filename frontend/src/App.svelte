@@ -343,7 +343,11 @@
 
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
-      $lion_text_query = image_items["method"] === "textquery" ? image_items["query"] : "";
+      $lion_text_query = (image_items["method"] === "textquery" || image_items["method"] === "temporalquery") ? image_items["query"] : "";
+      date_value = image_items["method"] === "filter" ? date_value : "";
+      place_value = image_items["method"] === "filter" ? place_value : "";
+      weekday_value = image_items["method"] === "filter" ? weekday_value : "";
+      hour_value = image_items["method"] === "filter" ? hour_value : "";
 
       console.log("reloading display");
 
@@ -1373,11 +1377,11 @@
             <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
           {/each} -->
           {#if filters_names.length > 0}
-            <br />
-            <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." /><br />
-            <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." /><br />
-            <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." /><br />
-            <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." /><br />
+            <br /><br />
+            <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." /><br /><br />
+            <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." /><br /><br />
+            <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." /><br /><br />
+            <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." /><br /><br />
             <Button
               class="menu_item menu_button"
               color="secondary"
