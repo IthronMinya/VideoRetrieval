@@ -185,11 +185,11 @@ async def send_request_to_service(req: Request):
             response = requests.post(url=url, headers={'Content-Type': 'application/json'}, data=my_obj, verify=False)
         else:
             response = requests.post(url=url, data=my_obj, verify=False)
+            
+        data = response.json()
     except Exception as e:
         logging.error(f"An error occurred while sending the request to the service: {str(e)}")
         raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
-    
-    data = response.json()
     
     new_data = []
     

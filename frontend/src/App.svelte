@@ -344,10 +344,6 @@
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
       $lion_text_query = (image_items["method"] === "textquery" || image_items["method"] === "temporalquery") ? image_items["query"] : "";
-      date_value = image_items["method"] === "filter" ? date_value : "";
-      place_value = image_items["method"] === "filter" ? place_value : "";
-      weekday_value = image_items["method"] === "filter" ? weekday_value : "";
-      hour_value = image_items["method"] === "filter" ? hour_value : "";
 
       console.log("reloading display");
 
@@ -1287,7 +1283,7 @@
         </Button>
       </div>
       {#if is_correct}
-        <span style="color: green;">&#43;</span>
+        <span class="correct-indicator">&#43;</span>
       {/if}
     </div>
 
@@ -1378,10 +1374,23 @@
           {/each} -->
           {#if filters_names.length > 0}
             <br /><br />
-            <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." /><br /><br />
-            <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." /><br /><br />
-            <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." /><br /><br />
-            <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." /><br /><br />
+            <div class="input-container">
+              <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
+              <button on:click={() => date_value = ''}>x</button>
+            </div><br />
+            <div class="input-container">
+              <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
+              <button on:click={() => place_value = ''}>x</button>
+            </div><br />
+            <div class="input-container">
+              <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
+              <button on:click={() => weekday_value = ''}>x</button>
+            </div><br />
+            <div class="input-container">
+              <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
+              <button on:click={() => hour_value = ''}>x</button>
+            </div><br />
+
             <Button
               class="menu_item menu_button"
               color="secondary"
@@ -1651,4 +1660,17 @@
   .blue-text {
     color: blue;
   }
+
+  .correct-indicator {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background-color: green;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    padding-left: 5px;
+    padding-top: 2px;
+}
 </style>
