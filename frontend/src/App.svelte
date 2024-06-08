@@ -344,6 +344,7 @@
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
       $lion_text_query = (image_items["method"] === "textquery" || image_items["method"] === "temporalquery") ? image_items["query"] : "";
+      row_s = image_items["method"] === "temporalquery" ? image_items["query"].split(">").length : row_size;
 
       console.log("reloading display");
 
@@ -371,7 +372,7 @@
           if (currentMethod != "show_video_frames" && currentMethod != "temporalquery" && unique_video_frames) {
             if (!row_ids.hasOwnProperty(currentItemId[0])) {
               row_ids[currentItemId[0]] = row;
-              if (s % row_size == 0) {
+              if (s % row_s == 0) {
                 rows[++row] = [];
               }
               rows[row].push(currentItem);
@@ -386,7 +387,6 @@
             }
           } else if (image_hour_on_line && currentMethod != "temporalquery") {
             let hour = currentItemId[0] + currentItemId[1].slice(0, 2);
-            console.log(hour);
             if (row_ids.hasOwnProperty(hour)) {
               rows[row_ids[hour]].push(currentItem);
             } else {
@@ -394,7 +394,7 @@
               rows[row] = [currentItem];
             }
           } else {
-            if (s % row_size == 0) {
+            if (s % row_s == 0) {
               rows[++row] = [];
             }
             rows[row].push(currentItem);
@@ -700,8 +700,9 @@
     }
 
     const request_body = JSON.stringify({
-      video_id: selected_item[0],
-      frame_id: selected_item[1],
+      item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
+      // video_id: selected_item[0],
+      // frame_id: selected_item[1],
       k: max_display_size,
       dataset: value_dataset,
       add_features: 1,
@@ -758,6 +759,11 @@
     if ($selected_images.length == 0) {
       console.log(
         "Nothing was selected. Cannot perform the Bayes update without a positve example.",
+      );
+      return null;
+    } else if (image_items['method'] === 'temporalquery' || image_items['method'] === 'show_video_frames') {
+      console.log(
+        "Cannot perform the Bayes update on video frames.",
       );
       return null;
     }

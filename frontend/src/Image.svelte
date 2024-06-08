@@ -126,8 +126,8 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		width: 60%;
-		height: 60%;
+		width: 50%;
+		height: 50%;
         z-index: 4;
     }
 
@@ -215,7 +215,7 @@
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/large/" + img.uri}
+            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri.split("/")[0] + "/large/" + img.uri.split("/").slice(1).join("/")}
             alt="id: {img.id} score: {img.score}"
             on:click={imgClick} in:fade/>
             <div class="image-labels">

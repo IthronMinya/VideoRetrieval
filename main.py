@@ -71,6 +71,15 @@ async def append_log(username, request):
     
 async def create_event_log(username, timestamp, log):    
     filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
+    
+    log['results'] = [
+        {
+            **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
+            'item': item['id'][0],
+            'frame': item['id'][1]
+        } 
+        for item in log['results']
+    ]
 
     if os.path.exists(filename):
         return
@@ -220,7 +229,7 @@ async def send_request_to_service(req: Request):
     query = url.split('/')[-2]
     my_obj = json.loads(my_obj)
     asyncio.create_task(append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
-    asyncio.create_task(create_event_log(username, timestamp, {'action': query, 'request': my_obj, 'data': new_data}))
+    asyncio.create_task(create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': query, 'value': my_obj['query'] if 'query' in my_obj else (my_obj['item_id'] if 'item_id' in my_obj else (my_obj['filters'] if 'filters' in my_obj else None))}], 'results': data[:max_display]}))
 
     return new_data, action_pointer[username]
 
@@ -289,7 +298,7 @@ async def bayes(req: Request):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     asyncio.create_task(append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
-    asyncio.create_task(create_event_log(username, timestamp, {'action': 'bayes', 'data': new_data}))
+    asyncio.create_task(create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': 'bayes', 'value': 'framesId' + selected_images}], 'results': items[:max_display]}))
     
     return new_data
 
