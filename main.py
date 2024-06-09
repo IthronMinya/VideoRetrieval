@@ -71,15 +71,6 @@ async def append_log(username, request):
     
 async def create_event_log(username, timestamp, log):    
     filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
-    
-    log['results'] = [
-        {
-            **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
-            'item': item['id'][0],
-            'frame': item['id'][1]
-        } 
-        for item in log['results']
-    ]
 
     if os.path.exists(filename):
         return
@@ -95,6 +86,28 @@ async def create_event_log(username, timestamp, log):
 
     with open(filename, 'w') as json_file:
         json.dump(listObj, json_file, indent=4, separators=(',',': '))
+        
+        
+async def preproccess_create_event_log(username, timestamp, log, query, my_obj, data):
+    my_obj = json.loads(my_obj)
+    events = [{'category': 'TEXT' if query in ['textQuery', 'temporalQuery', 'filter'] else 'IMAGE', 'value': my_obj['query'] if 'query' in my_obj else (my_obj['item_id'] if 'item_id' in my_obj else (my_obj['filters'] if 'filters' in my_obj else None))}]
+    if query == 'filter':
+        events[0]['type'] = 'metadata'
+    if 'filters' in my_obj and my_obj['filters'] and query != 'filter':
+        events.append({'category': 'TEXT', 'type': 'metadata', 'value': my_obj['filters']})
+        
+    log = {'timestamp': timestamp, 'events': events, 'results': data}
+    
+    log['results'] = [
+        {
+            **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
+            'item': item['id'][0],
+            'frame': item['id'][1]
+        } 
+        for item in log['results']
+    ]
+
+    await create_event_log(username, timestamp, log)
 
 
 @app.post("/create_user_log")
@@ -227,9 +240,8 @@ async def send_request_to_service(req: Request):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     query = url.split('/')[-2]
-    my_obj = json.loads(my_obj)
     asyncio.create_task(append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
-    asyncio.create_task(create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': query, 'value': my_obj['query'] if 'query' in my_obj else (my_obj['item_id'] if 'item_id' in my_obj else (my_obj['filters'] if 'filters' in my_obj else None))}], 'results': data[:max_display]}))
+    asyncio.create_task(preproccess_create_event_log(username, timestamp, query, my_obj, data))
 
     return new_data, action_pointer[username]
 
@@ -298,7 +310,7 @@ async def bayes(req: Request):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     asyncio.create_task(append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
-    asyncio.create_task(create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': 'bayes', 'value': 'framesId' + selected_images}], 'results': items[:max_display]}))
+    asyncio.create_task(create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': 'IMAGE', 'type': 'feedbackModel', 'value': 'framesId' + " ".join(selected_images)}], 'results': items}))
     
     return new_data
 

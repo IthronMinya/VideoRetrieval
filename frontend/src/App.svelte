@@ -344,7 +344,7 @@
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
       $lion_text_query = (image_items["method"] === "textquery" || image_items["method"] === "temporalquery") ? image_items["query"] : "";
-      row_s = image_items["method"] === "temporalquery" ? image_items["query"].split(">").length : row_size;
+      let row_s = image_items["method"] === "temporalquery" ? image_items["query"].split(">").length : row_size;
 
       console.log("reloading display");
 

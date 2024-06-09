@@ -126,8 +126,8 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		width: 50%;
-		height: 50%;
+		width: 45%;
+		height: 45%;
         z-index: 4;
     }
 
