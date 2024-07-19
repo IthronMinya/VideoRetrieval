@@ -53,7 +53,7 @@
 
   let passwords = ["93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "G5L>q:e{", "gb~.8mMy"];
 
-  let value_dataset = "LSC";
+  let value_dataset = "V3C";
 
   let username = "lscteam211";
 
@@ -526,21 +526,23 @@
     console.log("./assets/" + value_dataset + "-nounlist.txt");
 
     filters_names = [];
-    let url = `${window.location.origin}/get_filters`;
-    let response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        dataset: value_dataset,
-      }),
-    });
+    if (value_dataset !== 'LSC') {
+      let url = `${window.location.origin}/get_filters`;
+      let response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dataset: value_dataset,
+        }),
+      });
 
-    if (response.ok) {
-      let res = await response.json();
-      for (let i = 0; i < res.length; i++) {
-        filters_names.push({ name: res[i], value: '' });
+      if (response.ok) {
+        let res = await response.json();
+        for (let i = 0; i < res.length; i++) {
+          filters_names.push({ name: res[i], value: '' });
+        }
       }
     }
 
