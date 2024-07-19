@@ -181,7 +181,9 @@
     alt="id: {img.id} score: {img.score}"
     on:click={imgClick} on:mouseover={() => (hover = true)}
     on:mouseout={() => (hover = false)} on:dblclick={largeImage} in:fade/>
+{#if img.uri.split("/")[0] === 'LSC'}
 <div class="image-id">{img.id[0].substring(6, 8)}. {img.id[0].substring(4, 6)}. {img.id[0].substring(0, 4)} {img.id[1].substring(0, 2)}:{img.id[1].substring(2, 4)}</div>
+{/if}
 
 {#if hover}
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
@@ -215,7 +217,7 @@
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri.split("/")[0] + "/large/" + img.uri.split("/").slice(1).join("/")}
+            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri.split("/")[0] + (img.uri.split("/")[0] === 'LSC' ? "/large/" : "/") + img.uri.split("/").slice(1).join("/")}
             alt="id: {img.id} score: {img.score}"
             on:click={imgClick} in:fade/>
             <div class="image-labels">

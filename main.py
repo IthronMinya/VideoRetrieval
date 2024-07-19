@@ -253,7 +253,8 @@ async def send_request_to_service(req: Request):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     query = url.split('/')[-2]
-    asyncio.create_task(append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
+    load_obj = json.loads(my_obj)
+    asyncio.create_task(append_log(username, {'action': query, 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json", 'value': load_obj['query'] if 'query' in load_obj else (load_obj['item_id'] if 'item_id' in load_obj else (load_obj['filters'] if 'filters' in load_obj else None))}))
     asyncio.create_task(preproccess_create_event_log(username, timestamp, query, my_obj, data))
 
     return new_data, action_pointer[username]
@@ -323,7 +324,7 @@ async def bayes(req: Request):
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     asyncio.create_task(append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
-    asyncio.create_task(preproccess_and_create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': 'IMAGE', 'type': 'feedbackModel', 'value': 'framesId ' + " ".join([' '.join(image) for image in selected_images])}], 'results': items}))
+    asyncio.create_task(preproccess_and_create_event_log(username, timestamp, {'timestamp': timestamp, 'events': [{'category': 'IMAGE', 'type': 'feedbackModel', 'value': 'framesId ' + " ".join(['_'.join(image) for image in selected_images])}], 'results': items}))
     
     return new_data
 

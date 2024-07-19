@@ -133,8 +133,6 @@
 
     let request_url = dres_server + "/api/v2/submit/" + eval_id + "?session=" + session_id;
 
-    let answers = [];
-
     if (results == null) {
       let answer = {
         text: text, //text - in case the task is not targeting a particular content object but plaintext
@@ -146,7 +144,7 @@
 
       answer = { answers: [answer], taskId: task_id };
 
-      answers.push(answer);
+      await sendAnswer(request_url, [answer]);
     } else {
       for (let i = 0; i < results.length; i++) {
         let answer = {
@@ -170,10 +168,12 @@
 
         answer = { answers: [answer], taskId: task_id };
 
-        answers.push(answer);
+        await sendAnswer(request_url, [answer]);
       }
     }
+  }
 
+  async function sendAnswer(request_url, answers) {
     let request_body = JSON.stringify({
       answerSets: answers,
     });
@@ -195,7 +195,7 @@
 
       is_correct = res["submission"] == "CORRECT";
 
-      if (logging) {
+      if (logging) { // TODO: rewrite to log only once for multiple sending option
         let request_body = {
           log : {
             answers: answers,
@@ -282,6 +282,8 @@
       evaluation_ids = evaluation_ids;
       evaluation_names = evaluation_names;
     }
+
+    document.cookie = "username=" + username;
 
     if (logging) {
       let url_log = `${window.location.origin}/create_user_log`;
@@ -510,6 +512,14 @@
   }
 
   async function initialization() {
+    if (document.cookie.includes("username")) {
+      let match = document.cookie.match(new RegExp('(^| )' + "username" + '=([^;]+)'));
+      if (match) username = document.cookie["username"]
+      else username = users[0];
+    } else {
+      username = users[0];
+    }
+
     // Read labels from the text file
     file_labels = await readTextFile("./assets/" + value_dataset + "-nounlist.txt");
 
@@ -1297,14 +1307,15 @@
       <div class="menu">
         <br />
         <div class="buttons">
-          <div class="centering" style="margin-bottom:0.5em;">
+          <div class="centering">
             <Fab
               id="previous"
               on:click={() => traverse_states(-1)}
               extended
               ripple={false}
+              style="width: 30px; height: 30px;"
             >
-              <Icon style="font-size:20px;" class="material-icons"
+              <Icon style="font-size:20px; padding-left: 5px;" class="material-icons"
                 >arrow_back</Icon
               >
             </Fab>
@@ -1313,8 +1324,9 @@
               on:click={() => traverse_states(1)}
               extended
               ripple={false}
+              style="width: 30px; height: 30px;"
             >
-              <Icon style="font-size:20px;" class="material-icons"
+              <Icon style="font-size:20px; padding-left: 5px;" class="material-icons"
                 >arrow_forward</Icon
               >
             </Fab>
@@ -1421,7 +1433,6 @@
               </p>
             {/each}
           {/key}
-          <br />
           <div>
             <label for="unique_video_frames">Limit Frames per Video to 1</label>
             <input
@@ -1460,6 +1471,7 @@
               name="image_hour_on_line" 
               bind:checked={image_hour_on_line} 
               on:change={reloading_display}>
+            <br />
           {/if}
           <div>
             <label for="labels_per_frame">Labels per Frame</label>
@@ -1472,7 +1484,6 @@
               bind:value={max_labels}
             />
           </div>
-          <br />
           {#if prepared_display !== null}
             <p>
               Total Images: {prepared_display.reduce(
