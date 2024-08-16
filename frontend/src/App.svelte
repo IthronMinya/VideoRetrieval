@@ -1,4 +1,5 @@
 <script>
+  // disable TypeScript checking for this file
   // @ts-nocheck
 
   import { selected_images, scroll_height, in_video_view, lion_text_query } from "./stores.js";
@@ -16,27 +17,29 @@
 
   import { generate } from "random-words";
 
+  // variables for current evaluation and task management
   let evaluation_name = "";
   let task_id = "";
   let user_id;
-  let timer;
-
   let task_ids_collection = [];
 
+  // variables for managing image display range
   let start;
   let end;
   let image_items = [];
 
   let custom_result = "";
 
-  let textContainsGreaterThan = false;
+  // flag to check if the text query contains '>'
+  let text_contains_greater_than = false;
 
   let max_display_size = 1000;
 
   let max_labels = 10;
   let chart_labels = 10;
-
   let row_size = 4;
+
+  // variable to hold prepared display data
   let prepared_display = null;
   $: {
     evaluation_ids;
@@ -44,19 +47,23 @@
     set_scroll($scroll_height);
     prepared_display;
     filtered_lables;
-    textContainsGreaterThan = $lion_text_query.includes(">");
+    text_contains_greater_than = $lion_text_query.includes(">");
   }
 
+  // available datasets
   let datasets = ["V3C", "MVK", "VBSLHE", "LSC"];
 
+  // usernames for login
   let users = ["lscteam211", "lscteam212", "lscteam213", "PraK1", "PraK5"];
 
+  // corresponding passwords for login
   let passwords = ["93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "93YHg88hAfbJNV2", "G5L>q:e{", "gb~.8mMy"];
 
+  // default values for dataset and username
   let value_dataset = "V3C";
-
   let username = "lscteam211";
 
+  // server urls for DRES and service server
   const dres_server = "https://vbs.videobrowsing.org";
   const service_server = "http://vbs-backend-data-layer-1:80"; //"http://acheron.ms.mff.cuni.cz:42032";
 
@@ -72,22 +79,25 @@
 
   let file_labels = [];
 
-  let labelColorMap = {};
+  let label_color_map = {};
 
   let virtual_list;
 
+  // flags for different display options
   let unique_video_frames = false;
   let image_video_on_line = false;
   let image_hour_on_line = false;
 
   let is_correct = false;
 
-  let filters_names = [];
+  // variables for filtering
+  let filtering_is_active = false;
   let date_value = '';
   let place_value = '';
   let weekday_value = '';
   let hour_value = '';
 
+  // variables for evaluation and task management
   let evaluation_ids = [];
   let evaluation_names = [];
   let task_ids = [];
@@ -95,6 +105,7 @@
 
   let logging = true;
 
+  // initializations after loading the page
   initialization();
 
   get_session_id_for_user();
@@ -104,13 +115,9 @@
   }
 
   function set_task_id() {
-    let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)];
+    let tasks = task_ids_collection[evaluation_names.indexOf(evaluation_name)];
 
-    for (let i = 0; i < t.length; i++) {
-      task_ids.push(t[i].name);
-    }
-
-    task_ids = task_ids;
+    task_ids = tasks.map(task => task.name);
   }
 
   function getKeyByValue(obj, value) {
@@ -131,8 +138,8 @@
     let image_data = image_items;
     let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
 
-    let request_url = dres_server + "/api/v2/submit/" + eval_id + "?session=" + session_id;
-
+    let request_url = `${dres_server}/api/v2/submit/${eval_id}?session=${session_id}`;
+    
     if (results == null) {
       let answer = {
         text: text, //text - in case the task is not targeting a particular content object but plaintext
@@ -146,6 +153,7 @@
 
       await sendAnswer(request_url, [answer]);
     } else {
+      // send answer for each selected image individually
       for (let i = 0; i < results.length; i++) {
         let answer = {
           'text': null, //text - in case the task is not targeting a particular content object but plaintext
@@ -193,7 +201,7 @@
 
       console.log(res);
 
-      is_correct = res["submission"] == "CORRECT";
+      is_correct = res["submission"] == "CORRECT"; // check if the submission was imidiately correct
 
       if (logging) { // TODO: rewrite to log only once for multiple sending option
         let request_body = {
@@ -231,14 +239,14 @@
     evaluation_name = "";
     task_id = "";
 
-    let request_url = dres_server + "/api/v2/login";
-
+    // get session id for the user
+    let request_url = `${dres_server}/api/v2/login`;
     let request_body = JSON.stringify({
       username: username,
       password: passwords[users.indexOf(username)],
     });
 
-    let response = await fetch(request_url, {
+    let login_response = await fetch(request_url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -246,18 +254,18 @@
       body: request_body,
     });
 
-    if (response.ok) {
-      let res = await response.json();
-      user_id = res["id"];
-      session_id = res["sessionId"];
+    if (login_response.ok) {
+      let login_data = await login_response.json();
+      user_id = login_data["id"];
+      session_id = login_data["sessionId"];
 
       console.log(user_id, session_id);
     } else {
-      console.log(response);
+      console.log("Login failed:", login_response);
     }
 
-    let evaluations_url = dres_server + "/api/v2/client/evaluation/list?session=" + session_id;
-
+    // get evaluations for the user
+    let evaluations_url = `${dres_server}/api/v2/client/evaluation/list?session=${session_id}`;
     let evaluations_req = await fetch(evaluations_url, {
       method: "GET",
       headers: {
@@ -270,19 +278,22 @@
 
       console.log(res);
 
-      for (let i = 0; i < res.length; i++) {
-        evaluation_ids.push(res[i].id);
-        evaluation_names.push(res[i].name);
-        task_ids_collection.push(res[i].taskTemplates);
-      }
+      res.forEach(evaluation => {
+        evaluation_ids.push(evaluation.id);
+        evaluation_names.push(evaluation.name);
+        task_ids_collection.push(evaluation.taskTemplates);
+      });
 
       console.log(evaluation_ids);
       console.log(evaluation_names);
 
       evaluation_ids = evaluation_ids;
       evaluation_names = evaluation_names;
+    } else {
+      console.error("Failed to fetch evaluations:", evaluations_req);
     }
 
+    // set username in cookie for future use
     document.cookie = "username=" + username;
 
     if (logging) {
@@ -290,6 +301,7 @@
       let body = JSON.stringify({
         username: username,
       });
+
       const response_create_log = await fetch(url_log, {
           method: "POST",
           headers: {
@@ -298,8 +310,10 @@
           body: body,
         });
       
-        if (response_create_log.ok) {
+      if (response_create_log.ok) {
         console.log(await response_create_log.text());
+      } else {
+        console.error("Failed to create user log:", response_create_log);
       }
     }
   }
@@ -449,10 +463,6 @@
   }
 
   async function send_results_custom() {
-    if (timer) {
-      timer.stop();
-    }
-
     send_results = custom_result;
     $selected_images = [];
 
@@ -460,10 +470,6 @@
   }
 
   async function send_results_single(event) {
-    if (timer) {
-      timer.stop();
-    }
-
     send_results = event.detail.image_id;
     $selected_images = [];
 
@@ -471,10 +477,6 @@
   }
 
   async function send_results_multiple() {
-    if (timer) {
-      timer.stop();
-    }
-
     send_results = " ";
 
     $selected_images.forEach((selection) => {
@@ -525,8 +527,8 @@
 
     console.log("./assets/" + value_dataset + "-nounlist.txt");
 
-    filters_names = [];
-    if (value_dataset !== 'LSC') {
+    let filters_names = [];
+    if (value_dataset === 'LSC') {
       let url = `${window.location.origin}/get_filters`;
       let response = await fetch(url, {
         method: "POST",
@@ -543,6 +545,10 @@
         for (let i = 0; i < res.length; i++) {
           filters_names.push({ name: res[i], value: '' });
         }
+      }
+
+      if (filters_names.length > 0) {
+        filtering_is_active = true;
       }
     }
 
@@ -571,7 +577,7 @@
       event.preventDefault();
       get_scores_by_text();
     }
-    textContainsGreaterThan = $lion_text_query.includes(">");
+    text_contains_greater_than = $lion_text_query.includes(">");
   }
 
   async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false, reset = false) {
@@ -655,24 +661,26 @@
   }
 
   async function get_scores_by_text() {
-    const request_url = service_server + (textContainsGreaterThan ? "/temporalQuery/" : "/textQuery/");
+    const request_url = service_server + (text_contains_greater_than ? "/temporalQuery/" : "/textQuery/");
 
     const filters = {};
 
-    if (date_value !== '') {
-      filters.id = date_value;
-    }
+    if (filtering_is_active) {
+      if (date_value !== '') {
+        filters.id = date_value;
+      }
 
-    if (place_value !== '') {
-      filters.semantic_name = place_value;
-    }
+      if (place_value !== '') {
+        filters.semantic_name = place_value;
+      }
 
-    if (weekday_value !== '') {
-      filters.weekday = weekday_value;
-    }
+      if (weekday_value !== '') {
+        filters.weekday = weekday_value;
+      }
 
-    if (hour_value !== '') {
-      filters.hour = hour_value;
+      if (hour_value !== '') {
+        filters.hour = hour_value;
+      }
     }
 
     const request_body = JSON.stringify({
@@ -685,7 +693,7 @@
       filters: filters,
     });
 
-    await request_handler(request_url, request_body, false, textContainsGreaterThan ? "temporalquery" : "textquery", false, $lion_text_query);
+    await request_handler(request_url, request_body, false, text_contains_greater_than ? "temporalquery" : "textquery", false, $lion_text_query);
   }
 
   async function get_scores_by_image(event) {
@@ -695,26 +703,26 @@
 
     const filters = {};
 
-    if (date_value !== '') {
-      filters.id = date_value;
-    }
+    if (filtering_is_active) {
+      if (date_value !== '') {
+        filters.id = date_value;
+      }
 
-    if (place_value !== '') {
-      filters.semantic_name = place_value;
-    }
+      if (place_value !== '') {
+        filters.semantic_name = place_value;
+      }
 
-    if (weekday_value !== '') {
-      filters.weekday = weekday_value;
-    }
+      if (weekday_value !== '') {
+        filters.weekday = weekday_value;
+      }
 
-    if (hour_value !== '') {
-      filters.hour = hour_value;
+      if (hour_value !== '') {
+        filters.hour = hour_value;
+      }
     }
 
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
-      // video_id: selected_item[0],
-      // frame_id: selected_item[1],
       k: max_display_size,
       dataset: value_dataset,
       add_features: 1,
@@ -735,20 +743,22 @@
 
     const filters = {};
 
-    if (date_value !== '') {
-      filters.id = date_value;
-    }
+    if (filtering_is_active) {
+      if (date_value !== '') {
+        filters.id = date_value;
+      }
 
-    if (place_value !== '') {
-      filters.semantic_name = place_value;
-    }
+      if (place_value !== '') {
+        filters.semantic_name = place_value;
+      }
 
-    if (weekday_value !== '') {
-      filters.weekday = weekday_value;
-    }
+      if (weekday_value !== '') {
+        filters.weekday = weekday_value;
+      }
 
-    if (hour_value !== '') {
-      filters.hour = hour_value;
+      if (hour_value !== '') {
+        filters.hour = hour_value;
+      }
     }
 
     const params = {
@@ -981,7 +991,7 @@
 
   function generateColor(label) {
     // Check if the label already has a color assigned
-    if (!labelColorMap[label]) {
+    if (!label_color_map[label]) {
       // Generate a random color for the label
       var r = Math.floor(Math.random() * 256);
       var g = Math.floor(Math.random() * 256);
@@ -993,10 +1003,10 @@
       g = Math.floor((g + mixColor) / 2);
       b = Math.floor((b + mixColor) / 2);
 
-      labelColorMap[label] = "rgba(" + r + "," + g + "," + b + ", 1.0)";
+      label_color_map[label] = "rgba(" + r + "," + g + "," + b + ", 1.0)";
     }
 
-    return labelColorMap[label];
+    return label_color_map[label];
   }
 
   async function create_chart() {
@@ -1197,27 +1207,23 @@
 
     let filters_to_apply = {};
 
-    if (date_value !== '') {
-      filters_to_apply.id = date_value;
-    }
+    if (filtering_is_active) {
+      if (date_value !== '') {
+        filters_to_apply.id = date_value;
+      }
 
-    if (place_value !== '') {
-      filters_to_apply.semantic_name = place_value;
-    }
+      if (place_value !== '') {
+        filters_to_apply.semantic_name = place_value;
+      }
 
-    if (weekday_value !== '') {
-      filters_to_apply.weekday = weekday_value;
-    }
+      if (weekday_value !== '') {
+        filters_to_apply.weekday = weekday_value;
+      }
 
-    if (hour_value !== '') {
-      filters_to_apply.hour = hour_value;
+      if (hour_value !== '') {
+        filters_to_apply.hour = hour_value;
+      }
     }
-
-    // let filters_to_apply = filters.filter((filter) => filter.value !== "");
-    // filters_to_apply = filters_to_apply.reduce((acc, filter) => {
-    //   acc[filter.name] = filter.value;
-    //   return acc;
-    // }, {});
     
     const request_body = JSON.stringify({
       filters: filters_to_apply,
@@ -1335,14 +1341,11 @@
           </div>
           <!--{#if send_results.length > 0}
               <span>Your send results: {send_results}</span>
-            {/if}
-            <div class="timer centering" style="margin-bottom:0.5em;">
-              <Timer bind:this={timer}/>
-            </div>-->
+            {/if}-->
           <textarea
             id="text_query_input"
             class="menu_item resize-text"
-            class:blue-text={textContainsGreaterThan}
+            class:blue-text={text_contains_greater_than}
             bind:value={$lion_text_query}
             placeholder="Your text query"
             on:keypress={handleKeypress}
@@ -1392,7 +1395,7 @@
             <label for="input_{filter.name}">{filter.name}</label>
             <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
           {/each} -->
-          {#if filters_names.length > 0}
+          {#if filtering_is_active}
             <br /><br />
             <div class="input-container">
               <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
@@ -1417,7 +1420,7 @@
               on:click={applyFilters}
               variant="raised"
             >
-              <span class="resize-text">Apply Filters</span>
+              <span class="resize-text">Apply ONLY Filters</span>
             </Button>
           {/if}
 

@@ -1,9 +1,11 @@
-- Requirements: 
+# PraK - Video Retrieval System - Frontend
+
+## Requirements: 
     - [Python 3.10+](https://www.python.org/downloads/)
     - [NodeJS](https://nodejs.org/en)
     - [Docker](https://www.docker.com/)
 
-
+## Installation and Setup
 1. Create Python virtual enviroment and install requirements.txt
    - when you restart your workspace you will need to activate it again, just run the second line
    ```cmd
@@ -51,3 +53,13 @@ docker compose up --build
 Then you can access the whole project at localhost:8000 or via the docker applicaton.
 
 
+## Project Structure
+- `main.py` - Python file containing the FastAPI server and the routes
+- `frontend/src/` - Contains the svelte components
+  - `App.svelte` - Main component of the frontend - contains functionality of the frontend
+  - `Image.svelte` - Component for showing images
+  - `ImageList.svelte` - Component for showing rows of images in the frontend
+  - `VirtualListNew.svelte` - Component for the virtual list (handling scrolling and showing current visible part of image list)
+  - `store.js` - Store of variables for the frontend
+  - `app.css` - Main css file of the frontend
+- `docker-compose.yml` - Docker compose file for building the project as a container

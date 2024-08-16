@@ -34,6 +34,7 @@ app.mount("/assets", StaticFiles(directory="public/assets"), name="static")
 
 logging.basicConfig(level=logging.INFO)
 
+# variables to store history of users actions
 image_items = {}
 action_pointer = {}
 max_display = 500
@@ -51,7 +52,7 @@ def normalizeMatrix(matrix):
 async def append_log(username, request):
     filename = os.path.join("user_data", username, f"eventlog_{username}.json")
     
-    if not os.path.exists(filename):
+    if not os.path.exists(filename): # if the file does not exist, create it
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, "w") as f:
                 f.write("[]")
@@ -72,12 +73,12 @@ async def append_log(username, request):
 async def create_event_log(username, timestamp, log):    
     filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
 
-    if os.path.exists(filename):
+    if os.path.exists(filename): # if the file already exists, do not create a new one
         return
-    else:
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "w") as f:
-            f.write("[]")
+    
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "w") as f:
+        f.write("[]")
             
     with open(filename, "r") as f:
         listObj = json.load(f)
@@ -91,21 +92,25 @@ async def create_event_log(username, timestamp, log):
 async def preproccess_create_event_log(username, timestamp, query, my_obj, data):
     my_obj = json.loads(my_obj)
     events = [{'category': 'TEXT' if query in ['textQuery', 'temporalQuery', 'filter'] else 'IMAGE', 'value': my_obj['query'] if 'query' in my_obj else (my_obj['item_id'] if 'item_id' in my_obj else (my_obj['filters'] if 'filters' in my_obj else None))}]
+    
     if query == 'filter':
         events[0]['type'] = 'metadata'
+        
     if 'filters' in my_obj and my_obj['filters'] and query != 'filter':
         events.append({'category': 'TEXT', 'type': 'metadata', 'value': my_obj['filters']})
         
-    log = {'timestamp': timestamp, 'events': events, 'results': data}
-    
-    log['results'] = [
-        {
-            **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
-            'item': item['id'][0],
-            'frame': item['id'][1]
-        } 
-        for item in log['results']
-    ]
+    log = {
+        'timestamp': timestamp, 
+        'events': events, 
+        'results': [
+            {
+                **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
+                'item': item['id'][0],
+                'frame': item['id'][1]
+            } 
+            for item in data
+        ]
+    }
 
     await create_event_log(username, timestamp, log)
     
