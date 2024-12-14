@@ -3,22 +3,19 @@
 
   import { selected_images, scroll_height, in_video_view } from './stores.js';
   import ImageList from './ImageList.svelte';
-
   import Timer from './Timer.svelte';
-
   import VirtualList from './VirtualListNew.svelte';
-  
-  import Button from '@smui/button';
-
+  import Button, { Group, Label } from '@smui/button';
   import Select, { Option } from '@smui/select';
-  
+  import Textfield from '@smui/textfield';
+  import HelperText from '@smui/textfield/helper-text';
+  import Checkbox from '@smui/checkbox';
+  import FormField from '@smui/form-field';
   import Fab, { Icon } from '@smui/fab';
-
   import { onMount, onDestroy, tick} from 'svelte';
-
   import { generate } from "random-words";
-
   import fs from 'fs';
+  import Tooltip, { Wrapper } from '@smui/tooltip';
 
   let evaluation_name = "";
   let task_id = "";
@@ -28,6 +25,7 @@
   let task_ids_collection = [];
 
   let lion_text_query = "";
+  let lion_text_query_scene_2 = ""
 
   let start;
 	let end;
@@ -63,7 +61,7 @@
   let users = ['PraK1', 'PraK2', 'PraK3', 'PraK4', 'PraK5'];
 
   let passwords = ['G5L>q:e{', 't+6^y%T[', 'K}84dH/`', 'Lq&9Mc6Z', 'gb~.8mMy'];
- 
+
   let value_dataset = 'V3C';
 
   let value_model = 'clip-laion';
@@ -100,7 +98,7 @@
   let target_in_display = false;
 
   let image_from_target_video_in_display = false;
-  
+
   let virtual_list;
 
   let session_id;
@@ -125,7 +123,7 @@
   function set_dataset(){
     initialization();
   }
-  
+
   function set_task_id(){
     let t = task_ids_collection[evaluation_names.indexOf(evaluation_name)]
     for(let i=0; i< t.length; i++){
@@ -151,7 +149,7 @@
     let request_url = "https://vbs.videobrowsing.org:443/api/v2/submit/" + eval_id + "?session=" + session_id;
 
     console.log(request_url);
-    
+
     let answers = [];
 
     if (results == null){
@@ -167,7 +165,7 @@
 
     }else{
       for(let i = 0; i < results.length; i++){
-        
+
         let result_key = getKeyByValue(image_data, [results[i][0], results[i][1]]);
 
         let interval = image_data[result_key].time
@@ -212,13 +210,13 @@
       let valuesToExclude = ['initialization', 'send_single_result', 'send_custom_result', 'send_multi_result'];
 
       valuesToExclude = []
-      
+
       //console.log(action_log)
       let concatenatedValues = action_log.filter(item => !valuesToExclude.includes(item['method']));
-      
+
       //const concatenatedValues = Object.values(action_log)
       //.filter(obj => !valuesToExclude.includes(obj.method))
-      
+
       //console.log("test")
       //console.log(concatenatedValues)
       let events = []
@@ -230,9 +228,9 @@
                 'category': concatenatedValues[i]['category'],
                 'value': String(concatenatedValues[i]['query'])
               };
-        
+
         events.push(event);
-        
+
       }
 
       let result_res = [];
@@ -285,7 +283,7 @@
 
         if (response3.ok) {
           console.log( await response3.text())
-        } 
+        }
       }
 
       let request = await fetch("https://vbs.videobrowsing.org:443/api/v2/log/result/" + eval_id + "?session=" + session_id, {
@@ -295,7 +293,7 @@
         },
         body: request_body
       });
-      
+
       //console.log(result_log_response)
 
       if (request.ok){
@@ -352,7 +350,7 @@
         username: username,
         password: passwords[users.indexOf(username)],
     });
-    
+
     let response = await fetch(request_url, {
       method: 'POST',
       headers: {
@@ -387,7 +385,7 @@
 
       console.log(res);
 
-      
+
 
       for(let i=0; i < res.length; i++){
         evaluation_ids.push(res[i].id);
@@ -397,7 +395,7 @@
 
       console.log(evaluation_ids);
       console.log(evaluation_names);
-      
+
       evaluation_ids = evaluation_ids;
       evaluation_names = evaluation_names;
 
@@ -423,7 +421,7 @@
       action_log[action_log_pointer]['scroll'] = $scroll_height;
     }
   }
- 
+
   function arrayEquals(a, b) {
     return Array.isArray(a) &&
         Array.isArray(b) &&
@@ -447,7 +445,7 @@
     setTimeout(function(){
       if(virtual_list){
         virtual_list.scrollToIndex(index, { behavior: 'auto' });
-        
+
         virtual_list.handle_scroll();
       }
     }, 50);
@@ -465,7 +463,7 @@
       previous_btn.style.backgroundColor = "grey";
       previous_btn.style.cursor = "pointer";
     }
-  
+
     const next_btn = document.getElementById("next");
 
     if(action_log.length - 1 <= action_log_pointer){
@@ -475,7 +473,7 @@
       next_btn.style.backgroundColor = "grey";
       next_btn.style.cursor = "pointer";
     }
-    
+
     if(image_items[action_pointer] != null){
 
       if(action_log[action_log_pointer]['method'] == 'show_video_frames'){
@@ -486,12 +484,14 @@
 
       if(action_log[action_log_pointer]['method'] == 'textquery'){
         lion_text_query = action_log[action_log_pointer]['query'];
+        lion_text_query_scene_2 = action_log[action_log_pointer]['query_scene_2'];
       }else{
         lion_text_query = '';
+        lion_text_query_scene_2 = '';
       }
 
       row_size = 4;
-      
+
       console.log("reloading display");
 
       let rows = [];
@@ -510,7 +510,7 @@
       for (let i = 0; i < image_items[action_pointer].length; i++) {
 
         if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0){
-            
+
           if (image_items[action_pointer][i]['id'][0] == video_image_id[0] && image_items[action_pointer][i]['id'][1] == video_image_id[1]){
             scroll_index = rows.length;
           }
@@ -528,7 +528,7 @@
         }
 
         if (image_items[action_pointer][i].hasOwnProperty('disabled') && !image_items[action_pointer][i]['disabled']) {
-          
+
 
           if (s % row_size == 0){
             row = row + 1;
@@ -564,7 +564,7 @@
 
       prepared_display = rows;
 
-      
+
       if (action_log[action_log.length - 1]['method'] == "show_video_frames" && video_image_id != 0 && scroll_index != undefined){
         scroll_to_index(scroll_index);
       }
@@ -581,7 +581,7 @@
   }
 
   onMount(() => {
-    window.addEventListener('resize', reloading_display);    
+    window.addEventListener('resize', reloading_display);
     return () => {
       window.removeEventListener('resize', reloading_display);
     };
@@ -590,7 +590,7 @@
   function noopHandler(evt) {
       evt.preventDefault();
   }
-  
+
   function drop(evt) {
 
     evt.preventDefault();
@@ -620,7 +620,7 @@
     let time = await handle_submission(null, send_results);
 
     action_log.push({'method': 'send_custom_result', 'timestamp': time, 'result_items': send_results});
-    
+
     let action_log2 = structuredClone(action_log)
 
     //console.log(action_log2)
@@ -645,7 +645,7 @@
 
       if (response5.ok) {
         console.log( await response5.text())
-      } 
+      }
     }
   }
 
@@ -653,7 +653,7 @@
     if(timer){
       timer.stop();
     }
-    
+
 
     send_results = event.detail.image_id;
 
@@ -664,7 +664,7 @@
     action_log.push({'method': 'send_single_result', 'timestamp': time, 'result_items': send_results});
 
     //console.log("test2")
-    
+
 
     let action_log2 = structuredClone(action_log)
 
@@ -679,7 +679,7 @@
 
     if(logging){
       let request_body = JSON.stringify({'username': username, 'log': action_log2})
-      
+
       let response5 = await fetch('../append_custom_user_log', {
         method: 'POST',
         headers: {
@@ -690,7 +690,7 @@
 
       if (response5.ok) {
         console.log( await response5.text())
-      }  
+      }
     }
   }
 
@@ -738,7 +738,7 @@
 
       if (response5.ok) {
         console.log( await response5.text())
-      } 
+      }
     }
   }
 
@@ -779,11 +779,11 @@
 
     initialization();
 
-  
+
     //$selected_images.forEach((selection) => {
     //  send_results += `${selection}; `;
     //});
-    
+
     $selected_images = [];
 
     timer.reset();
@@ -804,7 +804,7 @@
           random_target = await response.json();
 
           console.log(random_target)
-          
+
           let imageUrl = "http://acheron.ms.mff.cuni.cz:42032/images/" + String(random_target[0]["uri"]);
 
           try {
@@ -825,11 +825,11 @@
     } catch (error) {
         console.error('Error:', error);
     }
-  
+
   }
 
   async function video_images(event) {
-     
+
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/getVideoFrames/";
 
     let selected_item = event.detail.image_id;
@@ -846,25 +846,25 @@
     });
 
     request_handler(request_url, request_body, false, false, selected_item);
-    
+
   }
 
   async function initialization() {
 
-    
+
     // Read labels from the text file
     file_labels = await readTextFile('./assets/' + value_dataset + '-nounlist.txt');
 
     console.log('./assets/' + value_dataset + '-nounlist.txt')
 
-    
+
     // setting this to null temporarily will make a loading display to appear
     prepared_display = null;
 
     let q = generate()
 
     action_log.push({'method': 'initialization', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': q});
-    
+
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
     const request_body = JSON.stringify({
@@ -878,7 +878,7 @@
 
 
     request_handler(request_url, request_body, true);
-          
+
   }
 
   function handleKeypress(event){
@@ -943,7 +943,7 @@
           if (unique_videos.includes(responseData[key].id[0])) {
             delete responseData[key];
           }else{
-            unique_videos.push(responseData[key].id[0]); 
+            unique_videos.push(responseData[key].id[0]);
           }
         }
         // Create a new object with consecutive keys
@@ -957,28 +957,28 @@
 
         responseData = array;
       }
-      
+
       console.log(responseData);
 
       if (filtered_lables.length > 0){
         for (const [key, value] of Object.entries(responseData)) {
           responseData[key]['disabled'] = true;
-        }     
+        }
 
         for (const [key, value] of Object.entries(responseData)) {
           for(let i=0; i < filtered_lables.length; i++){
             if (responseData[key].label.includes(filtered_lables[i])) {
               responseData[key]['disabled'] = false;
-            }           
+            }
           }
         }
       }else{
-        
+
         for (const [key, value] of Object.entries(responseData)) {
-          responseData[key]['disabled'] = false;          
+          responseData[key]['disabled'] = false;
         }
       }
-      
+
       image_items[action_pointer] = responseData;
 
       if (action_log.length - 1 >= 0){
@@ -988,18 +988,18 @@
         let action_log2 = structuredClone(action_log[action_log.length - 1])
         for(let j=0; j < action_log2.data.length; j++){
           delete action_log2.data[j].features;
-        }        
+        }
       }
-            
+
       // reset the selection
       $selected_images = [];
-      
+
       if (video_image_id != 0){
         reloading_display(video_image_id);
       }else{
         reloading_display();
       }
-      
+
 
     } catch (error) {
       console.error(error);
@@ -1007,20 +1007,71 @@
 
   }
 
-  async function get_scores_by_text() {
+  /**
+   * Finds position indicators such as e.g. 'upper-left' in a text query.
+   * Returns the first found position indicator and the query with the position indicator removed.
+   */
+  function extract_position_indicators(query) {
 
-    action_log.push({'method': 'textquery', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': lion_text_query});
+    // position indicators to look for in the query and their meaning
+    const keywords_map = new Map([
+      ['tl', 'top-left'],
+      ['ul', 'top-left'],
+      ['tr', 'top-right'],
+      ['ur', 'top-right'],
+      ['md', 'middle'],
+      ['mid', 'middle'],
+      ['bl', 'bottom-left'],
+      ['ll', 'bottom-left'],
+      ['br', 'bottom-right'],
+      ['lr', 'bottom-right'],
+    ]);
+
+    // regex to extract the position indicators defined above
+    const keyword_regex = new RegExp(`(.*)(\\b(${keywords_map.keys().toArray().join('|')})\\b)(.*)`);
+
+    const match = query.match(keyword_regex);
+
+    // default if NO position indicator is present
+    if (match === null) {
+      return {
+        present: false,
+        query: query,
+        position: undefined,
+      }
+    }
+
+    // return the position indicator and the cleaned query
+    return {
+      present: true,
+      query: match[1].trim(),
+      position: keywords_map.get(match[2]),
+    }
+
+  }
+
+  async function get_scores_by_text() {
+    action_log.push({'method': 'textquery', 'category': 'TEXT', 'timestamp': await getSyncedServerTime(), 'query': lion_text_query, 'query_scene_2': lion_text_query_scene_2});
+
+    // find positioning indicators in the queries
+    const query_res = extract_position_indicators(lion_text_query);
+    const query_res_scene_2 = extract_position_indicators(lion_text_query_scene_2);
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/textQuery/";
 
     const request_body = JSON.stringify({
-      query: lion_text_query,
+      query: query_res.query,
+      query_scene_2: query_res_scene_2.query, // TODO in backend,
+      position: query_res.position, // TODO in backend,
+      position_scene_2: query_res_scene_2.position, // TODO in backend,
       k: text_display_size,
       dataset: value_dataset,
       add_features: 1,
       speed_up: 1,
       max_labels: max_labels
     });
+
+    console.log(request_body);
 
     await request_handler(request_url, request_body);
   }
@@ -1045,7 +1096,7 @@
 
     await request_handler(request_url, request_body);
   }
-  
+
   async function get_scores_by_image_upload() {
 
 
@@ -1054,7 +1105,7 @@
     }
 
     const request_url = "http://acheron.ms.mff.cuni.cz:42032/imageQuery/";
-    
+
     action_log.push({'method': 'image_upload_query', 'category': 'IMAGE', 'timestamp': await getSyncedServerTime(), 'query': 'uploaded image'});
 
     const params = {
@@ -1070,7 +1121,7 @@
     request_body.append('query_params', JSON.stringify(params));
 
     await request_handler(request_url, request_body, false, true);
-    
+
   }
 
   function dotProduct(vector1, vector2) {
@@ -1117,7 +1168,7 @@
   }
 
   async function bayesUpdate() {
-    
+
     if ($selected_images.length == 0){
       console.log("Nothing was selected. Cannot perform the Bayes update without a positve example.");
       return null;
@@ -1139,7 +1190,7 @@
     }
 
     let DeepCopyImageItems = structuredClone(image_items[action_pointer]);
-    
+
     let imageFeatureVectors = [];
 
     for (let i = 0; i < image_items[action_pointer].length; i++){
@@ -1193,7 +1244,7 @@
 
     for (let i = 0; i < items.length; i++) {
         featureVector = imageFeatureVectors[i];
-        
+
         prod = matrixDotProduct(positiveExamples, normalizeVector(featureVector));
 
         if (prod.length > 1){
@@ -1201,14 +1252,14 @@
         }else{
           PF = Math.exp(- (1 - prod[0]) / alpha)
         }
-        
+
         prod = matrixDotProduct(negativeExamples, normalizeVector(featureVector))
 
         if (prod.length > 1){
           NF = prod.reduce((partialSum, a) => partialSum +  Math.exp(- (1 - a) / alpha), 0); // sum array
         }
 
-        DeepCopyImageItems[i].score = DeepCopyImageItems[i].score * PF / NF;        
+        DeepCopyImageItems[i].score = DeepCopyImageItems[i].score * PF / NF;
     }
 
     // Create items array
@@ -1235,7 +1286,7 @@
     for(let j=0; j < action_log2.data.length; j++){
       delete action_log2.data[j].features;
     }
-    
+
     action_log_pointer += 1;
     reloading_display();
 
@@ -1335,7 +1386,7 @@
     const clickedLabel = file_labels[clickedId];
 
     console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
-    
+
     if (filtered_lables.includes(clickedId)){
 
       // restore disabled items again
@@ -1343,7 +1394,7 @@
       filtered_lables.splice(filtered_lables.indexOf(clickedId), 1);
 
       let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-      
+
       if (filtered_lables.length > 0){
         for (const [key, value] of Object.entries(temp_items)) {
           temp_items[key]['disabled'] = true;
@@ -1356,19 +1407,19 @@
           for(let i=0; i < filtered_lables.length; i++){
             if (!temp_items[key].label.includes(filtered_lables[i])) {
               one_not_included = true;
-            } 
+            }
           }
           if(!one_not_included){
             temp_items[key]['disabled'] = false;
           }
         }
-        
+
       }else{
         for (const [key, value] of Object.entries(temp_items)) {
           temp_items[key]['disabled'] = false;
         }
       }
-      
+
       let new_rank = 0;
       for (let i = 0; i < temp_items.length; i++){
         if (temp_items[i]['disabled'] == false){
@@ -1376,7 +1427,7 @@
           new_rank++;
         }
       }
-      
+
       // unwind actions after backtracking
       while(image_items.length -1 > action_pointer){
         image_items.pop();
@@ -1386,15 +1437,15 @@
         // remove the second to last elements because we newly added the last before the request_handler
         action_log.splice(action_log.length - 2, 1);
       }
-      
+
       image_items.push(temp_items);
-      
+
       action_log.push({'method': 'text_restore_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'data': image_items[action_pointer]});
 
-    }else{          
-      
+    }else{
+
       filtered_lables.push(clickedId);
-      
+
       let num_filtered = 0;
 
       // Filter out elements in the image_items dictionary that don't contain the clicked label
@@ -1420,7 +1471,7 @@
           new_rank++;
         }
       }
-      
+
       // unwind actions after backtracking
       while(image_items.length -1 > action_pointer){
         image_items.pop();
@@ -1432,7 +1483,7 @@
       }
 
       image_items.push(temp_items);
-      
+
       action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
     }
@@ -1444,13 +1495,13 @@
 
     // trigger reload of labels under chart
     filtered_lables = filtered_lables;
-    
+
     action_pointer += 1;
     action_log_pointer += 1;
 
     reloading_display();
 
-    
+
   }
 
   function generateColor(label) {
@@ -1475,7 +1526,7 @@
 
   async function create_chart(){
     if (image_items[action_pointer][0] != null && image_items[action_pointer][0]['label'] != null){
-      
+
       // remove disabled items
       let temp_items = {};
       for (let i = 0; i < image_items[action_pointer].length; i++) {
@@ -1522,7 +1573,7 @@
       let myHorizontalBarChart = new Chart(ctx, {
         type: "bar",
         data: {
-          
+
           labels: allLabels,
           datasets: [{
             label: 'Display Clusters',
@@ -1534,7 +1585,7 @@
         options: {
           onClick: async function (event, elements) {
             if (elements && elements.length > 0) {
-              
+
               // Get the index of the clicked bar
               const clickedIndex = elements[0].index;
 
@@ -1543,7 +1594,7 @@
               const clickedId = allIds[clickedIndex];
 
               console.log(`Clicked bar with label: ${clickedLabel}, Id: ${clickedId}`);
-              
+
               if (filtered_lables.includes(clickedId)){
                 // restore disabled items again
 
@@ -1551,12 +1602,12 @@
                 filtered_lables = filtered_lables;
 
                 let temp_items = window.structuredClone(image_items[action_pointer]); // deepcopy
-                
+
                 if (filtered_lables.length > 0){
                   for (const [key, value] of Object.entries(temp_items)) {
                     temp_items[key]['disabled'] = true;
                   }
-                  
+
                   let one_not_included = false;
 
                   for (const [key, value] of Object.entries(temp_items)) {
@@ -1565,7 +1616,7 @@
                     for(let i=0; i < filtered_lables.length; i++){
                       if (!temp_items[key].label.includes(filtered_lables[i])) {
                         one_not_included = true;
-                      } 
+                      }
                     }
                     if(!one_not_included){
                       temp_items[key]['disabled'] = false;
@@ -1585,7 +1636,7 @@
                     new_rank++;
                   }
                 }
-                
+
                 // unwind actions after backtracking
                 while(image_items.length -1 > action_pointer){
                   image_items.pop();
@@ -1595,16 +1646,16 @@
                   // remove the second to last elements because we newly added the last before the request_handler
                   action_log.splice(action_log.length - 2, 1);
                 }
-                
+
                 image_items.push(temp_items);
 
                 action_log.push({'method': 'text_restore_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'data': image_items[action_pointer]});
 
-              }else{          
-                
+              }else{
+
                 filtered_lables.push(clickedId);
                 filtered_lables = filtered_lables;
-                
+
                 let num_filtered = 0;
 
                 // Filter out elements in the image_items dictionary that don't contain the clicked label
@@ -1630,7 +1681,7 @@
                     new_rank++;
                   }
                 }
-                
+
                 // unwind actions after backtracking
                 while(image_items.length -1 > action_pointer){
                   image_items.pop();
@@ -1642,7 +1693,7 @@
                 }
 
                 image_items.push(temp_items);
-                
+
                 action_log.push({'method': 'text_filtering', 'category': 'FILTER', 'timestamp': await getSyncedServerTime(), 'label': clickedId, 'query': clickedId, 'num_filtered': num_filtered, 'data': image_items[action_pointer]});
 
               }
@@ -1688,153 +1739,236 @@
       // Dynamically assign colors based on labels
       myHorizontalBarChart.data.datasets[0].backgroundColor = myHorizontalBarChart.data.labels.map(generateColor);
       myHorizontalBarChart.update(); // Update the chart
-      
-    }   
+
+    }
   }
 
 </script>
 
+
+
+
 <main>
-  <div class='viewbox'>
-    <div class='top-menu'>
-      <div class="top-menu-item top-negative-offset">
-        <Select on:SMUISelect:change={get_session_id_for_user} bind:value={username} label="Select User">
-          {#each users as user}
-            <Option value={user}>{user}</Option>
-          {/each}
-        </Select>
-      </div>
-      <div class="top-menu-item top-negative-offset">
-        <Select on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Evaluation ID">
-          {#each evaluation_names as e}
-            <Option value={e}>{e}</Option>
-          {/each}
-        </Select>
-      </div>
-      <div class="top-menu-item top-negative-offset">
-        <Select on:SMUISelect:change={task_id} bind:value={task_id} label="Task ID">
-          {#each task_ids as t}
-            <Option value={t}>{t}</Option>
-          {/each}
-        </Select>
-      </div>
-      <div class="top-menu-item top-negative-offset">
-        <Select on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
-          {#each datasets as dataset}
-            <Option value={dataset}>{dataset}</Option>
-          {/each}
-        </Select>
-      </div>
-      <div class="top-menu-item top-negative-offset">
-        <Select bind:value={value_model} label="Select Model">
-          {#each models as model}
-            <Option value={model}>{model}</Option>
-          {/each}
-        </Select>
-      </div>
-      <div class="top-menu-item top-negative-offset3">
-        <Button color="primary" on:click={send_results_multiple} variant="raised">
+  <div id="left-sidebar">
+    <div id="vbs-options">
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={get_session_id_for_user} bind:value={username} label="Select User">
+        {#each users as user}
+          <Option value={user}>{user}</Option>
+        {/each}
+      </Select>
+
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Eval. ID">
+        {#each evaluation_names as e}
+          <Option value={e}>{e}</Option>
+        {/each}
+      </Select>
+
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={task_id} bind:value={task_id} label="Task ID">
+        <!--TODO {#each task_ids as t}-->
+        {#each ['AVS', 'KIS', 'Q/A'] as t}
+          <Option value={t}>{t}</Option>
+        {/each}
+      </Select>
+
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
+        {#each datasets as dataset}
+          <Option value={dataset}>{dataset}</Option>
+        {/each}
+      </Select>
+
+      <Select class="vbs-options-select" variant="filled" bind:value={value_model} label="Select Model">
+        {#each models as model}
+          <Option value={model}>{model}</Option>
+        {/each}
+      </Select>
+    </div>
+
+    <hr />
+
+    {#if task_id === 'AVS'}
+      <div id="vbs-submit-avs">
+        <Button class="block" color="primary" on:click={send_results_multiple} variant="raised">
           <span class="resize-text">Send Selected Images</span>
         </Button>
       </div>
-      <div class="top-input">
-        <input class="top-menu-item resize-text top-offset" bind:value={custom_result} placeholder="Your custom result message"/>
+      <hr />
+    {:else if task_id === 'Q/A'}
+      <div id="vbs-submit-qa">
+        <Textfield textarea class="block mb1" bind:value={custom_result} label="Custom Result Message"></Textfield>
+        <Button class="block" color="primary" on:click={send_results_custom} variant="raised">
+          <span class="resize-text">Send Text</span>
+        </Button>
       </div>
-      <div class ="top-menu-item top-negative-offset3" >
-        <Button color="primary" on:click={send_results_custom} variant="raised">
-          <span class="resize-text">Send custom text</span>
-        </Button> 
+      <hr />
+    {/if}
+
+    <div id="vbs-query">
+      <div class="centering mb1">
+        <Group variant="outlined">
+          <Button id="previous" on:click={() => traverse_states(-1)} variant="outlined">
+            <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon> <Label>Prev</Label>
+          </Button>
+          <Button id="next" on:click={() => traverse_states(1)} variant="outlined">
+            <Label>Next</Label> <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
+          </Button>
+        </Group>
       </div>
-        <!--<span class="top-menu-item" id="target_text">{target_in_display_text}</span>-->
+
+      <div class="query-text-area">
+        <Textfield id="text_query_input" textarea class="block mb1" bind:value={lion_text_query} on:keypress={handleKeypress} label="Query Scene 1"></Textfield>
+        <Wrapper>
+          <div class="i-tooltip">i</div>
+          <Tooltip>
+            <p style="text-align:left">
+              You can define the location of your query in the target image by appending one of the following keywords.<br/>
+              E.g. "brown dog tl".<br/>
+              <i>tl</i> - top left<br/>
+              <i>tr</i> - top right<br/>
+              <i>md</i> - middle<br/>
+              <i>bl</i> - bottom left<br/>
+              <i>br</i> - bottom right
+            </p>
+          </Tooltip>
+        </Wrapper>
+      </div>
+
+      <div class="query-text-area">
+        <Textfield id="text_query_input_2" textarea class="block mb1" bind:value={lion_text_query_scene_2} on:keypress={handleKeypress} label="Query Scene 2"></Textfield>
+        <Wrapper>
+          <div class="i-tooltip">i</div>
+          <Tooltip>
+            <p style="text-align:left">
+              You can define the location of your query in the target image by appending one of the following keywords.<br/>
+              E.g. "brown dog tl".<br/>
+              <i>tl</i> - top left<br/>
+              <i>tr</i> - top right<br/>
+              <i>md</i> - middle<br/>
+              <i>bl</i> - bottom left<br/>
+              <i>br</i> - bottom right
+            </p>
+          </Tooltip>
+        </Wrapper>
+      </div>
+
+      <Button class="block" color="primary" on:click={get_scores_by_text} variant="raised">
+        <span class="resize-text">Submit Text Query</span>
+      </Button>
+
     </div>
 
-    <div class="horizontal">
-      <div class='menu'>
-        <br>
-        <div class='buttons'>
-          <div class="centering" style="margin-bottom:0.5em;">
-            <Fab id="previous" on:click={() => traverse_states(-1)} extended ripple={false}>
-              <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon>
-            </Fab>
-            <Fab id="next" on:click={() => traverse_states(1)} extended ripple={false}>
-              <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
-            </Fab>
-          </div>
-          <!--{#if send_results.length > 0}
-            <span>Your send results: {send_results}</span>
-          {/if}
-          <div class="timer centering" style="margin-bottom:0.5em;">
-            <Timer bind:this={timer}/>
-          </div>
-          <Button class="menu_item menu_button" color="secondary" on:click={get_test_image} variant="raised">
-            <span class="resize-text">Random Test Image</span>
-          </Button>
-          {#if true}
-            <div id="test-image-preview-container">
-              <img id="testimage" alt="" />
-            </div>
-          {/if}-->
-          <textarea  id="text_query_input" class="menu_item resize-text" bind:value={lion_text_query} placeholder="Your text query" on:keypress={handleKeypress}/>
-          <Button class="menu_item menu_button" color="secondary" on:click={get_scores_by_text} variant="raised">
-            <span class="resize-text">Submit Text Query</span>
-          </Button>
-          <div class="filedrop-container menu_item">
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <div class="file-drop-area menu_item" on:dragenter={noopHandler} on:dragexit={noopHandler} on:dragover={noopHandler} on:drop={drop}>
-              <span class="fake-btn">Choose files</span>
-              <span class="file-msg">or drag and drop file here</span>
-              <input class="file-input" type="file">
-            </div>
-            {#if dragged_url != null}
-              <div class="image-preview-container menu_item">
-                <img class="preview_image" alt="preview upload" src={dragged_url}/>
-              </div>
-            {/if}
-          </div>
-          <Button class="menu_item menu_button" color="secondary" on:click={bayesUpdate} variant="raised">
-            <span class="resize-text">Bayes Update</span>
-          </Button>
-          <canvas class="menu_item" id="myChart"></canvas>
-          <div id="customLegend" class="menu_item" ></div>
-          {#key filtered_lables}
-            {#if filtered_lables.length > 0}
-              <p >Active label filter</p>
-            {/if}
-            {#each filtered_lables as label}
-              <!-- svelte-ignore a11y-click-events-have-key-events -->
-              <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-              <p class='active_label' on:click={() => label_click(label)}>{file_labels[label]}</p>
-            {/each}
-          {/key}
-          <!--<Button class="menu_item menu_button" color="secondary" on:click={download_results} variant="raised">
-            <span class="resize-text">Download Test Data</span>
-          </Button>-->
-          <br><br>
-          <div>
-            <label for="unique_video_frames">Limit Frames per Video to 1</label>
-            <input type="checkbox" id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames}/>
-          </div><br>
-          <div>
-            <label for="labels_per_frame">Labels per Frame</label>
-            <input type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" bind:value={max_labels}>
-          </div><br>
-        </div>
+    <hr />
+
+    <div class="filedrop-container">
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="file-drop-area" on:dragenter={noopHandler} on:dragexit={noopHandler} on:dragover={noopHandler} on:drop={drop}>
+        <span class="fake-btn">Choose files</span>
+        <span class="file-msg">or drag and drop file here</span>
+        <input class="file-input" type="file">
       </div>
-          <div id='container'>
-            {#if prepared_display === null}
-              <p>...loading</p>
-            {:else}           
-              <VirtualList items={prepared_display} bind:this={virtual_list} bind:start bind:end let:item>
-                <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
-              </VirtualList>
-              <p>showing image rows {start+1}-{end}. Total Rows: {prepared_display.length} - Total Images: {prepared_display.reduce((count, current) => count + current.length, 0)}</p>
-            {/if}
-          </div>
+      {#if dragged_url != null}
+        <div class="image-preview-container menu_item">
+          <img class="preview_image" alt="preview upload" src={dragged_url}/>
+        </div>
+      {/if}
     </div>
+
+    <hr />
+
+    <Button class="block" color="secondary" on:click={bayesUpdate} variant="raised">
+      <span class="resize-text">Bayes Update</span>
+    </Button>
+
+    <hr />
+
+    <div>
+      <FormField align="end">
+        <Checkbox id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames} />
+        <span slot="label">Limit Frames per Video to 1</span>
+      </FormField>
+
+      <Textfield bind:value={max_labels} class="block" label="Labels per Frame" type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="100" />
+    </div>
+
+    {#if prepared_display !== null}
+      <hr />
+      <p>
+        Showing Image Rows {start+1}-{end}.
+        <br />
+        Total Rows: {prepared_display.length} -
+        Total Images: {prepared_display.reduce((count, current) => count + current.length, 0)}
+      </p>
+    {/if}
+
+  </div>
+
+  <div id="image-results">
+    {#if prepared_display === null}
+      <p>...loading</p>
+    {:else}
+      <VirtualList items={prepared_display} bind:this={virtual_list} bind:start bind:end let:item>
+        <ImageList on:send_result={send_results_single} on:similarimage={get_scores_by_image} on:video_images={video_images} row={item} bind:row_size/>
+      </VirtualList>
+    {/if}
   </div>
 </main>
 
 <style>
+
+  /* global styles */
+  :global(.block) {
+    width: 100%;
+  }
+  :global(.mb1) {
+    margin-bottom: 10px;
+  }
+
+  /* make sure we use the whole screen space*/
+  :global(body) {
+    margin: 0;
+  }
+
+  /* main grid*/
+  main {
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: 300px 1fr;
+    width: 100%;
+    height: 100vh;
+  }
+
+  #left-sidebar {
+    padding: 10px;
+  }
+
+  /* dropdowns */
+  #vbs-options {
+    width: 100%;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 10px;
+
+  }
+  :global(.vbs-options-select > .mdc-select__anchor) {
+    width: 100px;
+  }
+  :global(.vbs-options-select:last-child){
+    /* for an odd number of dropdowns make the last one span both columns*/
+    grid-column-end: span 2;
+  }
+
+  #image-results {
+    min-height: 200px;
+    width: 100%;
+    background-color: rgb(202, 202, 202);
+  }
+
+  hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid black;
+  }
+
 
 #target_text{
   margin-top: 0.2em;
@@ -1850,6 +1984,23 @@
   padding: 0.5em;
   background-color: lightgray;
   cursor: pointer;
+}
+
+.query-text-area {
+  position: relative;
+}
+
+.i-tooltip {
+  position: absolute;
+  background-color: rgb(1 1 1 / 34%);
+  text-align: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid rgb(1 1 1 / 34%);
+  top: calc(100% - 36px);
+  left: calc(100% - 26px);
+  user-select: none;
 }
 
 #myChart{
@@ -1878,8 +2029,6 @@
   display: flex;
   align-items: center;
   height: 2em;
-  margin-left: 1em;
-  margin-right: 1em;
   border: 1px dashed rgba(61, 61, 61, 0.4);
   border-radius: 3px;
   transition: 0.2s;
@@ -1948,19 +2097,12 @@
   margin-top: 2em;
 }
 
-#container {
-  min-height: 200px;
-  height: calc(100vh - 7.0em);
-  width: 85%;
-  float: left;
-  background-color: rgb(202, 202, 202);
-}
 
 .filedrop-container{
   display: block;
   margin-left: auto;
   margin-right: auto;
-  width: 90%;
+  width: 100%;
 }
 
 .image-preview-container{
