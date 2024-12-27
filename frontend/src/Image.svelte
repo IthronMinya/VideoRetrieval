@@ -1,12 +1,14 @@
 <script>
     import { selected_images, in_video_view } from './stores.js';
     import { fade } from 'svelte/transition';
+    import { lion_text_query } from './stores.js';
     import VideoPlayer from 'svelte-video-player';
     import { createEventDispatcher } from 'svelte'
     const dispatch = createEventDispatcher()
 
     export let img;
     export let row_size;
+    export let labels;
 
     const poster = 'https://www.server.com/poster.jpg';
     const source = 'https://www.server.com/video.mp4';
@@ -60,7 +62,7 @@
 
 	img {
         width: 100%;
-        height: auto;
+        height:auto;
         min-height: 200px;
     }
     .hoverbutton {
@@ -70,20 +72,18 @@
         padding: 2.5% 2.5% 2.5% 2.5%;
         border: none;
         cursor: pointer;
-        left: 20px;
-        width: 70px;
-        height: 45px;
+        left: 5%;
     }
 
     .hoverbutton.top {
-        top: 20px;
+        top: 5%;
     }
     .hoverbutton.middle {
-        top: 85px;
+        top: 25%;
     }
 
     .hoverbutton.bottom {
-        top: 150px;
+        top: 45%;
     }
 
     .modal-background {
@@ -119,6 +119,37 @@
         z-index: 4;
     }
 
+    .small_image {
+        max-height: 240px;
+    }
+
+    .label {
+        background-color: white;
+        color: black; 
+        border: 1px solid black;
+        padding: 5px;
+        margin: 5px;
+        display: inline-block;
+        transition: background-color 0.3s ease;
+    }
+
+    .label:hover {
+        background-color: gray;
+    }
+
+    .image-labels {
+        width: 10%;
+    }
+
+    .image-id {
+        position: absolute;
+        bottom: 2%;
+        right: 1%;
+        color: yellow;
+        background: rgba(0, 0, 0, 0.5); 
+        padding: 2px 5px;
+    }
+
 </style>
 
 
@@ -138,10 +169,13 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="wrapper" on:mouseover={() => (hover = true)}
     on:mouseout={() => (hover = false)}>
-<img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
+<img class="small_image {selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
     alt="id: {img.id} score: {img.score}"
     on:click={imgClick} on:mouseover={() => (hover = true)}
     on:mouseout={() => (hover = false)} on:dblclick={largeImage} in:fade/>
+{#if img.uri.split("/")[0] === 'LSC'}
+<div class="image-id">{img.id[0].substring(6, 8)}. {img.id[0].substring(4, 6)}. {img.id[0].substring(0, 4)} {img.id[1].substring(0, 2)}:{img.id[1].substring(2, 4)}</div>
+{/if}
 
 {#if hover}
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
@@ -152,9 +186,9 @@
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
     <button style='--row_size:{row_size};' class="hoverbutton middle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbutton bottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video</button>
+    <button style='--row_size:{row_size};' class="hoverbutton bottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video Frames</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <!--<button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Show Nearby Frames</button>-->
+    <!-- <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button> -->
 {/if}
 
 </div>
@@ -175,9 +209,14 @@
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
+            <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri.split("/")[0] + (img.uri.split("/")[0] === 'LSC' ? "/large/" : "/") + img.uri.split("/").slice(1).join("/")}
             alt="id: {img.id} score: {img.score}"
             on:click={imgClick} in:fade/>
+            <div class="image-labels">
+                {#each labels || [] as label}
+                    <button class="label" on:click={() => $lion_text_query += ($lion_text_query == '' ? '' : ', ') + label}>{label}</button>
+                {/each}
+            </div>
         </div>
     </div>
 {/if}

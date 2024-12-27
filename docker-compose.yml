@@ -3,4 +3,11 @@ services:
         build: .
         ports:
             - '8000:8000'
+        volumes:
+            - ./user_data:/app/user_data
+        networks:
+            - vbs-backend_default
 
+networks:
+    vbs-backend_default:
+        external: true
