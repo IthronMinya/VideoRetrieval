@@ -57,23 +57,22 @@
   $: {
     evaluation_ids;
     task_ids;
-    set_scroll($scroll_height);
+    // set_scroll($scroll_height);
     prepared_display;
     filtered_lables;
-    text_contains_greater_than = $lion_text_query.includes(">");
   }
 
   // available datasets
   let datasets = ["MVK", "V3C", "VBSLHE"];
 
   // usernames for login
-  let users = ["test", ...Array.from({ length: 30 }, (_, i) => `user${String(i + 1).padStart(2, '0')}`)];
+  let users = ["test", ...Array.from({ length: 9 }, (_, i) => `06prak${String(i + 1)}`)];
 
   // default values for dataset and username
   let value_dataset = "MVK";
 
   // server urls for DRES and service server
-  const dres_server = "http://hmon.ms.mff.cuni.cz:8443"; //"https://vbs.videobrowsing.org";
+  const dres_server = "https://vbs.videobrowsing.org"; //"http://hmon.ms.mff.cuni.cz:8443"; 
   const service_server = "http://vbs-backend-data-layer-1:80"; // if not from server use: "http://acheron.ms.mff.cuni.cz:42032";
 
   let send_results = "";
@@ -375,6 +374,7 @@
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
       $lion_text_query = (image_items["method"] === "textquery" || image_items["method"] === "temporalquery") ? image_items["query"] : "";
+      lion_text_query_scene_2 = image_items["method"] === "temporalquery" ? image_items["query2"] : "";
       let row_s = image_items["method"] === "temporalquery" ? 2 : row_size; //image_items["query"].split(">").length : row_size;
 
       console.log("reloading display");
@@ -442,7 +442,7 @@
         scroll_to_index(scroll_index > 0 ? scroll_index : 0);
       }
 
-      create_chart();
+      // create_chart();
 
     } else {
       prepared_display = null;
@@ -613,7 +613,6 @@
       event.preventDefault();
       get_scores_by_text();
     }
-    text_contains_greater_than = $lion_text_query.includes(">");
   }
 
   async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false, reset = false) {
@@ -679,8 +678,11 @@
       if (method != "") {
         image_items["method"] = method;
       }
-      if (query != "") {
-        image_items["query"] = query;
+      if ($lion_text_query != "") {
+        image_items["query"] = $lion_text_query;
+      }
+      if (lion_text_query_scene_2 != "") {
+        image_items["query2"] = lion_text_query_scene_2;
       }
 
       // reset the selection
@@ -762,7 +764,8 @@
     const query_res_scene_2 = extract_position_indicators(lion_text_query_scene_2);
 
     const request_body = JSON.stringify({
-      query: query_res.query + (lion_text_query_scene_2 != '' ? " > " : "") + query_res_scene_2.query, // TODO in backend,
+      query: query_res.query,
+      query2: query_res_scene_2.query, // TODO in backend,
       position: query_res.position, // TODO in backend,
       position_scene_2: query_res_scene_2.position, // TODO in backend,      
       k: max_display_size,
@@ -1329,268 +1332,282 @@
       $is_login = true;
     }
   }
+
+  async function reset() {
+    let q = generate();
+
+    const request_url = service_server + "/textQuery/";
+
+    const request_body = JSON.stringify({
+      query: q,
+      k: max_display_size,
+      dataset: value_dataset,
+      add_features: 1,
+      speed_up: 1,
+      max_labels: max_labels,
+    });
+
+    request_handler(request_url, request_body, true, "", false, "", 0, false, true);
+  }
 </script>
 
 {#if $is_login}
   <main>
     <div id="left-sidebar">
-    <div id="vbs-options">
-      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={handleChangeUser} bind:value={$username} label="Select User">
-        {#each users as user}
-          <Option value={user}>{user}</Option>
-        {/each}
-      </Select>
+      <div id="vbs-options">
+        <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={handleChangeUser} bind:value={$username} label="Select User">
+          {#each users as user}
+            <Option value={user}>{user}</Option>
+          {/each}
+        </Select>
 
-      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Eval. ID">
-        {#each evaluation_names as e}
-          <Option value={e}>{e}</Option>
-        {/each}
-      </Select>
+        <Select class="vbs-options-select {is_correct ? 'green' : ''}" variant="filled" on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Eval. ID">
+          {#each evaluation_names as e}
+            <Option value={e}>{e}</Option>
+          {/each}
+        </Select>
 
-      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={task_id} bind:value={task_id} label="Task ID">
-        <!--TODO {#each task_ids as t}-->
-        {#each ['AVS', 'KIS', 'Q/A'] as t}
-          <Option value={t}>{t}</Option>
-        {/each}
-      </Select>
+        <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={task_id} bind:value={task_id} label="Task Type">
+          <!--TODO {#each task_ids as t}-->
+          {#each ['AVS', 'KIS', 'Q/A'] as t}
+            <Option value={t}>{t}</Option>
+          {/each}
+        </Select>
 
-      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
-        {#each datasets as dataset}
-          <Option value={dataset}>{dataset}</Option>
-        {/each}
-      </Select>
-    </div>
-
-    <hr />
-
-    {#if task_id === 'AVS'}
-      <div id="vbs-submit-avs">
-        <Button class="block" color="primary" on:click={send_results_multiple} variant="raised">
-          <span class="resize-text">Send Selected Images</span>
-        </Button>
+        <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
+          {#each datasets as dataset}
+            <Option value={dataset}>{dataset}</Option>
+          {/each}
+        </Select>
       </div>
+
       <hr />
-    {:else if task_id === 'Q/A'}
-      <div id="vbs-submit-qa">
-        <Textfield textarea class="block mb1" bind:value={custom_result} label="Custom Result Message"></Textfield>
-        <Button class="block" color="primary" on:click={send_results_custom} variant="raised">
-          <span class="resize-text">Send Text</span>
-        </Button>
-      </div>
-      <hr />
-    {/if}
 
-    <div id="vbs-query">
-      <div class="centering mb1">
-        <Group variant="outlined">
-          <Button id="previous" on:click={() => traverse_states(-1)} variant="outlined">
-            <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon> <Label>Prev</Label>
+      <Button class="block" color="primary" on:click={reset} variant="raised">
+        <span class="resize-text">Reset</span>
+      </Button>
+
+      <br />
+
+      {#if task_id === 'AVS'}
+        <div id="vbs-submit-avs">
+          <Button class="block" color="primary" on:click={send_results_multiple} variant="raised">
+            <span class="resize-text">Send Selected Images</span>
           </Button>
-          <Button id="next" on:click={() => traverse_states(1)} variant="outlined">
-            <Label>Next</Label> <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
+        </div>
+        <hr />
+      {:else if task_id === 'Q/A'}
+        <div id="vbs-submit-qa">
+          <Textfield textarea class="block mb1" bind:value={custom_result} label="Custom Result Message"></Textfield>
+          <Button class="block" color="primary" on:click={send_results_custom} variant="raised">
+            <span class="resize-text">Send Text</span>
           </Button>
-        </Group>
-      </div>
+        </div>
+        <hr />
+      {/if}
 
-      <div class="query-text-area">
-        <Textfield id="text_query_input" textarea class="block mb1" bind:value={$lion_text_query} on:keypress={handleKeypress} label="Query Scene 1"></Textfield>
-        <Wrapper>
-          <div class="i-tooltip">i</div>
-          <Tooltip>
-            <p style="text-align:left">
-              You can define the location of your query in the target image by appending one of the following keywords.<br/>
-              E.g. "brown dog tl".<br/>
-              <i>tl</i> - top left<br/>
-              <i>tr</i> - top right<br/>
-              <i>md</i> - middle<br/>
-              <i>bl</i> - bottom left<br/>
-              <i>br</i> - bottom right
-            </p>
-          </Tooltip>
-        </Wrapper>
-      </div>
-
-      <div class="query-text-area">
-        <Textfield id="text_query_input_2" textarea class="block mb1" bind:value={lion_text_query_scene_2} on:keypress={handleKeypress} label="Query Scene 2"></Textfield>
-        <Wrapper>
-          <div class="i-tooltip">i</div>
-          <Tooltip>
-            <p style="text-align:left">
-              You can define the location of your query in the target image by appending one of the following keywords.<br/>
-              E.g. "brown dog tl".<br/>
-              <i>tl</i> - top left<br/>
-              <i>tr</i> - top right<br/>
-              <i>md</i> - middle<br/>
-              <i>bl</i> - bottom left<br/>
-              <i>br</i> - bottom right
-            </p>
-          </Tooltip>
-        </Wrapper>
-      </div>
-
-            <Button
-              class="block"
-              color="primary"
-              on:click={get_scores_by_text}
-              variant="raised"
-            >
-              <span class="resize-text">Submit Text Query</span>
+      <div id="vbs-query">
+        <div class="centering mb1">
+          <Group variant="outlined">
+            <Button id="previous" on:click={() => traverse_states(-1)} variant="outlined">
+              <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon> <Label>Prev</Label>
             </Button>
+            <Button id="next" on:click={() => traverse_states(1)} variant="outlined">
+              <Label>Next</Label> <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
+            </Button>
+          </Group>
+        </div>
+
+        <div class="query-text-area">
+          <Textfield id="text_query_input" textarea class="block mb1" bind:value={$lion_text_query} on:keypress={handleKeypress} label="Query Scene 1"></Textfield>
+          <Wrapper>
+            <div class="i-tooltip">i</div>
+            <Tooltip>
+              <p style="text-align:left">
+                You can define the location of your query in the target image by appending one of the following keywords.<br/>
+                E.g. "brown dog tl".<br/>
+                <i>tl</i> - top left<br/>
+                <i>tr</i> - top right<br/>
+                <i>md</i> - middle<br/>
+                <i>bl</i> - bottom left<br/>
+                <i>br</i> - bottom right
+              </p>
+            </Tooltip>
+          </Wrapper>
+        </div>
+
+        <div class="query-text-area">
+          <Textfield id="text_query_input_2" textarea class="block mb1" bind:value={lion_text_query_scene_2} on:keypress={handleKeypress} label="Query Scene 2"></Textfield>
+          <Wrapper>
+            <div class="i-tooltip">i</div>
+            <Tooltip>
+              <p style="text-align:left">
+                You can define the location of your query in the target image by appending one of the following keywords.<br/>
+                E.g. "brown dog tl".<br/>
+                <i>tl</i> - top left<br/>
+                <i>tr</i> - top right<br/>
+                <i>md</i> - middle<br/>
+                <i>bl</i> - bottom left<br/>
+                <i>br</i> - bottom right
+              </p>
+            </Tooltip>
+          </Wrapper>
+        </div>
+
+        <Button class="block" color="primary" on:click={get_scores_by_text} variant="raised">
+          <span class="resize-text">Submit Text Query</span>
+        </Button>
       </div>
       
+      <!-- <hr/>
+
+      <div class="filedrop-container"> -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <!-- <div
+          class="file-drop-area"
+          on:dragenter={noopHandler}
+          on:dragexit={noopHandler}
+          on:dragover={noopHandler}
+          on:drop={drop}
+        >
+          <span class="fake-btn">Choose files</span>
+          <span class="file-msg">or drag and drop file here</span>
+          <input class="file-input" type="file" />
+        </div>
+        {#if dragged_url != null}
+          <div class="image-preview-container menu_item">
+            <img
+              class="preview_image"
+              alt="preview upload"
+              src={dragged_url}
+            />
+          </div>
+        {/if}
+      </div> -->
+
       <hr/>
 
-            <div class="filedrop-container">
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <div
-                class="file-drop-area"
-                on:dragenter={noopHandler}
-                on:dragexit={noopHandler}
-                on:dragover={noopHandler}
-                on:drop={drop}
-              >
-                <span class="fake-btn">Choose files</span>
-                <span class="file-msg">or drag and drop file here</span>
-                <input class="file-input" type="file" />
-              </div>
-              {#if dragged_url != null}
-                <div class="image-preview-container menu_item">
-                  <img
-                    class="preview_image"
-                    alt="preview upload"
-                    src={dragged_url}
-                  />
-                </div>
-              {/if}
-            </div>
+      <Button class="block" color="secondary" on:click={bayesUpdate} variant="raised">
+        <span class="resize-text">Bayes Update</span>
+      </Button>
 
+      <hr/>
+
+      <!-- {#each filters as filter}
+        <label for="input_{filter.name}">{filter.name}</label>
+        <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
+      {/each} -->
+      {#if filtering_is_active}
+        <br /><br />
+        <div class="input-container">
+          <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
+          <button on:click={() => date_value = ''}>x</button>
+        </div><br />
+        <!-- <div class="input-container">
+          <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
+          <button on:click={() => place_value = ''}>x</button>
+        </div><br /> -->
+        <div class="input-container">
+          <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
+          <button on:click={() => weekday_value = ''}>x</button>
+        </div><br />
+        <div class="input-container">
+          <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
+          <button on:click={() => hour_value = ''}>x</button>
+        </div><br />
+
+        <Button
+          class="menu_item menu_button"
+          color="secondary"
+          on:click={applyFilters}
+          variant="raised"
+        >
+          <span class="resize-text">Apply ONLY Filters</span>
+        </Button>
+      {/if}
+
+      <!-- <canvas class="menu_item" id="myChart"></canvas>
+      <div id="customLegend" class="menu_item"></div>
+      {#key filtered_lables}
+        {#if filtered_lables.length > 0}
+          <p>Active label filter</p>
+        {/if}
+        {#each filtered_lables as label} -->
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+          <!-- <p class="active_label" on:click={() => label_click(label)}>
+            {file_labels[label]}
+          </p>
+        {/each}
+      {/key} -->
+
+      <div>
+        <FormField align="end">
+          <Checkbox id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames} on:change={reloading_display} />
+          <span slot="label">Limit Frames per Video to 1</span>
+        </FormField>
+
+        <br />
+
+        <FormField align="end">
+          <Checkbox id="image_video_on_line" name="image_video_on_line" bind:checked={image_video_on_line} on:change={reloading_display} />
+          <span slot="label">
+            {#if value_dataset === 'LSC'}
+              Images from same day on one line
+            {:else}
+              Images from video on one line
+            {/if}
+          </span>
+        </FormField>
+
+        <br />
+
+        {#if value_dataset === 'LSC'}
+          <FormField align="end">
+            <Checkbox id="image_hour_on_line" name="image_hour_on_line" bind:checked={image_hour_on_line} on:change={reloading_display} />
+            <span slot="label">Images from same hour on one line</span>
+          </FormField>
+          <br />
+        {/if}
+
+        <Textfield bind:value={max_labels} class="block" label="Labels per Frame" type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="10" />
+      </div>
+
+      {#if prepared_display !== null}
         <hr/>
-
-            <Button
-              class="block"
-              color="secondary"
-              on:click={bayesUpdate}
-              variant="raised"
-            >
-              <span class="resize-text">Bayes Update</span>
-            </Button>
-
-         <hr/>
-
-            <!-- {#each filters as filter}
-              <label for="input_{filter.name}">{filter.name}</label>
-              <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
-            {/each} -->
-            {#if filtering_is_active}
-              <br /><br />
-              <div class="input-container">
-                <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
-                <button on:click={() => date_value = ''}>x</button>
-              </div><br />
-              <!-- <div class="input-container">
-                <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
-                <button on:click={() => place_value = ''}>x</button>
-              </div><br /> -->
-              <div class="input-container">
-                <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
-                <button on:click={() => weekday_value = ''}>x</button>
-              </div><br />
-              <div class="input-container">
-                <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
-                <button on:click={() => hour_value = ''}>x</button>
-              </div><br />
-
-              <Button
-                class="menu_item menu_button"
-                color="secondary"
-                on:click={applyFilters}
-                variant="raised"
-              >
-                <span class="resize-text">Apply ONLY Filters</span>
-              </Button>
-            {/if}
-
-            <canvas class="menu_item" id="myChart"></canvas>
-            <div id="customLegend" class="menu_item"></div>
-            {#key filtered_lables}
-              {#if filtered_lables.length > 0}
-                <p>Active label filter</p>
-              {/if}
-              {#each filtered_lables as label}
-                <!-- svelte-ignore a11y-click-events-have-key-events -->
-                <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-                <p class="active_label" on:click={() => label_click(label)}>
-                  {file_labels[label]}
-                </p>
-              {/each}
-            {/key}
-
-            <div>
-              <FormField align="end">
-                <Checkbox id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames} on:change={reloading_display} />
-                <span slot="label">Limit Frames per Video to 1</span>
-              </FormField>
-
-              <br />
-
-              <FormField align="end">
-                <Checkbox id="image_video_on_line" name="image_video_on_line" bind:checked={image_video_on_line} on:change={reloading_display} />
-                <span slot="label">
-                  {#if value_dataset === 'LSC'}
-                    Images from same day on one line
-                  {:else}
-                    Images from video on one line
-                  {/if}
-                </span>
-              </FormField>
-
-              <br />
-
-              {#if value_dataset === 'LSC'}
-                <FormField align="end">
-                  <Checkbox id="image_hour_on_line" name="image_hour_on_line" bind:checked={image_hour_on_line} on:change={reloading_display} />
-                  <span slot="label">Images from same hour on one line</span>
-                </FormField>
-                <br />
-              {/if}
-
-              <Textfield bind:value={max_labels} class="block" label="Labels per Frame" type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="10" />
-            </div>
-
-            {#if prepared_display !== null}
-              <hr/>
-              <p>
-                Showing Image Rows {start+1}-{end}.
-                <br />
-                Total Images: {prepared_display.reduce(
-                  (count, current) => count + current.length,
-                  0,
-                )}
-              </p>
-            {/if}
-        </div>
-        <div id="image-results">
-          {#if prepared_display === null}
-            <p>...loading</p>
-          {:else}
-            <VirtualList
-              items={prepared_display}
-              bind:this={virtual_list}
-              bind:start
-              bind:end
-              let:item
-            >
-              <ImageList
-                on:send_result={send_results_single}
-                on:similarimage={get_scores_by_image}
-                on:video_images={video_images}
-                row={item}
-                bind:row_size
-                labels={file_labels}
-              />
-            </VirtualList>
-          {/if}
-        </div>
+        <p>
+          Showing Image Rows {start+1}-{end}.
+          <br />
+          Total Images: {prepared_display.reduce(
+            (count, current) => count + current.length,
+            0,
+          )}
+        </p>
+      {/if}
+    </div>
+    
+    <div id="image-results">
+      {#if prepared_display === null}
+        <p>...loading</p>
+      {:else}
+        <VirtualList
+          items={prepared_display}
+          bind:this={virtual_list}
+          bind:start
+          bind:end
+          let:item
+        >
+          <ImageList
+            on:send_result={send_results_single}
+            on:similarimage={get_scores_by_image}
+            on:video_images={video_images}
+            row={item}
+            bind:row_size
+            labels={file_labels}
+          />
+        </VirtualList>
+      {/if}
+    </div>
   </main>
 {:else}
   <Login on:loginSuccess={handleLoginSuccess} />
@@ -1861,4 +1878,8 @@
   .title:hover {
     color: #4a7c8e; /* Change the color when the mouse hovers over the title */
   }
+
+  .green {
+        color: green;
+    }
 </style>

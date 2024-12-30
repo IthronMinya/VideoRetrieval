@@ -39,10 +39,9 @@ image_items = {}
 action_pointer = {}
 max_display = 500
 
-passwords = {f'user{str(i).zfill(2)}': 'NDBI045' for i in range(1, 31)}
+passwords = {f'06prak{str(i)}': 'Japan' for i in range(1, 10)}
 
-logins = {f'user{str(i).zfill(2)}': 'NDBI045' for i in range(1, 31)}
-
+logins = {"06prak1": "Y9S6HyLPahMR", "06prak2": "hCdc2ZSR5Uag", "06prak3": "Yr9u2V5WE3GK", "06prak4": "n62HaNrx9gWj", "06prak5": "uwB32zTQayY4", "06prak6": "VGJ8p5QWCPZX", "06prak7": "ak6sXPwve7E3", "06prak8": "J2RWD3F9Kqnr", "06prak9": "hJQ5K8ruemDy"}
 
 def normalizeVector(vector):
     norm = np.linalg.norm(vector)

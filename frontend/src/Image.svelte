@@ -10,9 +10,6 @@
     export let row_size;
     export let labels;
 
-    const poster = 'https://www.server.com/poster.jpg';
-    const source = 'https://www.server.com/video.mp4';
-
     export let selected;
     let hover = false;
     let video = false;
@@ -84,6 +81,10 @@
 
     .hoverbutton.bottom {
         top: 45%;
+    }
+
+    .hoverbutton.furtherbottom {
+        top: 65%;
     }
 
     .modal-background {
@@ -188,7 +189,7 @@
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
     <button style='--row_size:{row_size};' class="hoverbutton bottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video Frames</button>
     <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <!-- <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button> -->
+    <button style='--row_size:{row_size};' class="hoverbutton furtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button>
 {/if}
 
 </div>
@@ -197,7 +198,7 @@
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div class="modal-background" on:click|self={() => video = false}>
         <div class="player">
-            <VideoPlayer {poster} {source} />
+            <VideoPlayer poster={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri} source={"http://acheron.ms.mff.cuni.cz:42032/videos/" + img.uri.substring(0, img.uri.lastIndexOf('/')) + ".mp4"} />
         </div>
     </div>
 {/if}
