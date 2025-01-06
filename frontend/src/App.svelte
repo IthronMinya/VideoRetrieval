@@ -1339,16 +1339,25 @@
     const request_url = service_server + "/textQuery/";
 
     const request_body = JSON.stringify({
-      query: q,
-      k: max_display_size,
-      dataset: value_dataset,
-      add_features: 1,
-      speed_up: 1,
-      max_labels: max_labels,
+        query: q,
+        k: max_display_size,
+        dataset: value_dataset,
+        add_features: 1,
+        speed_up: 1,
+        max_labels: max_labels,
     });
 
-    request_handler(request_url, request_body, true, "", false, "", 0, false, true);
-  }
+    // Reset relevant variables
+    start = 0;
+    end = 0;
+    prepared_display = null;
+    $lion_text_query = "";  
+    lion_text_query_scene_2 = "";  
+
+    await request_handler(request_url, request_body, true, "", false, "", 0, false, true);
+}
+
+
 </script>
 
 {#if $is_login}
