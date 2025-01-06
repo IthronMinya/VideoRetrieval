@@ -2,7 +2,7 @@
   // disable TypeScript checking for this file
   // @ts-nocheck
 
-  import { selected_images, scroll_height, in_video_view, lion_text_query, is_login, password, username } from "./stores.js";
+  import { selected_images, scroll_height, in_video_view, lion_text_query, lion_text_query_scene_2,  is_login, password, username } from "./stores.js";
 
   import ImageList from "./ImageList.svelte";
 
@@ -40,8 +40,6 @@
   let image_items = [];
 
   let custom_result = "";
-
-  let lion_text_query_scene_2 = "";
 
   // flag to check if the text query contains '>'
   let text_contains_greater_than = false;
@@ -118,8 +116,19 @@
   get_session_id_for_user();
 
   function set_dataset() {
-    initialization();
-  }
+    lion_text_query.set("");          // Reset the first query input
+    lion_text_query_scene_2.set("");  // Reset the second query input
+    selected_images.set([]);          // Clear selected images
+    in_video_view.set(false);         // Reset view state
+    scroll_height.set(0);             // Reset scroll height
+
+    start = 0;
+    end = 0;
+    prepared_display = null;
+    filtered_lables = [];
+
+    initialization(); // Re-run initialization for new dataset
+}
 
   function set_task_id() {
     let tasks = task_ids_collection[evaluation_names.indexOf(evaluation_name)];
@@ -1428,7 +1437,14 @@
         </div>
 
         <div class="query-text-area">
-          <Textfield id="text_query_input" textarea class="block mb1" bind:value={$lion_text_query} on:keypress={handleKeypress} label="Query Scene 1"></Textfield>
+          <Textfield
+            id="text_query_input"
+            textarea
+            class="block mb1"
+            bind:value={$lion_text_query}
+            on:keypress={handleKeypress}
+            label="Query Scene 1"
+          />
           <Wrapper>
             <div class="i-tooltip">i</div>
             <Tooltip>
@@ -1444,9 +1460,16 @@
             </Tooltip>
           </Wrapper>
         </div>
-
+        
         <div class="query-text-area">
-          <Textfield id="text_query_input_2" textarea class="block mb1" bind:value={lion_text_query_scene_2} on:keypress={handleKeypress} label="Query Scene 2"></Textfield>
+          <Textfield
+            id="text_query_input_2"
+            textarea
+            class="block mb1"
+            bind:value={$lion_text_query_scene_2}
+            on:keypress={handleKeypress}
+            label="Query Scene 2"
+          />
           <Wrapper>
             <div class="i-tooltip">i</div>
             <Tooltip>
@@ -1462,6 +1485,7 @@
             </Tooltip>
           </Wrapper>
         </div>
+        
 
         <Button class="block" color="primary" on:click={get_scores_by_text} variant="raised">
           <span class="resize-text">Submit Text Query</span>
