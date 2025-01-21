@@ -11,6 +11,8 @@
 
   import Button, { Group, Label } from "@smui/button";
 
+  import Select, { Option } from "@smui/select";
+
   import Textfield from '@smui/textfield';
 
   import HelperText from '@smui/textfield/helper-text';
@@ -68,7 +70,7 @@
 
   // server urls for DRES and service server
   const dres_server = "https://vbs.videobrowsing.org"; //"http://hmon.ms.mff.cuni.cz:8443";
-  const service_server = "http://vbs-backend-data-layer-1:80"; // need to switch if used locally to "http://acheron.ms.mff.cuni.cz:42032"
+  const service_server = "http://acheron.ms.mff.cuni.cz:42032" ;//"http://vbs-backend-data-layer-1:80"; // need to switch if used locally to "http://acheron.ms.mff.cuni.cz:42032"
 
   let send_results = "";
 
@@ -1028,7 +1030,7 @@
           one_not_included = false;
 
           for (let i = 0; i < filtered_lables.length; i++) {
-            if (!temp_items[key].label.includes(filtered_lables[i])) {
+            if (!temp_items[key].label.includes(filtered_lables[i].toString())) { 
               one_not_included = true;
             }
           }
@@ -1076,7 +1078,7 @@
           continue;
         }
         for (let i = 0; i < filtered_lables.length; i++) {
-          if (!temp_items[key].label.includes(filtered_lables[i])) {
+          if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
             temp_items[key]["disabled"] = true;
           }
         }
@@ -1209,7 +1211,7 @@
                   one_not_included = false;
 
                   for (let i = 0; i < filtered_lables.length; i++) {
-                    if (!temp_items[key].label.includes(filtered_lables[i])) {
+                    if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
                       one_not_included = true;
                     }
                   }
@@ -1257,7 +1259,7 @@
                   continue;
                 }
                 for (let i = 0; i < filtered_lables.length; i++) {
-                  if (!temp_items[key].label.includes(filtered_lables[i])) {
+                  if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
                     temp_items[key]["disabled"] = true;
                   }
                 }
