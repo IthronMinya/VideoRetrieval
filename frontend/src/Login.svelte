@@ -28,7 +28,6 @@
 
             if (response.ok) {
                 const data = await response.json();
-                console.log(data);
                 $password = data.access_token;
                 $is_login = true;
                 dispatch('loginSuccess');

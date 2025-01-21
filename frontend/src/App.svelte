@@ -3,6 +3,7 @@
   // @ts-nocheck
 
   import { selected_images, scroll_height, in_video_view, lion_text_query, lion_text_query_scene_2, is_login, password, username } from "./stores.js";
+  
   import ImageList from "./ImageList.svelte";
 
   import VirtualList from "./VirtualListNew.svelte";
@@ -45,7 +46,6 @@
   let custom_result = "";
 
   let max_display_size = 1000;
-
   let max_labels = 10;
   let chart_labels = 10;
   let row_size = 4;

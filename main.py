@@ -105,6 +105,29 @@ async def send_request(url, my_obj, image_upload):
         raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
 
 
+def prepare_data_for_bayes(items, selected_images, username, alpha=0.01):
+    imageFeatureVectors = normalizeMatrix([item['features'] for item in image_items[username][action_pointer[username]]])
+    max_rank = max([item['rank'] for item in items if item['id'] in selected_images]) + 5
+    
+    topDisplay = items[:min(len(items), max_rank)]
+
+    negativeExamples = [item['features'] for item in topDisplay if item['id'] not in selected_images]
+    positiveExamples = [item['features'] for item in items if item['id'] in selected_images]
+
+    positiveExamples = normalizeMatrix(positiveExamples)
+    negativeExamples = normalizeMatrix(negativeExamples)
+
+    # Calculate products
+    prod_positive = positiveExamples @ imageFeatureVectors.T
+    prod_negative = negativeExamples @ imageFeatureVectors.T
+
+    # Calculate PF and NF
+    PF = np.sum(np.exp(- (1 - prod_positive) / alpha), axis=0)
+    NF = np.sum(np.exp(- (1 - prod_negative) / alpha), axis=0)
+    
+    return PF, NF
+
+
 async def append_log(username, request):
     # Append to the log file
     filename = os.path.join("user_data", username, f"eventlog_{username}.json")
@@ -378,26 +401,9 @@ async def bayes(req: Request):
             item['score'] = float(item['score'])
 
     DeepCopyImageItems = image_items[username][action_pointer[username]].copy()
-    imageFeatureVectors = normalizeMatrix([item['features'] for item in image_items[username][action_pointer[username]]])
-
     items = image_items[username][action_pointer[username]].copy()
-    max_rank = max([item['rank'] for item in items if item['id'] in selected_images]) + 5
 
-    topDisplay = items[:min(len(items), max_rank)]
-
-    negativeExamples = [item['features'] for item in topDisplay if item['id'] not in selected_images]
-    positiveExamples = [item['features'] for item in items if item['id'] in selected_images]
-
-    positiveExamples = normalizeMatrix(positiveExamples)
-    negativeExamples = normalizeMatrix(negativeExamples)
-
-    # Calculate products
-    prod_positive = positiveExamples @ imageFeatureVectors.T
-    prod_negative = negativeExamples @ imageFeatureVectors.T
-
-    # Calculate PF and NF
-    PF = np.sum(np.exp(- (1 - prod_positive) / alpha), axis=0)
-    NF = np.sum(np.exp(- (1 - prod_negative) / alpha), axis=0)
+    PF, NF = prepare_data_for_bayes(items, selected_images, username, alpha)
 
     # Update scores
     for i, item in enumerate(DeepCopyImageItems):
@@ -420,7 +426,7 @@ async def bayes(req: Request):
         action_pointer[username] += 1
     image_items[username].append(items)
     
-    new_data = [{k: v for k, v in item.items() if k != 'features'} for item in items[:max_display]]
+    new_data = [{k: v for k, v in item.items() if k != 'features' and k != 'score'} for item in items[:max_display]]
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     asyncio.create_task(append_log(username, {'action': 'bayes', 'timestamp': timestamp, 'data_file': f"{timestamp}_{username}.json"}))
