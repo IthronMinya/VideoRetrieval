@@ -3,20 +3,22 @@
     import { fade } from 'svelte/transition';
     import { lion_text_query } from './stores.js';
     import VideoPlayer from 'svelte-video-player';
-    import { createEventDispatcher } from 'svelte'
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte'
+    import Button from "@smui/button";
     const dispatch = createEventDispatcher()
 
     export let img;
     export let row_size;
     export let labels;
 
-    const poster = 'https://www.server.com/poster.jpg';
-    const source = 'https://www.server.com/video.mp4';
-
     export let selected;
     let hover = false;
     let video = false;
     let large = false;
+
+    let container;
+    let observer;
+    let video_time;
     
     function showVideo(){
         video = true;
@@ -28,6 +30,10 @@
 
     function similarimage(){
         dispatch('similarimage');
+    }
+
+    function add_label_to_query(label) {
+        $lion_text_query += ($lion_text_query == '' ? '' : ', ') + label;
     }
 
     function video_images(){
@@ -51,6 +57,47 @@
 
         console.log($selected_images);
     }
+
+    function send_result_videoframe(){
+       const videoElement = container.querySelector('video');
+       if (videoElement) {
+           video_time = videoElement.currentTime;
+       }
+       dispatch('send_result_videoframe', {video_time});
+    }
+
+    onMount(() => {
+      // Create a MutationObserver to monitor the container for changes
+      observer = new MutationObserver(() => {
+        // Look for the <video> element anywhere inside the container (including children)
+        const videoElement = container.querySelector('video');
+        if (videoElement) {
+          // Stop observing once the video is found
+          observer.disconnect();
+
+          // Ensure metadata is loaded before setting currentTime
+          videoElement.addEventListener(
+            'loadedmetadata',
+            () => {
+              videoElement.currentTime = Math.round(img.time[1] / 1000);
+              videoElement.play();
+            },
+            { once: true } // Listen only once
+          );
+        }
+      });
+
+      // Observe the container for changes, including children
+      observer.observe(container, { childList: true, subtree: true });
+    });
+
+    onDestroy(() => {
+      // Clean up the observer when the component is destroyed
+      if (observer) {
+        observer.disconnect();
+      }
+    });
+
 </script>
 
 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
@@ -65,38 +112,31 @@
         height: auto;
         min-height: 200px;
     }
-    .hoverbuttontop{
+    .hoverbutton {
         position: absolute;
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 2.5% 2.5% 2.5% 2.5%;
+        border: none;
+        cursor: pointer;
+        left: 5%;
+    }
+
+    .hoverbutton.top{
         top: 5%;
-        left: 5%;
-        background-color: rgba(0, 0, 0, 0.5);
-        color: white;
-        padding: 2.5% 2.5% 2.5% 2.5%;
-        border: none;
-        cursor: pointer;
     }
 
-    .hoverbuttonmiddle{
-        position: absolute;
+    .hoverbutton.middle{
         top: 25%;
-        left: 5%;
-        background-color: rgba(0, 0, 0, 0.5);
-        color: white;
-        padding: 2.5% 2.5% 2.5% 2.5%;
-        border: none;
-        cursor: pointer;
     }
 
-    .hoverbuttonbottom{
-        position: absolute;
+    .hoverbutton.bottom{
         top: 45%;
-        left: 5%;
-        background-color: rgba(0, 0, 0, 0.5);
-        color: white;
-        padding: 2.5% 2.5% 2.5% 2.5%;
-        border: none;
-        cursor: pointer;
     }
+
+    .hoverbutton.furtherbottom {
+        top: 65%;
+     }
 
     .modal-background {
 		position: fixed;
@@ -116,8 +156,8 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		width: 35%;
-		height: 35%;
+		width: 65%;
+		height: 65%;
         z-index: 4;
     }
 
@@ -129,6 +169,10 @@
 		width: 45%;
 		height: 45%;
         z-index: 4;
+    }
+
+    .small_image {
+        max-height: 240px;
     }
 
     .label {
@@ -158,6 +202,11 @@
         padding: 2px 5px;
     }
 
+    .send-button {
+      padding: 10px;
+      margin: 10px;
+    }
+
 </style>
 
 
@@ -177,38 +226,50 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="wrapper" on:mouseover={() => (hover = true)}
     on:mouseout={() => (hover = false)}>
-<img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
-    alt="id: {img.id} score: {img.score}"
-    on:click={imgClick} on:mouseover={() => (hover = true)}
-    on:mouseout={() => (hover = false)} on:dblclick={largeImage} in:fade/>
-{#if img.uri.split("/")[0] === 'LSC'}
-<div class="image-id">{img.id[0].substring(6, 8)}. {img.id[0].substring(4, 6)}. {img.id[0].substring(0, 4)} {img.id[1].substring(0, 2)}:{img.id[1].substring(2, 4)}</div>
-{/if}
+    <img class="small_image {selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri}
+        alt="id: {img.id} score: {img.score}"
+        on:click={imgClick} on:mouseover={() => (hover = true)}
+        on:mouseout={() => (hover = false)} on:dblclick={largeImage} in:fade/>
 
-{#if hover}
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttontop" on:mouseover={() => (hover = true)} transition:fade on:click={send_result}>Send</button>
-{/if}
+    {#if img.uri.split("/")[0] === 'LSC'}
+        <div class="image-id">{img.id[0].substring(6, 8)}. {img.id[0].substring(4, 6)}. {img.id[0].substring(0, 4)} {img.id[1].substring(0, 2)}:{img.id[1].substring(2, 4)}</div>
+    {/if}
 
-{#if hover && !$in_video_view}
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttonmiddle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar</button>
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <button style='--row_size:{row_size};' class="hoverbuttonbottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video Frames</button>
-    <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-    <!-- <button style='--row_size:{row_size};' class="hoverbuttonfurtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button> -->
-{/if}
+    {#if hover}
+        <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+        <button style='--row_size:{row_size};' class="hoverbutton top" on:mouseover={() => (hover = true)} transition:fade on:click={send_result}>Send</button>
+    {/if}
 
+    {#if hover && $in_video_view}
+        <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+        <button style='--row_size:{row_size};' class="hoverbutton middle" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button>
+    {/if}
+
+    {#if hover && !$in_video_view}
+        <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+        <button style='--row_size:{row_size};' class="hoverbutton middle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar</button>
+        <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+        <button style='--row_size:{row_size};' class="hoverbutton bottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video Frames</button>
+        <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+        <button style='--row_size:{row_size};' class="hoverbutton furtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button>
+    {/if}
 </div>
-{#if video}
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div class="modal-background" on:click|self={() => video = false}>
-        <div class="player">
-            <VideoPlayer {poster} {source} />
+
+<div bind:this={container}>
+    {#if video}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <div class="modal-background" on:click|self={() => video = false}>
+            <div class="player">
+                <VideoPlayer poster={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri} source={"http://acheron.ms.mff.cuni.cz:42032/videos/" + img.uri.substring(0, img.uri.lastIndexOf('/')) + ".mp4"} />
+                <Button class="send-button" color="secondary" on:click={send_result_videoframe} variant="raised">
+                    Send Frame
+                </Button>
+            </div>
         </div>
-    </div>
-{/if}
+    {/if}
+</div>
+
 {#if large}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -218,11 +279,11 @@
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <!-- svelte-ignore a11y-mouse-events-have-key-events -->
             <img class="{selected ? 'redBorder' : 'transparentBorder'}" src={"http://acheron.ms.mff.cuni.cz:42032/images/" + img.uri.split("/")[0] + (img.uri.split("/")[0] === 'LSC' ? "/large/" : "/") + img.uri.split("/").slice(1).join("/")}
-            alt="id: {img.id} score: {img.score}"
-            on:click={imgClick} in:fade/>
+                alt="id: {img.id} score: {img.score}"
+                on:click={imgClick} in:fade/>
             <div class="image-labels">
                 {#each labels || [] as label}
-                    <button class="label" on:click={() => $lion_text_query += ($lion_text_query == '' ? '' : ', ') + label}>{label}</button>
+                    <button class="label" on:click={() => add_label_to_query(label)}>{label}</button>
                 {/each}
             </div>
         </div>

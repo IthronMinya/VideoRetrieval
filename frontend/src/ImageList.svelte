@@ -23,6 +23,11 @@
         dispatch('send_result', {image_id});
     }
 
+    function send_result_videoframe(event, image_id){
+        let video_time = event.detail.video_time;
+        dispatch('send_result_videoframe', {video_time, image_id});
+    }
+
 </script>
 
 <style>
@@ -53,7 +58,7 @@
 <div class="row" style='--row_size:{row_size};--row_items:{row.length};'>
 	{#each row as img, index}
         <div class="item">
-            <Image bind:this={images[index]} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} on:video_images={() => video_images(img.id)} {img} row_size={row.length} selected={$selected_images.includes(img.id)} labels={img.label.map(i => labels[i])}/>
+            <Image bind:this={images[index]} on:send_result_videoframe={(video_time) => send_result_videoframe(video_time, img.id)} on:send_result={() => send_result(img.id)} on:similarimage={() => similarimage(img.id)} on:video_images={() => video_images(img.id)} {img} row_size={row.length} selected={$selected_images.includes(img.id)} labels={img.label.map(i => labels[i])}/>
         </div>
 	{/each}
 </div>
