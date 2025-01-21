@@ -1,27 +1,33 @@
 import datetime
 import mimetypes
-mimetypes.add_type('application/javascript', '.js')
-mimetypes.add_type('application/json', '.mjs')
-mimetypes.add_type('text/css', '.css')
-
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-
 import requests
-
-import numpy as np
 import os
 import json
 import logging
 import asyncio
+import jwt
+
+import numpy as np
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from passlib.context import CryptContext
+
+
+# Add custom mimetypes
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('application/json', '.mjs')
+mimetypes.add_type('text/css', '.css')
+
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
 origins = [ "*" ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -30,20 +36,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount the static files
 app.mount("/assets", StaticFiles(directory="public/assets"), name="static")
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# variables to store history of users actions
+# JWT and password hashing configurations
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Variables to store history of users actions
 image_items = {}
 action_pointer = {}
 max_display = 500
 
-passwords = {f'06prak{str(i)}': 'Japan' for i in range(1, 10)}
+# User database
+users_db = {}
+usernames = [f"06prak{i}" for i in range(1, 10)]
+user_password = os.getenv("PASSWORD")
 
-logins = {"06prak1": "Y9S6HyLPahMR", "06prak2": "hCdc2ZSR5Uag", "06prak3": "Yr9u2V5WE3GK", "06prak4": "n62HaNrx9gWj", "06prak5": "uwB32zTQayY4", "06prak6": "VGJ8p5QWCPZX", "06prak7": "ak6sXPwve7E3", "06prak8": "J2RWD3F9Kqnr", "06prak9": "hJQ5K8ruemDy"}
+# Populate the users_db dictionary
+for username in usernames:
+    users_db[username] = {
+        "username": username,
+        "password": pwd_context.hash(user_password)
+    }
 
+# Load logins from environment variable
+logins_json = os.getenv("LOGINS")
+logins = json.loads(logins_json) if logins_json else {}
 
+# Helper functions
 def normalizeVector(vector):
     vector = np.array(vector, dtype=float)
     norm = np.linalg.norm(vector)
@@ -54,7 +79,34 @@ def normalizeMatrix(matrix):
     return np.array([normalizeVector(row) for row in matrix])
 
 
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(data: dict, expires_delta: datetime.timedelta = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+async def send_request(url, my_obj, image_upload):
+    headers = {'Content-Type': 'application/json'} if image_upload else {}
+    try:
+        response = requests.post(url=url, headers=headers, data=my_obj, verify=False)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logging.error(f"An error occurred while sending the request to the service: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
+
+
 async def append_log(username, request):
+    # Append to the log file
     filename = os.path.join("user_data", username, f"eventlog_{username}.json")
 
     if not os.path.exists(filename): # if the file does not exist, create it
@@ -79,6 +131,7 @@ async def append_log(username, request):
     
     
 async def create_event_log(username, timestamp, log):
+    # Create an event log file
     filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
 
     if os.path.exists(filename): # if the file already exists, do not create a new one
@@ -98,6 +151,7 @@ async def create_event_log(username, timestamp, log):
         
         
 async def preproccess_create_event_log(username, timestamp, query, my_obj, data):
+    # Preprocess and create an event log file
     my_obj = json.loads(my_obj)
     events = [{'category': 'TEXT' if query in ['textQuery', 'temporalQuery', 'filter'] else 'IMAGE', 'value': my_obj['query'] if 'query' in my_obj else (my_obj['item_id'] if 'item_id' in my_obj else (my_obj['filters'] if 'filters' in my_obj else None))}]
     if query == 'filter':
@@ -123,6 +177,7 @@ async def preproccess_create_event_log(username, timestamp, query, my_obj, data)
     
 
 async def preproccess_and_create_event_log(username, timestamp, log):
+    # Preprocess and create an event log file
     log['results'] = [
         {
             **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
@@ -137,6 +192,7 @@ async def preproccess_and_create_event_log(username, timestamp, log):
 
 @app.post("/create_user_log")
 async def create_user_log(req: Request):
+    '''Create a log file for a user if it doesn't already exist.'''
     try:
         params = await req.json()
         username = params['username'] if 'username' in params else None
@@ -159,6 +215,7 @@ async def create_user_log(req: Request):
 
 @app.post("/append_user_log")
 async def append_user_log(req: Request):
+    '''Append a log entry to a user's log file.'''
     params = await req.json()
     username = params['username'] if 'username' in params else None
     if not username:
@@ -184,6 +241,7 @@ async def append_user_log(req: Request):
 
 @app.post("/create_event_user_log")
 async def create_event_user_log(req: Request):
+    '''Create an event log file for a user.'''
     params = await req.json()
     username = params['username'] if 'username' in params else None
     if not username:
@@ -202,6 +260,7 @@ async def create_event_user_log(req: Request):
 
 @app.get("/get_user_log")
 async def get_user_log(req: Request):
+    '''Get the log file for a user.'''
     params = await req.json()
     username = params['username'] if 'username' in params else None
     if not username:
@@ -217,34 +276,34 @@ async def get_user_log(req: Request):
 
 @app.post("/send_request_to_service")
 async def send_request_to_service(req: Request):
+    '''Send a request to a service and return the response.
+    
+    Parameters:
+    - url: The URL of the service to send the request to.
+    - body: The body of the request.
+    - image_upload: Whether the request is an image upload request.
+    - sorted: Whether the response should be sorted.
+    - dataset: The dataset being used.
+    - username: The username of the user making the request.
+    - reset: Whether to reset the user's history.
+    '''
     params = await req.json()
     
-    url = params['url'] if 'url' in params else None
-    my_obj = params['body'] if 'body' in params else {}
-    image_upload = params['image_upload'] if 'image_upload' in params else False
-    sorted = params['sorted'] if 'sorted' in params else False
-    dataset = params['dataset'] if 'dataset' in params else None
-    username = params['username'] if 'username' in params else None
-    is_reset = params['reset'] if 'reset' in params else False
+    url = params.get('url')
+    my_obj = params.get('body', {})
+    image_upload = params.get('image_upload', False)
+    sorted = params.get('sorted', False)
+    dataset = params.get('dataset')
+    username = params.get('username')
+    is_reset = params.get('reset', False)
     
     if url is None or dataset is None or username is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
 
-    try:
-        if image_upload:
-            response = requests.post(url=url, headers={'Content-Type': 'application/json'}, data=my_obj, verify=False)
-        else:
-            response = requests.post(url=url, data=my_obj, verify=False)
-            
-        data = response.json()
-    except Exception as e:
-        logging.error(f"An error occurred while sending the request to the service: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
+    data = await send_request(url, my_obj, image_upload)
     
-    if data == []:
+    if not data:
         raise HTTPException(status_code=400, detail="Request didn't work...")
-    
-    new_data = []
     
     if sorted:
         if dataset == 'LSC':
@@ -276,9 +335,7 @@ async def send_request_to_service(req: Request):
     query = url.split('/')[-2]
     load_obj = json.loads(my_obj)
     
-    # get query value
     query_value = load_obj['query'] if 'query' in load_obj else (load_obj['item_id'] if 'item_id' in load_obj else (load_obj['filters'] if 'filters' in load_obj else None))
-    # append second query if it's temporal text query
     if 'query2' in load_obj and load_obj['query2'] != "":
         query_value += '|' + load_obj['query2']
 
@@ -290,10 +347,18 @@ async def send_request_to_service(req: Request):
 
 @app.post("/bayes")
 async def bayes(req: Request):
+    '''Perform the Bayesian update on the images.
+    
+    Parameters:
+    - selected_images: The selected images.
+    - alpha: The alpha value.
+    - username: The username of the user making the request.
+    '''
     request_args = await req.json()
-    selected_images = request_args['selected_images'] if 'selected_images' in request_args else None
-    alpha = 0.01
-    username = request_args['username'] if 'username' in request_args else None
+    
+    selected_images = request_args.get('selected_images')
+    alpha = request_args.get('alpha', 0.01)
+    username = request_args.get('username')
     
     if selected_images is None or username is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
@@ -366,6 +431,11 @@ async def bayes(req: Request):
 
 @app.post("/back")
 async def back(req: Request):
+    '''Go back to the previous query.
+    
+    Parameters:
+    - username: The username of the user making the request.
+    '''
     request_args = await req.json()
     username = request_args['username'] if 'username' in request_args else None
     
@@ -388,6 +458,11 @@ async def back(req: Request):
 
 @app.post("/forward")
 async def forward(req: Request):
+    '''Go forward to the next query.
+    
+    Parameters:
+    - username: The username of the user making the request.
+    '''
     request_args = await req.json()
     username = request_args['username'] if 'username' in request_args else None
     
@@ -410,14 +485,22 @@ async def forward(req: Request):
 
 @app.post("/get_filters")
 async def get_filters(req: Request):
+    '''Get the filters for a dataset.
+    
+    Parameters:
+    - dataset: The dataset to get the filters for.
+    - server: The server to send the request to.
+    '''
     request_args = await req.json()
+    
     dataset = request_args['dataset'] if 'dataset' in request_args else None
+    server = request_args['server'] if 'server' in request_args else "http://vbs-backend-data-layer-1:80"
     
     if dataset is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
     
     try:
-        response = requests.get(f"http://vbs-backend-data-layer-1:80/getFilters", params={'dataset': dataset})
+        response = requests.get(f"{server}/getFilters", params={'dataset': dataset})
     except Exception as e:
         logging.error(f"An error occurred while sending the request to the service: {str(e)}")
         raise HTTPException(status_code=400, detail=f"An error occurred while sending the request to the service: {str(e)}")
@@ -429,6 +512,12 @@ async def get_filters(req: Request):
 
 @app.post("/login")
 async def login(req: Request):
+    '''Login a user.
+    
+    Parameters:
+    - username: The username of the user.
+    - password: The password of the user.
+    '''
     request_args = await req.json()
     username = request_args['username'] if 'username' in request_args else None
     password = request_args['password'] if 'password' in request_args else None
@@ -436,11 +525,11 @@ async def login(req: Request):
     if username is None or password is None:
         raise HTTPException(status_code=400, detail="Missing required parameters.")
 
-    if username not in passwords or passwords[username] != password:
+    user = users_db.get(username)
+    if username not in users_db and not verify_password(password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
-    return logins[username]
-
+    return JSONResponse(content={"access_token": logins[username]})
 
 ## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.
 @app.get("/", response_class=FileResponse)

@@ -601,6 +601,7 @@
         },
         body: JSON.stringify({
           dataset: value_dataset,
+          server: service_server,
         }),
       });
 

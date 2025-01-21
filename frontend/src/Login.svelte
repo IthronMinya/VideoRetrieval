@@ -3,24 +3,33 @@
 
     import { is_login, password, username } from './stores';
 
+    import CryptoJS from 'crypto-js';
+
     const dispatch = createEventDispatcher();
 
     let passw = '';
     let errorMessage = '';
+
+    // Access the secret key from the environment variables
+    const secretKey = import.meta.env.VITE_SECRET_KEY;
   
     async function login() {
         try {
+            // Encrypt the password
+            const encryptedPassword = CryptoJS.AES.encrypt(passw, secretKey).toString();
+
             const response = await fetch(`${window.location.origin}/login`, {
                 method: 'POST',
                 headers: {
                 'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ "username": $username, "password": passw }),
+                body: JSON.stringify({ "username": $username, "password": encryptedPassword }),
             });
 
             if (response.ok) {
                 const data = await response.json();
-                $password = data;
+                console.log(data);
+                $password = data.access_token;
                 $is_login = true;
                 dispatch('loginSuccess');
             } else {

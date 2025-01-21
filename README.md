@@ -1,53 +1,75 @@
-- Requirements: 
-    - [Python 3.10+](https://www.python.org/downloads/)
-    - [NodeJS](https://nodejs.org/en)
-    - [Docker](https://www.docker.com/)
+# PraK - Video Retrieval
+This project is a video retrieval system that allows users to search in video collection based on their content. The system communicates with a data service that provides videos, images and compute the search results (text and similarity queries, etc.). The system is built with a frontend and backend that communicate with each other using RESTful APIs. The frontend is built with Svelte and the backend with FastAPI. The project is containerized with Docker for easy deployment.
 
+## Requirements: 
+ - [Python 3.10+](https://www.python.org/downloads/)
+ - [NodeJS](https://nodejs.org/en)
+ - [Docker](https://www.docker.com/)
 
-1. Create Python virtual enviroment and install requirements.txt
-   - when you restart your workspace you will need to activate it again, just run the second line
+## Project setup instructions
+Follow these steps to setup the project on your local machine:
+1. Clone the Repository
+   ```cmd
+   git clone https://github.com/IthronMinya/VideoRetrieval.git
+   ```
+
+2. Set Up Python Virtual Environment
+   Create a Python virtual enviroment and install the required dependencies
    ```cmd
    python -m venv venv
    venv\Scripts\activate
    pip install -r requirements.txt
    ```
-   > after that we activate it and install needed dependencies
+   > Note: You will need to activate the virtual environment each time you restart your workspace.
+   
+3. Create `.env` File 
+   Create a `.env` file in the main directory and add the following content:
+   ```env
+   SECRET_KEY=your_secret_key
+   VITE_SECRET_KEY=your_secret_key
+   PASSWORD=your_password
+   LOGINS=your_logins
+   ```
+   > The secret key is used for JWT token generation. You can generate one [here](https://randomkeygen.com/)
 
-2. Get all svelte packages and npm dependencies
-```cmd
-cd ./frontend
-npm install --legacy-peer-deps
-cd ../
-```
+4. Install Svelte Packages and NPM Dependencies
+   Navigate to the [frontend](./frontend/) directory and install the necessary packages
+   ```cmd
+   cd ./frontend
+   npm install --legacy-peer-deps
+   cd ../
+   ```
 
-3. Build svelte and run fastapi with uvicorn. The prepare statement builds the css from the material design theme
-```cmd
-cd ./frontend
-npm run prepare
-npm run build
-```
+5. Build Svelte and Run FastAPI
+   Build the Svelte project and run the FastAPI server with Uvicorn. The `prepare` script builds the CSS from the Material Design theme.
+   ```cmd
+   cd ./frontend
+   npm run prepare
+   npm run build
+   cd ../
+   uvicorn main:app --reload
+   ```
+   > Main entry for the web server is `main.py`. The frontend entry point is `frontend/index.html`, and all components are created in `frontend/src/App.svelte`.
 
-
-Main Entry for webserver is the python main.py going into frontend/index.html and all components are created in frontend/src/App.svelte for the frontend
-
-
-4. Main development route to work on the server / Backend is in the main directory, so not in /frontend using the uvicorn server. If you do changes in the frontend you need to rebuild with step 3. Then you can restart here.
-```
-cd ../
-uvicorn main:app --reload
-```
-
-
-5. When developing in Svelte on the frontend, please use the dev server! Here the changes in the frontend are updated automatically. Be aware that here no backend functionality is available.
-```cmd
-npm run dev
-```
-
-6. Deployment: Building the project as a docker container (no development in it.) In the main directory execute:
+### Development
+To build and run the project as a Docker container, execute the following command in the main directory:
 ```cmd
 docker compose up --build
 ```
+> You can access the project at localhost:8000 or via the Docker application.
 
-Then you can access the whole project at localhost:8000 or via the docker applicaton.
+#### Backend Development
+For backend development, use the Uvicorn server in the main directory.
 
+```cmd
+uvicorn main:app --reload
+```
+> If you make changes to the frontend, rebuild it using step 5, then restart the backend server.
 
+#### Frontend Development
+For frontend development, use the Svelte dev server. This server updates changes in the frontend automatically. Note that backend functionality is not available in this mode.
+
+```cmd
+cd ./frontend
+npm run dev
+```
