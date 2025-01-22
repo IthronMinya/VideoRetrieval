@@ -32,6 +32,8 @@
 
   import Tooltip, { Wrapper } from '@smui/tooltip';
 
+  import { parse } from "svelte/compiler";
+
   // variables for current evaluation and task management
   let evaluation_name = "";
   let task_id = "";
@@ -375,7 +377,7 @@
       $in_video_view = image_items["method"] === "show_video_frames";
       $lion_text_query = image_items["query"];
       $lion_text_query_scene_2 = image_items["query2"];
-      let row_s = image_items["method"] === "temporalquery" ? 2 : row_size; //image_items["query"].split(">").length : row_size;
+      let row_s = row_size; //image_items["method"] === "temporalquery" ? 2 : row_size;
 
       console.log("reloading display");
 
