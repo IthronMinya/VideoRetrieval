@@ -95,6 +95,16 @@ def create_access_token(data: dict, expires_delta: datetime.timedelta = None):
 
 
 async def send_request(url, my_obj, image_upload):
+    """Send a request to a service and return the response.
+    
+    Parameters:
+    - url: The URL of the service to send the request to.
+    - my_obj: The body of the request.
+    - image_upload: Whether the request is an image upload request.
+    
+    Returns:
+    - The response from the service.
+    """
     headers = {'Content-Type': 'application/json'} if image_upload else {}
     try:
         response = requests.post(url=url, headers=headers, data=my_obj, verify=False)
@@ -106,6 +116,18 @@ async def send_request(url, my_obj, image_upload):
 
 
 def prepare_data_for_bayes(items, selected_images, username, alpha=0.01):
+    """ Prepare data for the Bayesian update.
+    
+    Parameters:
+    - items: The items to prepare.
+    - selected_images: The selected images.
+    - username: The username of the user making the request.
+    - alpha: The alpha value.
+    
+    Returns:
+    - PF: The positive features.
+    - NF: The negative features.
+    """
     imageFeatureVectors = normalizeMatrix([item['features'] for item in image_items[username][action_pointer[username]]])
     max_rank = max([item['rank'] for item in items if item['id'] in selected_images]) + 5
     
@@ -129,7 +151,12 @@ def prepare_data_for_bayes(items, selected_images, username, alpha=0.01):
 
 
 async def append_log(username, request):
-    # Append to the log file
+    """Append a log entry to a user's log file.
+    
+    Parameters:
+    - username: The username of the user.
+    - request: The request to append to the log file.
+    """
     filename = os.path.join("user_data", username, f"eventlog_{username}.json")
 
     if not os.path.exists(filename): # if the file does not exist, create it
@@ -154,7 +181,13 @@ async def append_log(username, request):
     
     
 async def create_event_log(username, timestamp, log):
-    # Create an event log file
+    """Create an event log file for a user.
+    
+    Parameters:
+    - username: The username of the user.
+    - timestamp: The timestamp of the event.
+    - log: The log to append to the event log file.
+    """
     filename = os.path.join("user_data", username, f"{timestamp}_{username}.json")
 
     if os.path.exists(filename): # if the file already exists, do not create a new one
@@ -174,7 +207,15 @@ async def create_event_log(username, timestamp, log):
         
         
 async def preproccess_create_event_log(username, timestamp, query, my_obj, data):
-    # Preprocess and create an event log file
+    """Preprocess and create an event log file.
+    
+    Parameters:
+    - username: The username of the user.
+    - timestamp: The timestamp of the event.
+    - query: The text query.
+    - my_obj: The body of the request.
+    - data: The data to append to the event log file.
+    """
     my_obj = json.loads(my_obj)
     events = [{'category': 'TEXT' if query in ['textQuery', 'temporalQuery', 'filter'] else 'IMAGE', 'value': my_obj['query'] if 'query' in my_obj else (my_obj['item_id'] if 'item_id' in my_obj else (my_obj['filters'] if 'filters' in my_obj else None))}]
     if query == 'filter':
@@ -200,7 +241,13 @@ async def preproccess_create_event_log(username, timestamp, query, my_obj, data)
     
 
 async def preproccess_and_create_event_log(username, timestamp, log):
-    # Preprocess and create an event log file
+    """Preprocess and create an event log file.
+    
+    Parameters:
+    - username: The username of the user.
+    - timestamp: The timestamp of the event.
+    - log: The log to append to the event log file.
+    """
     log['results'] = [
         {
             **{k: v for k, v in item.items() if k != 'features' and k != 'label' and k != 'time' and k != 'uri' and k != 'id'},
@@ -536,6 +583,7 @@ async def login(req: Request):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
     return JSONResponse(content={"access_token": logins[username]})
+
 
 ## THE ORDER OF THESE ROUTES MATTERS... Do not place this first.
 @app.get("/", response_class=FileResponse)

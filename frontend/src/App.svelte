@@ -72,7 +72,7 @@
 
   // server urls for DRES and service server
   const dres_server = "https://vbs.videobrowsing.org"; //"http://hmon.ms.mff.cuni.cz:8443";
-  const service_server = "http://acheron.ms.mff.cuni.cz:42032" ;//"http://vbs-backend-data-layer-1:80"; // need to switch if used locally to "http://acheron.ms.mff.cuni.cz:42032"
+  const service_server = "http://vbs-backend-data-layer-1:80"; // need to switch if used locally to "http://acheron.ms.mff.cuni.cz:42032"
 
   let send_results = "";
 
