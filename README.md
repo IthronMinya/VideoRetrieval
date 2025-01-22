@@ -56,7 +56,7 @@ To build and run the project as a Docker container, execute the following comman
 ```cmd
 docker compose up --build
 ```
-> You can access the project at localhost:8000 or via the Docker application.
+> You can access the project at localhost:8000 or via the Docker application. If you are developing only the frontend it's necessary to comment out the network part in the `docker-compose.yml` file.
 
 #### Backend Development
 For backend development, use the Uvicorn server in the main directory.
