@@ -1,5 +1,5 @@
 # PraK - Video Retrieval
-This project is a video retrieval system that allows users to search in video collection based on their content. The system communicates with a data service that provides videos, images and compute the search results (text and similarity queries, etc.). The system is built with a frontend and backend that communicate with each other using RESTful APIs. The frontend is built with Svelte and the backend with FastAPI. The project is containerized with Docker for easy deployment.
+This project is a video retrieval system that allows users to search in video collections based on their content. The system communicates with a data service that provides videos, and images and computes the search results (text and similarity queries, etc.). The system is built with a frontend and backend that communicate with each other using RESTful APIs. The frontend is built with Svelte and the backend with FastAPI. The project is containerized with Docker for easy deployment.
 
 ## Requirements: 
  - [Python 3.10+](https://www.python.org/downloads/)
@@ -14,7 +14,7 @@ Follow these steps to setup the project on your local machine:
    ```
 
 2. Set Up Python Virtual Environment
-   Create a Python virtual enviroment and install the required dependencies
+   Create a Python virtual environment and install the required dependencies
    ```cmd
    python -m venv venv
    venv\Scripts\activate
@@ -49,7 +49,7 @@ Follow these steps to setup the project on your local machine:
    cd ../
    uvicorn main:app --reload
    ```
-   > Main entry for the web server is `main.py`. The frontend entry point is `frontend/index.html`, and all components are created in `frontend/src/App.svelte`.
+   > The main entry for the web server is `main.py`. The frontend entry point is `frontend/index.html`, and all components are created in `frontend/src/App.svelte`.
 
 ### Development
 To build and run the project as a Docker container, execute the following command in the main directory:
@@ -76,18 +76,18 @@ npm run dev
 
 ## Project Structure
 The project is divided into several directories and files, each serving a specific purpose. Below is a description of the most important parts of the project structure:
-- `frontend/`: Contains whole Svelte frontend project.
-  - `vite.config.js`: Configuration file for the Vite bundler. Contains the proxy settings for the backend.
-  - `package.json`: Contains the frontend dependencies and scripts.
-  - `src/`: Contains the Svelte components, assets and code for the frontend.
-    - `App.svelte`: Main component that contains the main layout and most of the logic for the frontend.
-    - `store.js`: Svelte store for global state management. Contains the user data and login status that is shared between components.
-    - `Images.svelte`: Component for displaying a single image in the list. Contains the image and its metadata. And sets functionality connected to the image like showing video, displaying metadata or images from same video, etc.
-    - `ImageList.svelte`: Component for displaying a list of images. Contains the list of images and the logic for fetching more images when the user scrolls to the bottom of the list.
-    - `Login.svelte`: Component for user login. Contains the login form and the logic for sending the login request to the backend.
-    - `VirtualListNew.svelte`: Component for handling list of images as scrollable list. Managing the lines of images and their loading connected to the scroll position.
-- `main.py`: Main entry point for the FastAPI backend. Contains the API routes and the logic for handling the requests. The backend communicates with the data service to fetch the images and videos. It also handles the user authentication and authorization and bayes update.
+- `frontend/`: Contains the whole Svelte frontend project.
+  - `vite.config.js`: Configuration file for the Vite bundler. Contains the proxy settings for the backend.
+  - `package.json`: Contains the frontend dependencies and scripts.
+  - `src/`: Contains the Svelte components, assets, and code for the frontend.
+    - `App.svelte`: Main component that contains the main layout and most of the logic for the frontend.
+    - `store.js`: Svelte store for global state management. Contains the user data and login status that is shared between components.
+    - `Images.svelte`: Component for displaying a single image in the list. Contains the image and its metadata. And sets functionality connected to the image like showing video, displaying metadata or images from the same video, etc.
+    - `ImageList.svelte`: Component for displaying a list of images. Contains the list of images and the logic for fetching more images when the user scrolls to the bottom of the list.
+    - `Login.svelte`: Component for user login. Contains the login form and the logic for sending the login request to the backend.
+    - `VirtualListNew.svelte`: Component for handling a list of images as a scrollable list. Managing the lines of images and their loading connected to the scroll position.
+- `main.py`: Main entry point for the FastAPI backend. Contains the API routes and the logic for handling the requests. The backend communicates with the data service to fetch the images and videos. It also handles user authentication and authorization and Bayes updates.
 - `requirements.txt`: Contains the Python dependencies. These are installed in the Python virtual environment.
 - `Dockerfile`: Contains the Docker build instructions for the backend.
-- `docker-compose.yml`: Contains the Docker compose configuration for the project. It builds the frontend and backend and runs them in containers with the necessary environment variables and connect it to the network that data service is running on.
+- `docker-compose.yml`: Contains the Docker compose configuration for the project. It builds the frontend and backend, runs them in containers with the necessary environment variables, and connects them to the network that the data service is running on.
 - `.env`: Contains the environment variables for the project. The secret key is used for JWT token generation, and the password and logins are used for user authentication.
