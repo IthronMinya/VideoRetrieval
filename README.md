@@ -1,4 +1,4 @@
-# PraK - Video Retrieval
+# PraK
 PraK is a video retrieval system designed to allow users to search in video collections based on their content. This part of the system is composed of a frontend and backend that communicate seamlessly using RESTful APIs. The frontend, built with Svelte, provides an intuitive user interface for performing various types of searches, including text, image, metadata, and temporal queries. Additionally, the frontend allows users to view the search results, visualize the search results, and provide feedback to improve the search results using Bayesian relevance feedback. The backend, developed with FastAPI, handles the communication with the data service, performs additional computations, and manages user authentication and session tracking. 
 
 The data service, which is another component of the PraK tool, is responsible for providing videos, and images, and computing search results based on for example text and similarity queries. This component is hosted in a separate repository, which can be found [here](https://github.com/zuzavop/vbs-backend/tree/lsc2024).
@@ -6,6 +6,19 @@ The data service, which is another component of the PraK tool, is responsible fo
 The entire project is containerized using Docker, ensuring easy deployment and scalability. The frontend and backend are connected to the data service using a network, allowing them to communicate seamlessly. The project is designed to be easily extendable and customizable, allowing for the addition of new features and improvements.
 
 The current version of the PraK tool is available [here](http://acheron.ms.mff.cuni.cz:42033/).
+
+## Table of Contents
+- [PraK](#prak)
+  - [Table of Contents](#table-of-contents)
+  - [Functionality](#functionality)
+    - [Backend](#backend)
+    - [Frontend](#frontend)
+  - [Requirements:](#requirements)
+  - [Project setup instructions](#project-setup-instructions)
+    - [Development](#development)
+      - [Backend Development](#backend-development)
+      - [Frontend Development](#frontend-development)
+  - [Project Structure](#project-structure)
 
 ## Functionality
 ### Backend
@@ -99,18 +112,19 @@ npm run dev
 ## Project Structure
 The project is divided into several directories and files, each serving a specific purpose. Below is a description of the most important parts of the project structure:
 - `frontend/`: Contains the whole Svelte frontend project with all the components and assets.
-  - `vite.config.js`: Configuration file for the Vite bundler. Contains the proxy settings for the backend. Defines the build output directory and the base URL for the frontend.
-  - `package.json`: Contains the frontend dependencies and scripts for building and running the frontend.
-  - `src/`: Contains the Svelte components, assets, and code for the frontend. The most important files are:
-    - `App.svelte`: Main component that contains the [main layout](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L1393), [styles](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L1636) and most of the logic for the frontend. It calls the other components and manages the global state. The main functionality is [sending requests](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L654) to the backend, [communicating with the dres server](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L142) (server used in the competitions for handling submissions), [visualizations](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L369) and overall event handling.
-    - `store.js`: Svelte store for global state management. Contains the user data and login status that is shared between components.
-    - `Images.svelte`: Component for displaying a single image in the list. Contains the image and its metadata and sets functionality connected to the image like showing video, displaying metadata or images from the same video, etc.
-    - `ImageList.svelte`: Component for displaying a list of images. Contains the images that are supposed to be on one line. This component is used more like a container for the images.
-    - `VirtualListNew.svelte`: Component for handling a list of images as a scrollable list. Managing the lines of images and their loading connected to the scroll position.
-    - `Login.svelte`: Component for user login. Contains the login form and the logic for sending the login request to the backend.
+  - `vite.config.js`: Configuration file for the Vite bundler. Contains the proxy settings for the backend. Defines the build output directory and the base URL for the frontend.
+  - `package.json`: Contains the frontend dependencies and scripts for building and running the frontend.
+  - `src/`: Contains the Svelte components, assets, and code for the frontend. The most important files are:
+    - `App.svelte`: Main component that contains the [main layout](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L1393), [styles](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L1636) and most of the logic for the frontend. It calls the other components and manages the global state. The main functionality is [sending requests](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L654) to the backend, [communicating with the dres server](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L142) (server used in the competitions for handling submissions), [visualizations](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/frontend/src/App.svelte#L369) and overall event handling.
+    - `store.js`: Svelte store for global state management. Contains the user data and login status that is shared between components.
+    - `Images.svelte`: Component for displaying a single image in the list. Contains the image and its metadata and sets functionality connected to the image like showing video, displaying metadata or images from the same video, etc.
+    - `ImageList.svelte`: Component for displaying a list of images. Contains the images that are supposed to be on one line. This component is used more like a container for the images.
+    - `VirtualListNew.svelte`: Component for handling a list of images as a scrollable list. Managing the lines of images and their loading connected to the scroll position.
+    - `Login.svelte`: Component for user login. Contains the login form and the logic for sending the login request to the backend.
   
 - `main.py`: Main entry point for the FastAPI backend. Contains the API routes and the logic for handling the requests. The backend [communicates with the data service](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L347) to fetch the images. It also handles user authentication and authorization, [Bayesian relevance feedback](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L418), and saving logs that are frequently sent from the frontend.
 - `requirements.txt`: Contains the Python dependencies that are required for the backend.
 - `Dockerfile`: Contains the Docker build instructions for the backend. It installs the Python dependencies and sets the entry point for the FastAPI server.
 - `docker-compose.yml`: Contains the Docker compose configuration for the project. It builds the frontend and backend, runs them in containers with the necessary environment variables, and connects them to the network that the data service is running on in case both containers are running on the same machine.
 - `.env`: Contains the environment variables for the project. The secret key is used for JWT token generation, and the password and logins are used for user authentication.
+- `user_data/`: Directory for storing the user logs. The logs are stored as JSON files and contain the search queries, Bayes updates, and history movements.
