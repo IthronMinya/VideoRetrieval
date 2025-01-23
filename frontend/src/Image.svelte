@@ -240,7 +240,7 @@
         <button style='--row_size:{row_size};' class="hoverbutton top" on:mouseover={() => (hover = true)} transition:fade on:click={send_result}>Send</button>
     {/if}
 
-    {#if hover && $in_video_view}
+    {#if hover && $in_video_view && img.uri.split("/")[0] !== 'LSC'}
         <!-- svelte-ignore a11y-mouse-events-have-key-events -->
         <button style='--row_size:{row_size};' class="hoverbutton middle" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button>
     {/if}
@@ -250,8 +250,10 @@
         <button style='--row_size:{row_size};' class="hoverbutton middle" on:mouseover={() => (hover = true)} transition:fade on:click={similarimage}>Similar</button>
         <!-- svelte-ignore a11y-mouse-events-have-key-events -->
         <button style='--row_size:{row_size};' class="hoverbutton bottom" on:mouseover={() => (hover = true)} transition:fade on:click={video_images}>Video Frames</button>
-        <!-- svelte-ignore a11y-mouse-events-have-key-events -->
-        <button style='--row_size:{row_size};' class="hoverbutton furtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button>
+        {#if img.uri.split("/")[0] !== 'LSC'}
+            <!-- svelte-ignore a11y-mouse-events-have-key-events -->
+            <button style='--row_size:{row_size};' class="hoverbutton furtherbottom" on:mouseover={() => (hover = true)} transition:fade on:click={showVideo}>Video</button>
+        {/if}
     {/if}
 </div>
 

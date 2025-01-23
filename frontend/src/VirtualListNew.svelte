@@ -118,7 +118,7 @@
 			while (i < items.length) height_map[i++] = average_height;
 			bottom = remaining * average_height;
 		}, 50);
-		// TODO if we overestimated the space these
+		// if we overestimated the space these
 		// rows would occupy we may need to add some
 		// more. maybe we can just call handle_scroll again?
 	}

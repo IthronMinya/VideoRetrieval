@@ -220,7 +220,7 @@
 
       is_correct = res["submission"] == "CORRECT";  // check if the submission was imidiately correct
 
-      if (logging) { // TODO: rewrite to log only once for multiple sending option
+      if (logging) {
         let request_body = {
           log : {
             answers: answers,
@@ -1505,32 +1505,6 @@
       
       <hr/>
 
-            <!-- <div class="filedrop-container"> -->
-              <!-- svelte-ignore a11y-no-static-element-interactions -->
-              <!-- <div
-                class="file-drop-area"
-                on:dragenter={noopHandler}
-                on:dragexit={noopHandler}
-                on:dragover={noopHandler}
-                on:drop={drop}
-              >
-                <span class="fake-btn">Choose files</span>
-                <span class="file-msg">or drag and drop file here</span>
-                <input class="file-input" type="file" />
-              </div>
-              {#if dragged_url != null}
-                <div class="image-preview-container menu_item">
-                  <img
-                    class="preview_image"
-                    alt="preview upload"
-                    src={dragged_url}
-                  />
-                </div>
-              {/if}
-            </div>
-
-        <hr/> -->
-
             <Button
               class="block"
               color="secondary"
@@ -1542,20 +1516,15 @@
 
          <hr/>
 
-            <!-- {#each filters as filter}
-              <label for="input_{filter.name}">{filter.name}</label>
-              <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
-            {/each} -->
             {#if filtering_is_active}
-              <br /><br />
               <div class="input-container">
                 <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
                 <button on:click={() => date_value = ''}>x</button>
               </div><br />
-              <!-- <div class="input-container">
+              <div class="input-container">
                 <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
                 <button on:click={() => place_value = ''}>x</button>
-              </div><br /> -->
+              </div><br />
               <div class="input-container">
                 <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
                 <button on:click={() => weekday_value = ''}>x</button>
@@ -1566,13 +1535,15 @@
               </div><br />
 
               <Button
-                class="menu_item menu_button"
+                class="block"
                 color="secondary"
                 on:click={applyFilters}
                 variant="raised"
               >
                 <span class="resize-text">Apply ONLY Filters</span>
               </Button>
+
+              <hr/>
             {/if}
 
             <canvas class="menu_item" id="myChart"></canvas>
