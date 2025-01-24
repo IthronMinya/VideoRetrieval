@@ -23,14 +23,16 @@ The current version of the PraK tool is available [here](http://acheron.ms.mff.c
 ## Functionality
 ### Backend
 The backend provides the following features:
-- **User Authentication**: Users can log in to the system using their credentials. The system supports multiple users for session tracking and keeping track of history. The system uses JWT tokens for authentication and authorization.
-- **Bayesian Relevance Feedback**: Users can provide feedback on the search results using Bayesian relevance feedback. The system uses this feedback to improve the search results.
-- **Session Logging**: The system tracks user sessions and logs user interactions to improve the search results, which can be used for further analysis and improvements. The logs are stored as JSON files and are stored in the `user_data` directory. In this version of the tool only the search queries, Bayes updates, and history movements are logged.
-- **Data Service Communication**: The backend communicates with the data service to retrieve search results. The data service is responsible for providing the necessary data for the search operations. After the data service returns the search results, the backend processes the results and sends only the necessary data (the feature vectors and scores are not sent) to the frontend.
-- **History**: The system keeps track of the user's search history and provides access to previous searches and results, allowing users to revisit previous searches and results.
+- [**User Authentication**](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L566): Users can log in to the system using their credentials. The system supports multiple users for session tracking and keeping track of history. The system uses JWT tokens for authentication and authorization.
+- [**Bayesian Relevance Feedback**](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L418): Users can provide feedback on the search results using Bayesian relevance feedback. The system uses this feedback to improve the search results.
+- [**Session Logging**](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L263): The system tracks user sessions and logs user interactions to improve the search results, which can be used for further analysis and improvements. The logs are stored as JSON files and are stored in the `user_data` directory. In this version of the tool only the search queries, Bayes updates, and history movements are logged.
+- [**Data Service Communication**](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L347): The backend communicates with the data service to retrieve search results. The data service is responsible for providing the necessary data for the search operations. After the data service returns the search results, the backend processes the results and sends only the necessary data (the feature vectors and scores are not sent) to the frontend.
+- [**History**](https://github.com/IthronMinya/VideoRetrieval/blob/lsc2024/main.py#L485): The system keeps track of the user's search history and provides access to previous searches and results, allowing users to revisit previous searches and results.
 
 ### Frontend
-The frontend is divided into two main parts: the search interface and the search results. The search interface or more precisely search bar allows users to perform various types of searches, including text, metadata, and temporal queries. And allows users to specify the current used visualization or set the current user. The search results display the search results in a user-friendly manner, allowing users to view the results, visualize the results, and provide feedback using Bayesian relevance feedback. The images are displayed in a scrollable list, and the user can view the images in full size, view the metadata, and view images from the same video. The frontend also provides a login interface for user authentication.
+The frontend is divided into two main parts: the search interface and the search results. The search interface or more precisely search bar allows users to perform various types of searches, including text, metadata, and temporal queries. And allows users to specify the current used visualization or set the current user. The search results display the search results in a user-friendly manner, allowing users to view the results, visualize the results, and provide feedback using Bayesian relevance feedback. The images are displayed in a scrollable list, and the user can view the images in full size, view the metadata, and view images from the same video. The frontend also provides a login interface for user authentication. More about structure of code and components can be found in the [Project Structure](#project-structure) section.
+
+The frontend also communicates with [the dres server](https://github.com/dres-dev/DRES), which is used in the competitions for handling submissions. The frontend sends the target images or text to the dres server, which then processes the data and sends the response back to the frontend. More about the communication with the dres server can be found in the repository of the dres server.
 
 ## Requirements: 
  - [Python 3.10+](https://www.python.org/downloads/)
@@ -108,6 +110,7 @@ For frontend development, use the Svelte dev server. This server updates changes
 cd ./frontend
 npm run dev
 ```
+> If you add new dependencies to the frontend, you need to add them to `package.json` and run `npm install --legacy-peer-deps` in the frontend directory.
 
 ## Project Structure
 The project is divided into several directories and files, each serving a specific purpose. Below is a description of the most important parts of the project structure:

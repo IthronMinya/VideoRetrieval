@@ -484,7 +484,7 @@ async def bayes(req: Request):
 
 @app.post("/back")
 async def back(req: Request):
-    '''Go back to the previous query.
+    '''Go back to the previous query if possible.
     
     Parameters:
     - username: The username of the user making the request.
@@ -538,7 +538,7 @@ async def forward(req: Request):
 
 @app.post("/get_filters")
 async def get_filters(req: Request):
-    '''Get the filters for a dataset.
+    '''Get the filters for a dataset. Used more like helper function to found out if the dataset contains metadata filters.
     
     Parameters:
     - dataset: The dataset to get the filters for.
@@ -565,7 +565,7 @@ async def get_filters(req: Request):
 
 @app.post("/login")
 async def login(req: Request):
-    '''Login a user.
+    '''Login a user and send back an access token for dres server.
     
     Parameters:
     - username: The username of the user.
