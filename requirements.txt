@@ -10,4 +10,14 @@ requests==2.31.0
 typing_extensions==4.8.0
 
 uvicorn==0.23.2
+gunicorn
 
+aiohttp
+orjson
+
+redis
+
+jwt
+passlib
+bcrypt
+python-dotenv

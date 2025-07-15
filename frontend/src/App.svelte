@@ -2,133 +2,200 @@
   // disable TypeScript checking for this file
   // @ts-nocheck
 
-  import { selected_images, scroll_height, in_video_view, lion_text_query, lion_text_query_scene_2,  is_login, password, username } from "./stores.js";
+  import { onMount } from "svelte";
+  import { generate } from "random-words";
+  import { get } from "svelte/store";
 
+  // Store imports
+  import { 
+    selected_images, 
+    scroll_height, 
+    in_video_view, 
+    lion_text_query, 
+    lion_text_query_scene_2, 
+    is_login, 
+    password, 
+    username 
+  } from "./stores.js";
+
+  // Component imports
   import ImageList from "./ImageList.svelte";
-
   import VirtualList from "./VirtualListNew.svelte";
-
   import Login from './Login.svelte';
 
+  // Utility imports
+  import { logEvent, submitLogs, loggingInterval, preventLogging } from './Logger.js';
+
+  // SMUI component imports
   import Button, { Group, Label } from "@smui/button";
-
   import Select, { Option } from "@smui/select";
-
   import Textfield from '@smui/textfield';
   import HelperText from '@smui/textfield/helper-text';
   import Checkbox from '@smui/checkbox';
   import FormField from '@smui/form-field';
-
   import Fab, { Icon } from "@smui/fab";
-
-  import { onMount } from "svelte";
-
-  import { generate } from "random-words";
-  import { get } from "svelte/store";
-
   import Tooltip, { Wrapper } from '@smui/tooltip';
 
-  // variables for current evaluation and task management
+  // Constants
+  const MAX_DISPLAY_SIZE = 1000;
+  const MAX_LABELS = 10;
+  const CHART_LABELS = 10;
+  const ROW_SIZE = 4;
+  const DRES_SERVER = "http://hmon.ms.mff.cuni.cz:8443";
+  const SERVICE_SERVER = "http://vbs-backend-nginx-1:80"; // need to switch if used locally to "http://acheron.ms.mff.cuni.cz:42032"
+
+  // Available datasets and users
+  const USERS = [...Array.from({ length: 9 }, (_, i) => `06prak${String(i + 1)}`)];
+  let datasets = ["MVK", "V3C", "VBSLHE", "LSC"];
+
+  // Evaluation and task management variables
   let evaluation_name = "";
   let task_id = "";
   let user_id;
   let task_ids_collection = [];
+  let evaluation_ids = [];
+  let evaluation_names = [];
+  let task_ids = [];
+  let session_id;
 
-  // variables for managing image display range
+  // Image display variables
   let start;
   let end;
   let image_items = [];
-
-  let custom_result = "";
-
-  // flag to check if the text query contains '>'
-  let text_contains_greater_than = false;
-
-  let max_display_size = 1000;
-
-  let max_labels = 10;
-  let chart_labels = 10;
-  let row_size = 4;
-
-  // variable to hold prepared display data
   let prepared_display = null;
   $: {
     evaluation_ids;
     task_ids;
-    // set_scroll($scroll_height);
     prepared_display;
     filtered_lables;
   }
 
-  // available datasets
-  let datasets = ["MVK", "V3C", "VBSLHE"];
-
-  // usernames for login
-  let users = ["test", ...Array.from({ length: 9 }, (_, i) => `06prak${String(i + 1)}`)];
-
-  // default values for dataset and username
-  let value_dataset = "MVK";
-
-  // server urls for DRES and service server
-  const dres_server = "https://vbs.videobrowsing.org"; //"http://hmon.ms.mff.cuni.cz:8443"; 
-  const service_server = "http://vbs-backend-data-layer-1:80"; // if not from server use: "http://acheron.ms.mff.cuni.cz:42032";
-
+  // UI state variables
+  let custom_result = "";
+  let text_contains_greater_than = false;
   let send_results = "";
-
   let dragged_url = null;
-
-  let action_pointer = -1;
-
   let file = null;
+  let is_correct = false;
 
-  let filtered_lables = [];
-
-  let file_labels = [];
-
-  let label_color_map = {};
-
-  let virtual_list;
-
-  // flags for different display options
+  // Display options
   let unique_video_frames = false;
   let image_video_on_line = false;
   let image_hour_on_line = false;
 
-  let is_correct = false;
+  // Default values
+  let value_dataset = "MVK";
 
-  // variables for filtering
+  // Label and filtering variables
+  let filtered_lables = [];
+  let file_labels = [];
+  let label_color_map = {};
+  let virtual_list;
+
+  // Filtering variables
   let filtering_is_active = false;
   let date_value = '';
   let place_value = '';
   let weekday_value = '';
   let hour_value = '';
 
-  // variables for evaluation and task management
-  let evaluation_ids = [];
-  let evaluation_names = [];
-  let task_ids = [];
-  let session_id;
-
+  // Logging configuration
   let logging = true;
+  if (!logging) { 
+    preventLogging(); 
+  }
 
-  // initializations after loading the page
-  initialization();
-  get_session_id_for_user();
+  // Initialize app based on login status
+  if ($is_login) {
+    initializeApp();
+  } else {
+    handleCookieLogin();
+  }
+
+  function handleCookieLogin() {
+    if (document.cookie.includes("username")) {
+      const usernameMatch = document.cookie.match(new RegExp('(^| )username=([^;]+)'));
+      if (usernameMatch) {
+        $username = getCookieValue('username');
+        const tagsMatch = document.cookie.match(new RegExp('(^| )tags=([^;]+)'));
+        if (tagsMatch) {
+          $password = getCookieValue('tags');
+          $is_login = true;
+          initializeApp();
+        }
+      } else {
+        $username = USERS[0];
+      }
+    } else {
+      $username = USERS[0];
+    }
+  }
+
+  function initializeApp() {
+    initialization();
+    get_session_id_for_user();
+  }
+
+  // Log events only after component has mounted
+  let hasMounted = false;
+  
+  function logIfMounted(action, value = null, additionalArgs = null) {
+    if (hasMounted) {
+      logEvent(action, value, additionalArgs);
+    }
+  }
+
+  // Scroll logging handlers
+  let updatedStart = false;
+  let updatedEnd = false;
+  
+  function logScrollIfMounted(x, type) {
+    if (!hasMounted) return;
+
+    if (type === "start") {
+      updatedStart = true;
+    } else {
+      updatedEnd = true;
+    }
+
+    if (updatedStart && updatedEnd) {
+      logEvent("scroll", `${start+1}-${end}`, { 
+        "uniqueVideoFrames": unique_video_frames, 
+        "imageVideoOnLine": image_video_on_line 
+      });
+      updatedStart = false;
+      updatedEnd = false;
+    }
+  }
+
+  // Mouse event handlers
+  function handleMouseLeave() {
+    logEvent("mouseLeft");
+  }
+
+  function handleMouseEnter() {
+    logEvent("mouseEnter");
+  }
+
+
+  // define reactive blocks to watch for variable changes for log purposes
+  $: logIfMounted("switchDataset", value_dataset);
+  $: logIfMounted("SwitchView", task_id);
+  $: logIfMounted("uniqueVideoFrames", unique_video_frames);
+  $: logIfMounted("imageVideoOnLine", image_video_on_line);
+  $: logScrollIfMounted(start, "start");
+  $: logScrollIfMounted(end, "end");
+
 
   function set_dataset() {
     lion_text_query.set("");          // Reset the first query input
-    lion_text_query_scene_2.set("");  // Reset the second query input
+    lion_text_query_scene_2.set("");
     selected_images.set([]);          // Clear selected images
     in_video_view.set(false);         // Reset view state
     scroll_height.set(0);             // Reset scroll height
 
-    start = 0;
-    end = 0;
-    prepared_display = null;
-    filtered_lables = [];
-
-    initialization(); // Re-run initialization for new dataset
-}
+    initialization();
+  }
 
   function set_task_id() {
     let tasks = task_ids_collection[evaluation_names.indexOf(evaluation_name)];
@@ -154,9 +221,13 @@
     let image_data = image_items;
     let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
 
-    let request_url = `${dres_server}/api/v2/submit/${eval_id}?session=${session_id}`;
+    let request_url = `${DRES_SERVER}/api/v2/submit/${eval_id}?session=${session_id}`;
     
     if (results == null) {
+      if (text == "") {
+        return;
+      }
+
       let answer = {
         text: text, //text - in case the task is not targeting a particular content object but plaintext
         mediaItemName: null, // item -  item which is to be submitted
@@ -220,7 +291,7 @@
 
       is_correct = res["submission"] == "CORRECT"; // check if the submission was imidiately correct
 
-      if (logging) { // TODO: rewrite to log only once for multiple sending option
+      if (logging) {
         let request_body = {
           log : {
             answers: answers,
@@ -248,10 +319,9 @@
   }
 
   async function get_session_id_for_user() {
-    if ($username === "test") {
+    if ($username === "prak_test") {
       return;
     }
-
     evaluation_ids = [];
     evaluation_names = [];
     task_ids_collection = [];
@@ -261,12 +331,11 @@
     task_id = "";
 
     // get session id for the user
-    let request_url = `${dres_server}/api/v2/login`;
+    let request_url = `${DRES_SERVER}/api/v2/login`;
     let request_body = JSON.stringify({
       username: $username,
       password: $password,
     });
-
     let login_response = await fetch(request_url, {
       method: "POST",
       headers: {
@@ -274,7 +343,8 @@
       },
       body: request_body,
     });
-
+    console.log("login_response")
+    console.log(login_response)
     if (login_response.ok) {
       let login_data = await login_response.json();
       user_id = login_data["id"];
@@ -287,7 +357,7 @@
     }
 
     // get evaluations for the user
-    let evaluations_url = `${dres_server}/api/v2/client/evaluation/list?session=${session_id}`;
+    let evaluations_url = `${DRES_SERVER}/api/v2/client/evaluation/list?session=${session_id}`;
     let evaluations_req = await fetch(evaluations_url, {
       method: "GET",
       headers: {
@@ -355,6 +425,14 @@
       }
     }, 50);
   }
+  function scrollToRow(height) {
+    setTimeout(() => {
+      if (virtual_list) {
+        virtual_list.scrollToRow(height, { behavior: "auto" });
+        virtual_list.handle_scroll();
+      }
+    }, 50);
+  }
 
   function scroll_to_index(index) {
     setTimeout(() => {
@@ -371,20 +449,65 @@
     button.style.cursor = condition ? "default" : "pointer";
   }
 
+  async function reloading_display_unique(){
+    const url = `${window.location.origin}/updatePointer`;
+
+    let response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: $username,
+        image_video_on_line: image_video_on_line,
+        unique_video_frames: !unique_video_frames,
+        start: start,
+        image_video_on_line_new: image_video_on_line,
+        unique_video_frames_new: unique_video_frames,
+      }),
+    });
+
+    let responseData = await response.json();
+    
+    scrollToHeight(0);
+    reloading_display();
+  }
+
+  async function reloading_display_line(){
+
+    const url = `${window.location.origin}/updatePointer`;
+
+    let response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: $username,
+        image_video_on_line: !image_video_on_line,
+        unique_video_frames: unique_video_frames,
+        start: start, 
+        image_video_on_line_new: image_video_on_line,
+        unique_video_frames_new: unique_video_frames,
+      }),
+    });
+
+    let responseData = await response.json();
+    scrollToHeight(0);
+    reloading_display();
+  }
+
   async function reloading_display(video_image_id = 0) {
     is_correct = false;
-
     start = 0;
-    //updateButtonState("previous", action_pointer <= 0);
-    //updateButtonState("next", 9 <= action_pointer);
 
     let scroll_index;
 
     if (image_items != null) {
       $in_video_view = image_items["method"] === "show_video_frames";
-      $lion_text_query = (image_items["method"] === "textquery" || image_items["method"] === "temporalquery") ? image_items["query"] : "";
-      lion_text_query_scene_2 = image_items["method"] === "temporalquery" ? image_items["query2"] : "";
-      let row_s = image_items["method"] === "temporalquery" ? 2 : row_size; //image_items["query"].split(">").length : row_size;
+      $lion_text_query = image_items["query"];
+      $lion_text_query_scene_2 = image_items["query2"];
+      let row_s = ROW_SIZE;
 
       console.log("reloading display");
 
@@ -451,7 +574,14 @@
         scroll_to_index(scroll_index > 0 ? scroll_index : 0);
       }
 
-      // create_chart();
+      if (value_dataset === 'LSC') {
+        create_chart();
+      } else {
+        const canvas = document.getElementById("myChart");
+        if (canvas) {
+          canvas.remove();
+        }
+      }
 
     } else {
       prepared_display = null;
@@ -460,8 +590,20 @@
 
   onMount(() => {
     window.addEventListener("resize", reloading_display);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('mouseenter', handleMouseEnter);
+    // enable logging after mount
+    hasMounted = true;
+
+    // logging submittion
+    const intervalId = setInterval(async () => {
+      if (logging) {
+        await submitLogs()
+      }
+    }, loggingInterval * 1000);
     return () => {
       window.removeEventListener("resize", reloading_display);
+      clearInterval(intervalId);
     };
   });
 
@@ -500,6 +642,36 @@
     await handle_submission([send_results]);
   }
 
+  async function send_results_single_frame(event) {
+    let img_id = event.detail.image_id;
+    let video_time = event.detail.video_time * 1000;
+    $selected_images = [];
+
+    is_correct = false;
+
+    // if evaluation_name is undefined, we cannot submit anything
+    if (evaluation_name === undefined || evaluation_name === "") {
+      console.log("No evaluation name selected.");
+      return;
+    }
+    
+    let eval_id = evaluation_ids[evaluation_names.indexOf(evaluation_name)];
+
+    let request_url = `${DRES_SERVER}/api/v2/submit/${eval_id}?session=${session_id}`;
+    
+    let answer = {
+        text: null, //text - in case the task is not targeting a particular content object but plaintext
+        mediaItemName: img_id[0], // item -  item which is to be submitted
+        mediaItemCollectionName: null, // collection - does not usually need to be set
+        start: Math.round(video_time), //start time in milliseconds
+        end: Math.round(video_time), //end time in milliseconds, in case an explicit time interval is to be specified
+    };
+
+    answer = { answers: [answer], taskId: task_id };
+
+    await sendAnswer(request_url, [answer]);
+  }
+
   async function send_results_multiple() {
     send_results = " ";
 
@@ -515,7 +687,7 @@
   }
 
   async function video_images(event) {
-    const request_url = service_server + "/getVideoFrames/";
+    const request_url = SERVICE_SERVER + "/getVideoFrames/";
 
     let selected_item = event.detail.image_id;
 
@@ -523,9 +695,9 @@
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
       k: -1,
       dataset: value_dataset,
-      add_features: 1,
+      add_features: 0,
       speed_up: 1,
-      max_labels: max_labels,
+      max_labels: MAX_LABELS,
     };
 
     if (value_dataset == 'LSC') {
@@ -549,22 +721,14 @@
   }
 
   async function initialization() {
-    if (document.cookie.includes("username")) {
-      let match = document.cookie.match(new RegExp('(^| )' + "username" + '=([^;]+)'));
-      if (match) {
-        $username = getCookieValue('username');
-        match = document.cookie.match(new RegExp('(^| )' + "tags" + '=([^;]+)'));
-        if (match) $password = getCookieValue('tags');
-      }
-      else $username = users[0];
-    } else {
-      $username = users[0];
-    }
-
     // Read labels from the text file
     file_labels = await readTextFile("./assets/" + value_dataset + "-nounlist.txt");
 
     console.log("./assets/" + value_dataset + "-nounlist.txt");
+
+    if ($username == "prak_test") {
+      datasets = ["LSC"];
+    }
 
     let filters_names = [];
     if (value_dataset === 'LSC') {
@@ -576,6 +740,7 @@
         },
         body: JSON.stringify({
           dataset: value_dataset,
+          server: SERVICE_SERVER,
         }),
       });
 
@@ -602,15 +767,15 @@
 
     let q = generate();
 
-    const request_url = service_server + "/textQuery/";
+    const request_url = SERVICE_SERVER + "/textQuery/";
 
     const request_body = JSON.stringify({
       query: q,
-      k: max_display_size,
+      k: MAX_DISPLAY_SIZE,
       dataset: value_dataset,
-      add_features: 1,
+      add_features: 0,
       speed_up: 1,
-      max_labels: max_labels,
+      max_labels: MAX_LABELS,
     });
 
     request_handler(request_url, request_body, true, "", false, "", 0, false, true);
@@ -622,6 +787,21 @@
       event.preventDefault();
       get_scores_by_text();
     }
+  }
+
+  function handleInput1(event) {
+    const typedChar = event.data;
+    logEvent("keypress1", typedChar);
+  }
+
+  function handleInput2(event) {
+    const typedChar = event.data;
+    logEvent("keypress2", typedChar);
+  }
+
+  function handleInput3(event) {
+    const typedChar = event.data;
+    logEvent("keypress3", typedChar);
   }
 
   async function request_handler(request_url, request_body, init = false, method = "", image_upload = false, query = "", video_image_id = 0, is_sorted = false, reset = false) {
@@ -643,6 +823,10 @@
         dataset: value_dataset,
         username: $username,
         reset: reset,
+        image_video_on_line: image_video_on_line,
+        unique_video_frames: unique_video_frames,
+        start: start,
+        frontendStartTime: (Date.now() * 1000) / 1000,
       };
 
       if (value_dataset == 'LSC') {
@@ -650,8 +834,10 @@
         bodyObject.model = 'clip-vit-webli';
         request_body.body = JSON.stringify(bodyObject);
       }
-
       request_body = JSON.stringify(request_body);
+
+      // log request time
+      logEvent("serverRequest");
 
       if (!image_upload) {
         response = await fetch(url, {
@@ -668,13 +854,18 @@
         });
       }
 
+      // log response time
+      logEvent("serverResponse");
+
       if (!response.ok) {
         throw new Error("Request failed");
       }
 
-      let responseData = await response.json();
-      responseData = responseData[0];
-      action_pointer = responseData[1];
+      let dataFromResponse = await response.json();
+      let responseData = dataFromResponse.data;
+      let timing = dataFromResponse.timing;
+      
+      timing.T7_frontendReceived = (Date.now() * 1000) / 1000;
 
       console.log(responseData);
 
@@ -690,8 +881,8 @@
       if ($lion_text_query != "") {
         image_items["query"] = $lion_text_query;
       }
-      if (lion_text_query_scene_2 != "") {
-        image_items["query2"] = lion_text_query_scene_2;
+      if ($lion_text_query_scene_2 != "") {
+        image_items["query2"] = $lion_text_query_scene_2;
       }
 
       // reset the selection
@@ -702,6 +893,25 @@
       } else {
         reloading_display();
       }
+
+      timing.T8_afterLoading = (Date.now() * 1000) / 1000;
+
+      // Calculate intervals between times in the timing object
+      let intervals = {};
+      let sortedKeys = Object.keys(timing).sort((a, b) => {
+        // Extract the numeric part of the keys (e.g., T0 -> 0, T1 -> 1)
+        const extractNumber = (key) => parseFloat(key.match(/T(\d+\.?\d*)/)[1]);
+        return extractNumber(a) - extractNumber(b);
+      });
+
+      for (let i = 1; i < sortedKeys.length; i++) {
+        let prevKey = sortedKeys[i - 1];
+        let currKey = sortedKeys[i];
+        intervals[`${prevKey} -> ${currKey}`] = timing[currKey] - timing[prevKey];
+      }
+
+      console.log("Intervals: ", intervals);
+
     } catch (error) {
       console.error(error);
     }
@@ -747,7 +957,7 @@
 
 
   async function get_scores_by_text() {
-    const request_url = service_server + (lion_text_query_scene_2 != '' ? "/temporalQuery/" : "/textQuery/");
+    const request_url = SERVICE_SERVER + ($lion_text_query_scene_2 != '' ? "/temporalQuery/" : "/textQuery/");
 
     const filters = {};
 
@@ -770,27 +980,27 @@
     }
 
     const query_res = extract_position_indicators($lion_text_query);
-    const query_res_scene_2 = extract_position_indicators(lion_text_query_scene_2);
+    const query_res_scene_2 = extract_position_indicators($lion_text_query_scene_2);
 
     const request_body = JSON.stringify({
-      query: query_res.query,
-      query2: query_res_scene_2.query, // TODO in backend,
-      position: query_res.position, // TODO in backend,
-      position_scene_2: query_res_scene_2.position, // TODO in backend,      
-      k: max_display_size,
+      query: query_res.query, 
+      query2: query_res_scene_2.query,
+      position: query_res.position,
+      position_scene_2: query_res_scene_2.position,      
+      k: MAX_DISPLAY_SIZE,
       dataset: value_dataset,
-      add_features: 1,
+      add_features: 0,
       speed_up: 1,
-      max_labels: max_labels,
+      max_labels: MAX_LABELS,
       filters: filters,
     });
 
-    await request_handler(request_url, request_body, false, lion_text_query_scene_2 != '' ? "temporalquery" : "textquery", false, $lion_text_query);
+    await request_handler(request_url, request_body, false, $lion_text_query_scene_2 != '' ? "temporalquery" : "textquery", false, $lion_text_query);
   }
 
 
   async function get_scores_by_image(event) {
-    const request_url = service_server + "/imageQueryByID/";
+    const request_url = SERVICE_SERVER + "/imageQueryByID/";
 
     let selected_item = event.detail.image_id;
 
@@ -816,11 +1026,11 @@
 
     const request_body = JSON.stringify({
       item_id: String(selected_item[0]) + "_" + String(selected_item[1]),
-      k: max_display_size,
+      k: MAX_DISPLAY_SIZE,
       dataset: value_dataset,
-      add_features: 1,
+      add_features: 0,
       speed_up: 1,
-      max_labels: max_labels,
+      max_labels: MAX_LABELS,
       filters: filters,
     });
 
@@ -832,7 +1042,7 @@
       return null;
     }
 
-    const request_url = service_server + "/imageQuery/";
+    const request_url = SERVICE_SERVER + "/imageQuery/";
 
     const filters = {};
 
@@ -855,11 +1065,11 @@
     }
 
     const params = {
-      k: max_display_size,
-      add_features: 1,
+      k: MAX_DISPLAY_SIZE,
+      add_features: 0,
       dataset: value_dataset,
       speed_up: 1,
-      max_labels: max_labels,
+      max_labels: MAX_LABELS,
       filters: filters,
     };
 
@@ -893,12 +1103,20 @@
       body: JSON.stringify({
         selected_images: $selected_images,
         username: $username,
+        image_video_on_line: image_video_on_line,
+        unique_video_frames: unique_video_frames,
+        start: start,
+        dataset: value_dataset,
+        frontendStartTime: (Date.now() * 1000) / 1000,
       }),
     });
 
-    let responseData = await response.json();
 
-    image_items = responseData;
+    let dataFromResponse = await response.json();
+    image_items = dataFromResponse.data;
+    let timing = dataFromResponse.timing;
+
+    timing.T7_frontendReceived = (Date.now() * 1000) / 1000;
 
     // reset the selection
     $selected_images = [];
@@ -908,11 +1126,6 @@
   }
 
   async function traverse_states(direction) {
-    // no action when we are at the initialization or there is no next action yet.
-    if ( (direction == -1 && action_pointer <= 0) || (direction == 1 && action_pointer >= 9) ) {
-      return null;
-    }
-
     let url = `${window.location.origin}/${direction === -1 ? 'back' : 'forward'}`;
 
     let response = await fetch(url, {
@@ -927,17 +1140,21 @@
 
     let responseData = await response.json();
 
-    if (responseData.length != 2) {
+    if (Object.keys(responseData).length != 4) {
       return null;
     }
 
-    image_items = responseData[0];
-    action_pointer = responseData[1];
+    image_items = responseData.data;
+    let limit_frames = responseData.limit_frames;
+    let video_on_line = responseData.video_on_line;
+    let scroll_position = responseData.scroll_pos;
+    image_video_on_line = video_on_line;
+    unique_video_frames = limit_frames;
 
     reloading_display();
-
+    
     // will be previous if action is -1 and next if action is + 1
-    scrollToHeight(0);
+    scrollToRow(scroll_position)
   }
 
   async function readTextFile(filePath) {
@@ -1008,7 +1225,7 @@
           one_not_included = false;
 
           for (let i = 0; i < filtered_lables.length; i++) {
-            if (!temp_items[key].label.includes(filtered_lables[i])) {
+            if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
               one_not_included = true;
             }
           }
@@ -1056,7 +1273,7 @@
           continue;
         }
         for (let i = 0; i < filtered_lables.length; i++) {
-          if (!temp_items[key].label.includes(filtered_lables[i])) {
+          if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
             temp_items[key]["disabled"] = true;
           }
         }
@@ -1113,7 +1330,7 @@
 
     const topNumbersWithOccurrences = await findTopNNumbersWithLabels(
       temp_items,
-      chart_labels,
+      CHART_LABELS,
     );
 
     let allLabels = Object.values(topNumbersWithOccurrences).flatMap(
@@ -1189,7 +1406,7 @@
                   one_not_included = false;
 
                   for (let i = 0; i < filtered_lables.length; i++) {
-                    if (!temp_items[key].label.includes(filtered_lables[i])) {
+                    if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
                       one_not_included = true;
                     }
                   }
@@ -1237,7 +1454,7 @@
                   continue;
                 }
                 for (let i = 0; i < filtered_lables.length; i++) {
-                  if (!temp_items[key].label.includes(filtered_lables[i])) {
+                  if (!temp_items[key].label.includes(filtered_lables[i].toString())) {
                     temp_items[key]["disabled"] = true;
                   }
                 }
@@ -1296,7 +1513,7 @@
   }
 
   async function applyFilters() {
-    let url = service_server + "/filter/";
+    let url = SERVICE_SERVER + "/filter/";
 
     let filters_to_apply = {};
 
@@ -1320,17 +1537,25 @@
     
     const request_body = JSON.stringify({
       filters: filters_to_apply,
-      k: max_display_size,
+      k: MAX_DISPLAY_SIZE,
       dataset: value_dataset,
-      add_features: 1,
+      add_features: 0,
       speed_up: 1,
-      max_labels: max_labels,
+      max_labels: MAX_LABELS,
     });
 
     request_handler(url, request_body, false, "filter", false, filters_to_apply);
   }
 
   async function handleLoginSuccess() {
+    if ($username === "prak_test") {
+      datasets = ["LSC"];
+      value_dataset = "LSC";
+    } else {
+      datasets = ["MVK", "V3C", "VBSLHE", "LSC"];
+    }
+
+    initialization();
     get_session_id_for_user();
   }
 
@@ -1342,308 +1567,274 @@
     }
   }
 
+
   async function reset() {
     let q = generate();
 
-    const request_url = service_server + "/textQuery/";
+    const request_url = SERVICE_SERVER + "/textQuery/";
 
     const request_body = JSON.stringify({
-        query: q,
-        k: max_display_size,
-        dataset: value_dataset,
-        add_features: 1,
-        speed_up: 1,
-        max_labels: max_labels,
+      query: q,
+      k: MAX_DISPLAY_SIZE,
+      dataset: value_dataset,
+      add_features: 0,
+      speed_up: 1,
+      max_labels: MAX_LABELS,
     });
 
-    // Reset relevant variables
-    start = 0;
-    end = 0;
-    prepared_display = null;
     $lion_text_query = "";  
-    lion_text_query_scene_2 = "";  
+    $lion_text_query_scene_2 = "";
 
-    await request_handler(request_url, request_body, true, "", false, "", 0, false, true);
-}
-
-
+    request_handler(request_url, request_body, true, "", false, "", 0, false);
+  }
 </script>
 
 {#if $is_login}
   <main>
     <div id="left-sidebar">
-      <div id="vbs-options">
-        <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={handleChangeUser} bind:value={$username} label="Select User">
-          {#each users as user}
-            <Option value={user}>{user}</Option>
-          {/each}
-        </Select>
+    <div id="vbs-options">
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={handleChangeUser} bind:value={$username} label="Select User">
+        {#each USERS as user}
+          <Option value={user}>{user}</Option>
+        {/each}
+      </Select>
 
-        <Select class="vbs-options-select {is_correct ? 'green' : ''}" variant="filled" on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Eval. ID">
-          {#each evaluation_names as e}
-            <Option value={e}>{e}</Option>
-          {/each}
-        </Select>
+      <Select class="vbs-options-select {is_correct ? 'green' : ''}" variant="filled" on:SMUISelect:change={set_task_id} bind:value={evaluation_name} label="Eval. ID">
+        {#each evaluation_names as e}
+          <Option value={e}>{e}</Option>
+        {/each}
+      </Select>
 
-        <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={task_id} bind:value={task_id} label="Task Type">
-          <!--TODO {#each task_ids as t}-->
-          {#each ['AVS', 'KIS', 'Q/A'] as t}
-            <Option value={t}>{t}</Option>
-          {/each}
-        </Select>
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={task_id} bind:value={task_id} label="Task ID">
+        {#each ['AVS', 'KIS', 'Q/A', 'ALL'] as t}
+          <Option value={t}>{t}</Option>
+        {/each}
+      </Select>
 
-        <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
-          {#each datasets as dataset}
-            <Option value={dataset}>{dataset}</Option>
-          {/each}
-        </Select>
+      <Select class="vbs-options-select" variant="filled" on:SMUISelect:change={set_dataset} bind:value={value_dataset} label="Select Dataset">
+        {#each datasets as dataset}
+          <Option value={dataset}>{dataset}</Option>
+        {/each}
+      </Select>
+    </div>
+
+    <hr />
+
+    <Button class="block" color="primary" on:click={reset} variant="raised">
+        <span class="resize-text">Reset</span>
+    </Button>
+
+    <br />
+    <br />
+
+    {#if task_id === 'AVS' || task_id === 'ALL'}
+      <div id="vbs-submit-avs">
+        <Button class="block" color="primary" on:click={send_results_multiple} variant="raised">
+          <span class="resize-text">Send Selected Images</span>
+        </Button>
+      </div>
+      <hr />
+    {/if}
+    {#if task_id === 'Q/A' || task_id === 'ALL'}
+      <div id="vbs-submit-qa">
+        <Textfield textarea class="block mb1" bind:value={custom_result}  on:input={handleInput3}  label="Custom Result Message"></Textfield>
+        <Button class="block" color="primary" on:click={send_results_custom} variant="raised">
+          <span class="resize-text">Send Text</span>
+        </Button>
+      </div>
+      <hr />
+    {/if}
+
+    <div id="vbs-query">
+      <div class="centering mb1">
+        <Group variant="outlined">
+          <Button id="previous" on:click={() => traverse_states(-1)} variant="outlined">
+            <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon> <Label>Prev</Label>
+          </Button>
+          <Button id="next" on:click={() => traverse_states(1)} variant="outlined">
+            <Label>Next</Label> <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
+          </Button>
+        </Group>
       </div>
 
-      <hr />
+      <div class="query-text-area">
+        <Textfield id="text_query_input" textarea class="block mb1" bind:value={$lion_text_query} on:keypress={handleKeypress} on:input={handleInput1} label="Query Scene 1"></Textfield>
+        <Wrapper>
+          <div class="i-tooltip">i</div>
+          <Tooltip>
+            <p style="text-align:left">
+              You can define the location of your query in the target image by appending one of the following keywords.<br/>
+              E.g. "brown dog tl".<br/>
+              <i>tl</i> - top left<br/>
+              <i>tr</i> - top right<br/>
+              <i>md</i> - middle<br/>
+              <i>bl</i> - bottom left<br/>
+              <i>br</i> - bottom right
+            </p>
+          </Tooltip>
+        </Wrapper>
+      </div>
 
-      <Button class="block" color="primary" on:click={reset} variant="raised">
-        <span class="resize-text">Reset</span>
-      </Button>
+      <div class="query-text-area">
+        <Textfield id="text_query_input_2" textarea class="block mb1" bind:value={$lion_text_query_scene_2} on:keypress={handleKeypress} on:input={handleInput2}   label="Query Scene 2"></Textfield>
+        <Wrapper>
+          <div class="i-tooltip">i</div>
+          <Tooltip>
+            <p style="text-align:left">
+              You can define the location of your query in the target image by appending one of the following keywords.<br/>
+              E.g. "brown dog tl".<br/>
+              <i>tl</i> - top left<br/>
+              <i>tr</i> - top right<br/>
+              <i>md</i> - middle<br/>
+              <i>bl</i> - bottom left<br/>
+              <i>br</i> - bottom right
+            </p>
+          </Tooltip>
+        </Wrapper>
+      </div>
 
-      <br />
-
-      {#if task_id === 'AVS'}
-        <div id="vbs-submit-avs">
-          <Button class="block" color="primary" on:click={send_results_multiple} variant="raised">
-            <span class="resize-text">Send Selected Images</span>
-          </Button>
-        </div>
-        <hr />
-      {:else if task_id === 'Q/A'}
-        <div id="vbs-submit-qa">
-          <Textfield textarea class="block mb1" bind:value={custom_result} label="Custom Result Message"></Textfield>
-          <Button class="block" color="primary" on:click={send_results_custom} variant="raised">
-            <span class="resize-text">Send Text</span>
-          </Button>
-        </div>
-        <hr />
-      {/if}
-
-      <div id="vbs-query">
-        <div class="centering mb1">
-          <Group variant="outlined">
-            <Button id="previous" on:click={() => traverse_states(-1)} variant="outlined">
-              <Icon style="font-size:20px;" class="material-icons">arrow_back</Icon> <Label>Prev</Label>
+            <Button
+              class="block"
+              color="primary"
+              on:click={get_scores_by_text}
+              variant="raised"
+            >
+              <span class="resize-text">Submit Text Query</span>
             </Button>
-            <Button id="next" on:click={() => traverse_states(1)} variant="outlined">
-              <Label>Next</Label> <Icon style="font-size:20px;" class="material-icons">arrow_forward</Icon>
-            </Button>
-          </Group>
-        </div>
-
-        <div class="query-text-area">
-          <Textfield
-            id="text_query_input"
-            textarea
-            class="block mb1"
-            bind:value={$lion_text_query}
-            on:keypress={handleKeypress}
-            label="Query Scene 1"
-          />
-          <Wrapper>
-            <div class="i-tooltip">i</div>
-            <Tooltip>
-              <p style="text-align:left">
-                You can define the location of your query in the target image by appending one of the following keywords.<br/>
-                E.g. "brown dog tl".<br/>
-                <i>tl</i> - top left<br/>
-                <i>tr</i> - top right<br/>
-                <i>md</i> - middle<br/>
-                <i>bl</i> - bottom left<br/>
-                <i>br</i> - bottom right
-              </p>
-            </Tooltip>
-          </Wrapper>
-        </div>
-        
-        <div class="query-text-area">
-          <Textfield
-            id="text_query_input_2"
-            textarea
-            class="block mb1"
-            bind:value={$lion_text_query_scene_2}
-            on:keypress={handleKeypress}
-            label="Query Scene 2"
-          />
-          <Wrapper>
-            <div class="i-tooltip">i</div>
-            <Tooltip>
-              <p style="text-align:left">
-                You can define the location of your query in the target image by appending one of the following keywords.<br/>
-                E.g. "brown dog tl".<br/>
-                <i>tl</i> - top left<br/>
-                <i>tr</i> - top right<br/>
-                <i>md</i> - middle<br/>
-                <i>bl</i> - bottom left<br/>
-                <i>br</i> - bottom right
-              </p>
-            </Tooltip>
-          </Wrapper>
-        </div>
-        
-
-        <Button class="block" color="primary" on:click={get_scores_by_text} variant="raised">
-          <span class="resize-text">Submit Text Query</span>
-        </Button>
       </div>
       
-      <!-- <hr/>
-
-      <div class="filedrop-container"> -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <!-- <div
-          class="file-drop-area"
-          on:dragenter={noopHandler}
-          on:dragexit={noopHandler}
-          on:dragover={noopHandler}
-          on:drop={drop}
-        >
-          <span class="fake-btn">Choose files</span>
-          <span class="file-msg">or drag and drop file here</span>
-          <input class="file-input" type="file" />
-        </div>
-        {#if dragged_url != null}
-          <div class="image-preview-container menu_item">
-            <img
-              class="preview_image"
-              alt="preview upload"
-              src={dragged_url}
-            />
-          </div>
-        {/if}
-      </div> -->
-
       <hr/>
 
-      <Button class="block" color="secondary" on:click={bayesUpdate} variant="raised">
-        <span class="resize-text">Bayes Update</span>
-      </Button>
+            <Button
+              class="block"
+              color="secondary"
+              on:click={bayesUpdate}
+              variant="raised"
+            >
+              <span class="resize-text">Bayes Update</span>
+            </Button>
 
-      <hr/>
+         <hr/>
 
-      <!-- {#each filters as filter}
-        <label for="input_{filter.name}">{filter.name}</label>
-        <input type="text" id="input_{filter.name}" bind:value={filter.value} placeholder="Enter {filter.name} ..." />
-      {/each} -->
-      {#if filtering_is_active}
-        <br /><br />
-        <div class="input-container">
-          <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
-          <button on:click={() => date_value = ''}>x</button>
-        </div><br />
-        <!-- <div class="input-container">
-          <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
-          <button on:click={() => place_value = ''}>x</button>
-        </div><br /> -->
-        <div class="input-container">
-          <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
-          <button on:click={() => weekday_value = ''}>x</button>
-        </div><br />
-        <div class="input-container">
-          <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
-          <button on:click={() => hour_value = ''}>x</button>
-        </div><br />
+            {#if filtering_is_active}
+              <div class="input-container block">
+                <input type="text" id="input_date" bind:value={date_value} placeholder="Enter date (yyyymmdd) ..." />
+                <button on:click={() => date_value = ''}>x</button>
+              </div><br />
+              <div class="input-container block">
+                <input type="text" id="input_place" bind:value={place_value} placeholder="Enter place ..." />
+                <button on:click={() => place_value = ''}>x</button>
+              </div><br />
+              <div class="input-container block">
+                <input type="text" id="input_weekday" bind:value={weekday_value} placeholder="Enter weekday ..." />
+                <button on:click={() => weekday_value = ''}>x</button>
+              </div><br />
+              <div class="input-container block">
+                <input type="text" id="input_hour" bind:value={hour_value} placeholder="Enter time (hhmm) ..." />
+                <button on:click={() => hour_value = ''}>x</button>
+              </div><br />
 
-        <Button
-          class="menu_item menu_button"
-          color="secondary"
-          on:click={applyFilters}
-          variant="raised"
-        >
-          <span class="resize-text">Apply ONLY Filters</span>
-        </Button>
-      {/if}
+              <Button
+                class="block"
+                color="secondary"
+                on:click={applyFilters}
+                variant="raised"
+              >
+                <span class="resize-text">Apply ONLY Filters</span>
+              </Button>
 
-      <!-- <canvas class="menu_item" id="myChart"></canvas>
-      <div id="customLegend" class="menu_item"></div>
-      {#key filtered_lables}
-        {#if filtered_lables.length > 0}
-          <p>Active label filter</p>
-        {/if}
-        {#each filtered_lables as label} -->
-          <!-- svelte-ignore a11y-click-events-have-key-events -->
-          <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-          <!-- <p class="active_label" on:click={() => label_click(label)}>
-            {file_labels[label]}
-          </p>
-        {/each}
-      {/key} -->
-
-      <div>
-        <FormField align="end">
-          <Checkbox id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames} on:change={reloading_display} />
-          <span slot="label">Limit Frames per Video to 1</span>
-        </FormField>
-
-        <br />
-
-        <FormField align="end">
-          <Checkbox id="image_video_on_line" name="image_video_on_line" bind:checked={image_video_on_line} on:change={reloading_display} />
-          <span slot="label">
-            {#if value_dataset === 'LSC'}
-              Images from same day on one line
-            {:else}
-              Images from video on one line
+              <hr />
             {/if}
-          </span>
-        </FormField>
 
-        <br />
+            {#if value_dataset === 'LSC'}
+              <canvas class="menu_item" id="myChart"></canvas>
+              <div id="customLegend" class="menu_item"></div>
+              {#key filtered_lables}
+                {#if filtered_lables.length > 0}
+                  <p>Active label filter</p>
+                {/if}
+                {#each filtered_lables as label}
+                  <!-- svelte-ignore a11y-click-events-have-key-events -->
+                  <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+                  <p class="active_label" on:click={() => label_click(label)}>
+                    {file_labels[label]}
+                  </p>
+                {/each}
+              {/key}
+            {/if}
 
-        {#if value_dataset === 'LSC'}
-          <FormField align="end">
-            <Checkbox id="image_hour_on_line" name="image_hour_on_line" bind:checked={image_hour_on_line} on:change={reloading_display} />
-            <span slot="label">Images from same hour on one line</span>
-          </FormField>
-          <br />
-        {/if}
+            <div>
+              <FormField align="end">
+                <Checkbox id="unique_video_frames" name="unique_video_frames" bind:checked={unique_video_frames} on:change={reloading_display_unique} />
+                <span slot="label">Limit Frames per Video to 1</span>
+              </FormField>
 
-        <Textfield bind:value={max_labels} class="block" label="Labels per Frame" type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="10" />
-      </div>
+              <br />
 
-      {#if prepared_display !== null}
-        <hr/>
-        <p>
-          Showing Image Rows {start+1}-{end}.
-          <br />
-          Total Images: {prepared_display.reduce(
-            (count, current) => count + current.length,
-            0,
-          )}
-        </p>
-      {/if}
-    </div>
-    
-    <div id="image-results">
-      {#if prepared_display === null}
-        <p>...loading</p>
-      {:else}
-        <VirtualList
-          items={prepared_display}
-          bind:this={virtual_list}
-          bind:start
-          bind:end
-          let:item
-        >
-          <ImageList
-            on:send_result={send_results_single}
-            on:similarimage={get_scores_by_image}
-            on:video_images={video_images}
-            row={item}
-            bind:row_size
-            labels={file_labels}
-          />
-        </VirtualList>
-      {/if}
-    </div>
+              <FormField align="end">
+                <Checkbox id="image_video_on_line" name="image_video_on_line" bind:checked={image_video_on_line} on:change={reloading_display_line} />
+                <span slot="label">
+                  {#if value_dataset === 'LSC'}
+                    Images from same day on one line
+                  {:else}
+                    Images from video on one line
+                  {/if}
+                </span>
+              </FormField>
+
+              <br />
+
+              {#if value_dataset === 'LSC'}
+                <FormField align="end">
+                  <Checkbox id="image_hour_on_line" name="image_hour_on_line" bind:checked={image_hour_on_line} on:change={reloading_display} />
+                  <span slot="label">Images from same hour on one line</span>
+                </FormField>
+                <br />
+              {/if}
+
+              <Textfield bind:value={MAX_LABELS} class="block" label="Labels per Frame" type="number" id="labels_per_frame" name="labels_per_frame" min="1" max="10" />
+            </div>
+
+            {#if prepared_display !== null}
+              <hr/>
+              <p>
+                Showing Image Rows {start+1}-{end}.
+                <br />
+                Total Images: {prepared_display.reduce(
+                  (count, current) => count + current.length,
+                  0,
+                )}
+              </p>
+            {/if}
+        </div>
+        <div id="image-results">
+          {#if prepared_display === null}
+            <p>...loading</p>
+          {:else}
+            <VirtualList
+              items={prepared_display}
+              bind:this={virtual_list}
+              bind:start
+              bind:end
+              let:item
+            >
+              <ImageList
+                on:send_result={send_results_single}
+                on:send_result_videoframe={send_results_single_frame}
+                on:similarimage={get_scores_by_image}
+                on:video_images={video_images}
+                row={item}
+                bind:ROW_SIZE
+                labels={file_labels}
+              />
+            </VirtualList>
+          {/if}
+        </div>
   </main>
 {:else}
-  <Login on:loginSuccess={handleLoginSuccess} />
+  <main>
+    <Login on:loginSuccess={handleLoginSuccess} />
+  </main>
 {/if}
 
 <style>
@@ -1914,5 +2105,5 @@
 
   .green {
         color: green;
-    }
+  }
 </style>

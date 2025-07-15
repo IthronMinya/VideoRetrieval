@@ -35,4 +35,4 @@ COPY ./main.py ./main.py
 RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
 
 # Start the FastAPI application when the container is run
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"] 

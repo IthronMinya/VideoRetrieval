@@ -118,9 +118,6 @@
 			while (i < items.length) height_map[i++] = average_height;
 			bottom = remaining * average_height;
 		}, 50);
-		// TODO if we overestimated the space these
-		// rows would occupy we may need to add some
-		// more. maybe we can just call handle_scroll again?
 	}
 
 	export async function scrollToScrollHeight (pixels, opts) {
@@ -132,6 +129,18 @@
 		};
 		viewport.scrollTo(opts);
 	}
+
+
+        export async function scrollToRow (row, opts) {
+                const row_pixels = row * 204;
+                opts = {
+                        left: 0,
+                        top: row_pixels,
+                        behavior: 'smooth',
+                        ...opts
+                };
+                viewport.scrollTo(opts);
+        }
 
 	export async function scrollToIndex (index, opts) {
 		const {scrollTop, scrollHeight} = viewport;
